@@ -40,7 +40,6 @@ interface SummaryStatsProps {
   totalOrders: number;
   totalPickingHours: number;
   totalPackingHours: number;
-  avgSph: number;
   merchantCount: number;
   nonProdHeadcount: number;
   onNonProdHeadcountChange: (value: number) => void;

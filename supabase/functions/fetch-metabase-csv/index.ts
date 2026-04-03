@@ -1,4 +1,7 @@
-import { corsHeaders } from '@supabase/supabase-js/cors'
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 const CSV_URL =
   "https://hive-technologies.metabaseapp.com/public/question/a74bb567-12c7-46b9-a7ee-82ce02f698ee.csv";

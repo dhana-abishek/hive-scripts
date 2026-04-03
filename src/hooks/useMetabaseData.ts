@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { pickingBenchmarks, packingBenchmarks } from "@/data/warehouseData";
 import { calculateFlowManagement, buildLookup } from "@/lib/warehouseProcessing";
 
-const CSV_URL =
-  "https://hive-technologies.metabaseapp.com/public/question/a74bb567-12c7-46b9-a7ee-82ce02f698ee.csv";
+import { supabase } from "@/integrations/supabase/client";
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 interface MerchantAgg {

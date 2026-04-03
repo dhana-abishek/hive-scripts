@@ -1,22 +1,25 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2 } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable } from "@/components/BenchmarkTable";
-import { flowManagementData, pickingBenchmarks, packingBenchmarks } from "@/data/warehouseData";
+import { pickingBenchmarks, packingBenchmarks } from "@/data/warehouseData";
+import { useMetabaseData } from "@/hooks/useMetabaseData";
 
 const Index = () => {
+  const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData();
+
   const stats = useMemo(() => {
-    const totalOrders = flowManagementData.reduce((s, r) => s + r.order_volume, 0);
-    const totalPickingHours = flowManagementData.reduce((s, r) => s + r.picking_hours, 0);
-    const totalPackingHours = flowManagementData.reduce((s, r) => s + r.packing_hours, 0);
-    const activeMerchants = flowManagementData.filter((r) => r.order_volume > 0);
+    const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
+    const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);
+    const totalPackingHours = flowData.reduce((s, r) => s + r.packing_hours, 0);
+    const activeMerchants = flowData.filter((r) => r.order_volume > 0);
     const avgSph = activeMerchants.length > 0
       ? activeMerchants.reduce((s, r) => s + r.ideal_sph, 0) / activeMerchants.length
       : 0;
-    return { totalOrders, totalPickingHours, totalPackingHours, avgSph, merchantCount: flowManagementData.length };
-  }, []);
+    return { totalOrders, totalPickingHours, totalPackingHours, avgSph, merchantCount: flowData.length };
+  }, [flowData]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -32,15 +35,41 @@ const Index = () => {
               <p className="text-xs text-muted-foreground">Operations Dashboard</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-xs text-muted-foreground">Live</span>
+          <div className="flex items-center gap-3">
+            {/* Refresh button & status */}
+            <button
+              onClick={refresh}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <RefreshCw size={12} />
+              )}
+              Refresh
+            </button>
+            {lastUpdated && (
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                Updated {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <span className="text-xs text-muted-foreground">Live</span>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        {error && (
+          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            Failed to fetch live data: {error}. Showing cached data.
+          </div>
+        )}
+
         <SummaryStats {...stats} />
 
         <Tabs defaultValue="flow" className="space-y-4">
@@ -57,7 +86,14 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="flow">
-            <FlowManagementTable data={flowManagementData} />
+            {isLoading && flowData.length === 0 ? (
+              <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
+                <Loader2 size={16} className="animate-spin" />
+                <span className="text-sm">Loading live data from Metabase...</span>
+              </div>
+            ) : (
+              <FlowManagementTable data={flowData} />
+            )}
           </TabsContent>
 
           <TabsContent value="picking">

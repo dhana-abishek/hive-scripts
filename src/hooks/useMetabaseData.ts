@@ -96,7 +96,6 @@ export function useMetabaseData(): MetabaseDataResult {
 
       const text = typeof data === "string" ? data : await data.text();
       const merchants = parseCSV(text);
-      const merchants = parseCSV(text);
 
       if (merchants.length === 0) {
         throw new Error("No data returned from Metabase");

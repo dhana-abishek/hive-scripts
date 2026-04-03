@@ -45,7 +45,42 @@ interface SummaryStatsProps {
   onNonProdHeadcountChange: (value: number) => void;
 }
 
-const TIME_LEFT = 8;
+function calcTimeLeft(): number {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun, 6=Sat
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  const nowFrac = (h * 3600 + m * 60 + s) / 86400; // fraction of day
+
+  const t = (hh: number, mm: number, ss: number) => (hh * 3600 + mm * 60 + ss) / 86400;
+
+  const start = t(8, 10, 0);
+  const lunchStart = t(12, 0, 0);
+  const lunchEnd = t(12, 30, 0);
+  const lunchDur = t(0, 30, 0);
+
+  if (day === 0) return 8; // Sunday
+  if (nowFrac < start) return 8; // before shift
+
+  const endTime = day === 6 ? t(15, 0, 0) : t(16, 40, 0);
+  if (nowFrac >= endTime) return 8; // after shift ends → next day
+
+  const totalShift = (endTime - start - lunchDur) * 24;
+
+  let elapsed: number;
+  if (nowFrac < lunchStart) {
+    elapsed = (nowFrac - start) * 24;
+  } else if (nowFrac < lunchEnd) {
+    elapsed = (lunchStart - start) * 24;
+  } else {
+    elapsed = (lunchStart - start) * 24 + (nowFrac - lunchEnd) * 24;
+  }
+
+  return Math.max(0, totalShift - elapsed);
+}
+
+const TIME_LEFT = calcTimeLeft();
 
 export function SummaryStats({
   totalOrders,

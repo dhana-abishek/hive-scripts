@@ -91,10 +91,11 @@ export function useMetabaseData(): MetabaseDataResult {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(CSV_URL);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const { data, error: fnError } = await supabase.functions.invoke("fetch-metabase-csv");
+      if (fnError) throw new Error(fnError.message || "Edge function error");
 
-      const text = await response.text();
+      const text = typeof data === "string" ? data : await data.text();
+      const merchants = parseCSV(text);
       const merchants = parseCSV(text);
 
       if (merchants.length === 0) {

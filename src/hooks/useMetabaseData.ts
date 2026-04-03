@@ -1,0 +1,132 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { pickingBenchmarks, packingBenchmarks } from "@/data/warehouseData";
+import { calculateFlowManagement, buildLookup } from "@/lib/warehouseProcessing";
+
+const CSV_URL =
+  "https://hive-technologies.metabaseapp.com/public/question/a74bb567-12c7-46b9-a7ee-82ce02f698ee.csv";
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+interface MerchantAgg {
+  merchant_name: string;
+  order_volume: number;
+  waiting_for_picking: number;
+}
+
+function parseCSV(text: string): MerchantAgg[] {
+  const lines = text.trim().split("\n");
+  if (lines.length < 2) return [];
+
+  // Skip header row
+  const merchantMap = new Map<string, { totals: number; waiting: number }>();
+
+  for (let i = 1; i < lines.length; i++) {
+    // Parse CSV handling potential commas in quoted fields
+    const row = lines[i];
+    const cols = parseCSVRow(row);
+    if (cols.length < 5) continue;
+
+    const merchant = cols[0].trim();
+    const status = cols[1].trim();
+    const shipmentCount = parseInt(cols[2], 10) || 0;
+    const totals = parseInt(cols[4], 10) || 0;
+
+    if (!merchantMap.has(merchant)) {
+      merchantMap.set(merchant, { totals, waiting: 0 });
+    }
+
+    const entry = merchantMap.get(merchant)!;
+    entry.totals = totals; // totals is the same for all rows of a merchant
+
+    if (status === "waiting_for_picking") {
+      entry.waiting += shipmentCount;
+    }
+  }
+
+  return Array.from(merchantMap.entries()).map(([name, data]) => ({
+    merchant_name: name,
+    order_volume: data.totals,
+    waiting_for_picking: data.waiting,
+  }));
+}
+
+function parseCSVRow(row: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+export interface MetabaseDataResult {
+  flowData: ReturnType<typeof calculateFlowManagement>;
+  isLoading: boolean;
+  error: string | null;
+  lastUpdated: Date | null;
+  refresh: () => void;
+}
+
+export function useMetabaseData(): MetabaseDataResult {
+  const [flowData, setFlowData] = useState<ReturnType<typeof calculateFlowManagement>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const pickLookup = useRef(buildLookup(pickingBenchmarks));
+  const packLookup = useRef(buildLookup(packingBenchmarks));
+
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch(CSV_URL);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const text = await response.text();
+      const merchants = parseCSV(text);
+
+      if (merchants.length === 0) {
+        throw new Error("No data returned from Metabase");
+      }
+
+      const calculated = calculateFlowManagement(
+        merchants,
+        pickLookup.current,
+        packLookup.current
+      );
+
+      // Sort by order volume desc
+      calculated.sort((a, b) => b.order_volume - a.order_volume);
+
+      setFlowData(calculated);
+      setLastUpdated(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch data");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    intervalRef.current = setInterval(fetchData, REFRESH_INTERVAL);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [fetchData]);
+
+  return { flowData, isLoading, error, lastUpdated, refresh: fetchData };
+}

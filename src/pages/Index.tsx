@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2 } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
@@ -9,16 +9,13 @@ import { useMetabaseData } from "@/hooks/useMetabaseData";
 
 const Index = () => {
   const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData();
+  const [nonProdHeadcount, setNonProdHeadcount] = useState(0);
 
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
     const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);
     const totalPackingHours = flowData.reduce((s, r) => s + r.packing_hours, 0);
-    const activeMerchants = flowData.filter((r) => r.order_volume > 0);
-    const avgSph = activeMerchants.length > 0
-      ? activeMerchants.reduce((s, r) => s + r.ideal_sph, 0) / activeMerchants.length
-      : 0;
-    return { totalOrders, totalPickingHours, totalPackingHours, avgSph, merchantCount: flowData.length };
+    return { totalOrders, totalPickingHours, totalPackingHours, merchantCount: flowData.length };
   }, [flowData]);
 
   return (
@@ -70,7 +67,7 @@ const Index = () => {
           </div>
         )}
 
-        <SummaryStats {...stats} />
+        <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={setNonProdHeadcount} />
 
         <Tabs defaultValue="flow" className="space-y-4">
           <TabsList className="bg-secondary border border-border">

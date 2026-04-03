@@ -36,7 +36,7 @@ function parseCSV(text: string): MerchantAgg[] {
     const entry = merchantMap.get(merchant)!;
     entry.totals = totals; // totals is the same for all rows of a merchant
 
-    if (status === "waiting_for_picking") {
+    if (status === "waiting_for_picking" || status === "needs_reshuffling") {
       entry.waiting += shipmentCount;
     }
   }

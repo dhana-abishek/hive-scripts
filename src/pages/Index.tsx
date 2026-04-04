@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2 } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable } from "@/components/BenchmarkTable";
+import { ZoneView } from "@/components/ZoneView";
 import { pickingBenchmarks, packingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 
@@ -74,6 +75,12 @@ const Index = () => {
             <TabsTrigger value="flow" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Activity size={14} /> Flow Management
             </TabsTrigger>
+            <TabsTrigger value="zoneA" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <MapPin size={14} /> Zone A
+            </TabsTrigger>
+            <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <MapPin size={14} /> Zone B
+            </TabsTrigger>
             <TabsTrigger value="picking" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <BarChart3 size={14} /> Pick Benchmark
             </TabsTrigger>
@@ -91,6 +98,13 @@ const Index = () => {
             ) : (
               <FlowManagementTable data={flowData} />
             )}
+          </TabsContent>
+          <TabsContent value="zoneA">
+            <ZoneView zone="A" flowData={flowData} timeLeft={0} />
+          </TabsContent>
+
+          <TabsContent value="zoneB">
+            <ZoneView zone="B" flowData={flowData} timeLeft={0} />
           </TabsContent>
 
           <TabsContent value="picking">

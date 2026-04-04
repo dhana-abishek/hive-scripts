@@ -107,7 +107,7 @@ const Index = () => {
             <ZoneView zone="B" flowData={flowData} timeLeft={0} />
           </TabsContent>
 
-
+          <TabsContent value="picking">
             <BenchmarkTable
               title="Picking Benchmark (SPH)"
               data={pickingBenchmarks}

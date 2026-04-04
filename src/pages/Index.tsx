@@ -75,6 +75,12 @@ const Index = () => {
             <TabsTrigger value="flow" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Activity size={14} /> Flow Management
             </TabsTrigger>
+            <TabsTrigger value="zoneA" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <MapPin size={14} /> Zone A
+            </TabsTrigger>
+            <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <MapPin size={14} /> Zone B
+            </TabsTrigger>
             <TabsTrigger value="picking" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <BarChart3 size={14} /> Pick Benchmark
             </TabsTrigger>

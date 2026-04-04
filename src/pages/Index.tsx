@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2 } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable } from "@/components/BenchmarkTable";
+import { ZoneView } from "@/components/ZoneView";
 import { pickingBenchmarks, packingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 

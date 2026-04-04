@@ -99,8 +99,15 @@ const Index = () => {
               <FlowManagementTable data={flowData} />
             )}
           </TabsContent>
+          <TabsContent value="zoneA">
+            <ZoneView zone="A" flowData={flowData} timeLeft={0} />
+          </TabsContent>
 
-          <TabsContent value="picking">
+          <TabsContent value="zoneB">
+            <ZoneView zone="B" flowData={flowData} timeLeft={0} />
+          </TabsContent>
+
+
             <BenchmarkTable
               title="Picking Benchmark (SPH)"
               data={pickingBenchmarks}

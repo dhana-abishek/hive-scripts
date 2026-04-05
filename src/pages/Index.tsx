@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
@@ -24,8 +24,6 @@ const Index = () => {
   const [pickActiveId, setPickActiveId] = useState<string | null>(null);
   const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);
   const [packActiveId, setPackActiveId] = useState<string | null>(null);
-  const idbLoaded = useRef(false);
-
   // Load all from IndexedDB on mount
   useEffect(() => {
     (async () => {
@@ -41,9 +39,40 @@ const Index = () => {
       if (pku) setPackUploads(pku);
       if (pka) setPackActiveId(pka);
       if (hc !== null) setNonProdHeadcount(hc);
-      idbLoaded.current = true;
     })();
   }, []);
+
+  useEffect(() => {
+    if (pickUploads.length === 0) {
+      if (pickActiveId !== null) {
+        setPickActiveId(null);
+        void idbRemove(PICK_ACTIVE_KEY);
+      }
+      return;
+    }
+
+    if (!pickActiveId || !pickUploads.some((upload) => upload.id === pickActiveId)) {
+      const fallbackId = pickUploads[pickUploads.length - 1].id;
+      setPickActiveId(fallbackId);
+      void idbSet(PICK_ACTIVE_KEY, fallbackId);
+    }
+  }, [pickUploads, pickActiveId]);
+
+  useEffect(() => {
+    if (packUploads.length === 0) {
+      if (packActiveId !== null) {
+        setPackActiveId(null);
+        void idbRemove(PACK_ACTIVE_KEY);
+      }
+      return;
+    }
+
+    if (!packActiveId || !packUploads.some((upload) => upload.id === packActiveId)) {
+      const fallbackId = packUploads[packUploads.length - 1].id;
+      setPackActiveId(fallbackId);
+      void idbSet(PACK_ACTIVE_KEY, fallbackId);
+    }
+  }, [packUploads, packActiveId]);
 
   const activePick = pickUploads.find((u) => u.id === pickActiveId);
   const activePack = packUploads.find((u) => u.id === packActiveId);
@@ -62,86 +91,74 @@ const Index = () => {
   };
 
   // Pick handlers
-  const handlePickNewUpload = useCallback((upload: BenchmarkUpload) => {
-    setPickUploads((prev) => {
-      const next = [...prev, upload];
-      idbSet(PICK_UPLOADS_KEY, next);
-      return next;
-    });
+  const handlePickNewUpload = useCallback(async (upload: BenchmarkUpload) => {
+    const next = [...pickUploads, upload];
+    await Promise.all([
+      idbSet(PICK_UPLOADS_KEY, next),
+      idbSet(PICK_ACTIVE_KEY, upload.id),
+    ]);
+    setPickUploads(next);
     setPickActiveId(upload.id);
-    idbSet(PICK_ACTIVE_KEY, upload.id);
-  }, []);
-
-  const handlePickSelect = useCallback((id: string) => {
-    setPickActiveId(id);
-    idbSet(PICK_ACTIVE_KEY, id);
-  }, []);
-
-  const handlePickRename = useCallback((id: string, newName: string) => {
-    setPickUploads((prev) => {
-      const next = prev.map((u) => u.id === id ? { ...u, name: newName } : u);
-      idbSet(PICK_UPLOADS_KEY, next);
-      return next;
-    });
-  }, []);
-
-  const handlePickDelete = useCallback((id: string) => {
-    setPickUploads((prev) => {
-      const next = prev.filter((u) => u.id !== id);
-      idbSet(PICK_UPLOADS_KEY, next);
-      return next;
-    });
-    setPickActiveId((curr) => {
-      if (curr === id) {
-        const remaining = pickUploads.filter((u) => u.id !== id);
-        const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-        if (newId) idbSet(PICK_ACTIVE_KEY, newId); else idbRemove(PICK_ACTIVE_KEY);
-        return newId;
-      }
-      return curr;
-    });
   }, [pickUploads]);
 
-  // Pack handlers
-  const handlePackNewUpload = useCallback((upload: BenchmarkUpload) => {
-    setPackUploads((prev) => {
-      const next = [...prev, upload];
-      idbSet(PACK_UPLOADS_KEY, next);
-      return next;
-    });
-    setPackActiveId(upload.id);
-    idbSet(PACK_ACTIVE_KEY, upload.id);
+  const handlePickSelect = useCallback(async (id: string) => {
+    await idbSet(PICK_ACTIVE_KEY, id);
+    setPickActiveId(id);
   }, []);
 
-  const handlePackDelete = useCallback((id: string) => {
-    setPackUploads((prev) => {
-      const next = prev.filter((u) => u.id !== id);
-      idbSet(PACK_UPLOADS_KEY, next);
-      return next;
-    });
-    setPackActiveId((curr) => {
-      if (curr === id) {
-        const remaining = packUploads.filter((u) => u.id !== id);
-        const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-        if (newId) idbSet(PACK_ACTIVE_KEY, newId); else idbRemove(PACK_ACTIVE_KEY);
-        return newId;
-      }
-      return curr;
-    });
+  const handlePickRename = useCallback(async (id: string, newName: string) => {
+    const next = pickUploads.map((u) => u.id === id ? { ...u, name: newName } : u);
+    await idbSet(PICK_UPLOADS_KEY, next);
+    setPickUploads(next);
+  }, [pickUploads]);
+
+  const handlePickDelete = useCallback(async (id: string) => {
+    const next = pickUploads.filter((u) => u.id !== id);
+    const newActiveId = pickActiveId === id ? (next.length > 0 ? next[next.length - 1].id : null) : pickActiveId;
+
+    await Promise.all([
+      idbSet(PICK_UPLOADS_KEY, next),
+      newActiveId ? idbSet(PICK_ACTIVE_KEY, newActiveId) : idbRemove(PICK_ACTIVE_KEY),
+    ]);
+
+    setPickUploads(next);
+    setPickActiveId(newActiveId);
+  }, [pickUploads, pickActiveId]);
+
+  // Pack handlers
+  const handlePackNewUpload = useCallback(async (upload: BenchmarkUpload) => {
+    const next = [...packUploads, upload];
+    await Promise.all([
+      idbSet(PACK_UPLOADS_KEY, next),
+      idbSet(PACK_ACTIVE_KEY, upload.id),
+    ]);
+    setPackUploads(next);
+    setPackActiveId(upload.id);
   }, [packUploads]);
 
-  const handlePackSelect = useCallback((id: string) => {
+  const handlePackDelete = useCallback(async (id: string) => {
+    const next = packUploads.filter((u) => u.id !== id);
+    const newActiveId = packActiveId === id ? (next.length > 0 ? next[next.length - 1].id : null) : packActiveId;
+
+    await Promise.all([
+      idbSet(PACK_UPLOADS_KEY, next),
+      newActiveId ? idbSet(PACK_ACTIVE_KEY, newActiveId) : idbRemove(PACK_ACTIVE_KEY),
+    ]);
+
+    setPackUploads(next);
+    setPackActiveId(newActiveId);
+  }, [packUploads, packActiveId]);
+
+  const handlePackSelect = useCallback(async (id: string) => {
+    await idbSet(PACK_ACTIVE_KEY, id);
     setPackActiveId(id);
-    idbSet(PACK_ACTIVE_KEY, id);
   }, []);
 
-  const handlePackRename = useCallback((id: string, newName: string) => {
-    setPackUploads((prev) => {
-      const next = prev.map((u) => u.id === id ? { ...u, name: newName } : u);
-      idbSet(PACK_UPLOADS_KEY, next);
-      return next;
-    });
-  }, []);
+  const handlePackRename = useCallback(async (id: string, newName: string) => {
+    const next = packUploads.map((u) => u.id === id ? { ...u, name: newName } : u);
+    await idbSet(PACK_UPLOADS_KEY, next);
+    setPackUploads(next);
+  }, [packUploads]);
 
   const [backlog, setBacklog] = useState<Record<string, number>>({});
 

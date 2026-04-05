@@ -304,6 +304,10 @@ const Index = () => {
           <TabsContent value="aging">
             <AgingOrders pickingRates={pickingRates} packingRates={packingRates} />
           </TabsContent>
+
+          <TabsContent value="performance">
+            <PerformanceTracker />
+          </TabsContent>
         </Tabs>
       </main>
     </div>

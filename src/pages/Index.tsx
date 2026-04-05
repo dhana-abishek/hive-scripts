@@ -65,22 +65,22 @@ const Index = () => {
   const handlePickNewUpload = useCallback((upload: BenchmarkUpload) => {
     setPickUploads((prev) => {
       const next = [...prev, upload];
-      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PICK_UPLOADS_KEY, next);
       return next;
     });
     setPickActiveId(upload.id);
-    localStorage.setItem(PICK_ACTIVE_KEY, upload.id);
+    idbSet(PICK_ACTIVE_KEY, upload.id);
   }, []);
 
   const handlePickSelect = useCallback((id: string) => {
     setPickActiveId(id);
-    localStorage.setItem(PICK_ACTIVE_KEY, id);
+    idbSet(PICK_ACTIVE_KEY, id);
   }, []);
 
   const handlePickRename = useCallback((id: string, newName: string) => {
     setPickUploads((prev) => {
       const next = prev.map((u) => u.id === id ? { ...u, name: newName } : u);
-      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PICK_UPLOADS_KEY, next);
       return next;
     });
   }, []);
@@ -88,14 +88,14 @@ const Index = () => {
   const handlePickDelete = useCallback((id: string) => {
     setPickUploads((prev) => {
       const next = prev.filter((u) => u.id !== id);
-      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PICK_UPLOADS_KEY, next);
       return next;
     });
     setPickActiveId((curr) => {
       if (curr === id) {
         const remaining = pickUploads.filter((u) => u.id !== id);
         const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-        if (newId) localStorage.setItem(PICK_ACTIVE_KEY, newId); else localStorage.removeItem(PICK_ACTIVE_KEY);
+        if (newId) idbSet(PICK_ACTIVE_KEY, newId); else idbRemove(PICK_ACTIVE_KEY);
         return newId;
       }
       return curr;
@@ -106,24 +106,24 @@ const Index = () => {
   const handlePackNewUpload = useCallback((upload: BenchmarkUpload) => {
     setPackUploads((prev) => {
       const next = [...prev, upload];
-      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PACK_UPLOADS_KEY, next);
       return next;
     });
     setPackActiveId(upload.id);
-    localStorage.setItem(PACK_ACTIVE_KEY, upload.id);
+    idbSet(PACK_ACTIVE_KEY, upload.id);
   }, []);
 
   const handlePackDelete = useCallback((id: string) => {
     setPackUploads((prev) => {
       const next = prev.filter((u) => u.id !== id);
-      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PACK_UPLOADS_KEY, next);
       return next;
     });
     setPackActiveId((curr) => {
       if (curr === id) {
         const remaining = packUploads.filter((u) => u.id !== id);
         const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-        if (newId) localStorage.setItem(PACK_ACTIVE_KEY, newId); else localStorage.removeItem(PACK_ACTIVE_KEY);
+        if (newId) idbSet(PACK_ACTIVE_KEY, newId); else idbRemove(PACK_ACTIVE_KEY);
         return newId;
       }
       return curr;
@@ -132,20 +132,23 @@ const Index = () => {
 
   const handlePackSelect = useCallback((id: string) => {
     setPackActiveId(id);
-    localStorage.setItem(PACK_ACTIVE_KEY, id);
+    idbSet(PACK_ACTIVE_KEY, id);
   }, []);
 
   const handlePackRename = useCallback((id: string, newName: string) => {
     setPackUploads((prev) => {
       const next = prev.map((u) => u.id === id ? { ...u, name: newName } : u);
-      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PACK_UPLOADS_KEY, next);
       return next;
     });
   }, []);
 
-  const [backlog, setBacklog] = useState<Record<string, number>>(() => {
-    try { return JSON.parse(localStorage.getItem("plannedBacklog") || "{}"); } catch { return {}; }
-  });
+  const [backlog, setBacklog] = useState<Record<string, number>>({});
+
+  // Load backlog from IDB
+  useEffect(() => {
+    idbGet<Record<string, number>>("plannedBacklog").then((v) => { if (v) setBacklog(v); });
+  }, []);
 
   const handleBacklogChange = useCallback((updated: Record<string, number>) => {
     setBacklog(updated);
@@ -153,7 +156,7 @@ const Index = () => {
 
   const handleResetBacklog = useCallback(() => {
     setBacklog({});
-    localStorage.setItem("plannedBacklog", "{}");
+    idbSet("plannedBacklog", {});
   }, []);
 
   const handleResetZoneBacklog = useCallback((zone: "A" | "B") => {

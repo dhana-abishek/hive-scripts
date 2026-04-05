@@ -145,7 +145,7 @@ export function SummaryStats({
           icon={<Timer size={16} />}
           subtext="Remaining shift hours"
         />
-        <div className="relative">
+        <div className="relative h-full">
           <StatCard
             label="Planned Backlog"
             value={totalPlannedBacklog.toLocaleString()}

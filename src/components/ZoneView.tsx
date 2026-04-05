@@ -248,7 +248,9 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
           <table className="w-full">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="border-b">
-                <th className="table-header px-3 py-2 text-center w-12">S.No</th>
+                <th className="table-header px-3 py-2 text-center w-12 cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("serial")}>
+                  <span className="inline-flex items-center gap-1">S.No <SortIcon col={"serial" as SortKey} /></span>
+                </th>
                 {columns.map((col) => (
                   <th
                     key={col.key}

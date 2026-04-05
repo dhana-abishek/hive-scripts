@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { pickingBenchmarks, packingBenchmarks } from "@/data/warehouseData";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { calculateFlowManagement, buildLookup } from "@/lib/warehouseProcessing";
+import type { BenchmarkEntry } from "@/types/warehouse";
 
 import { supabase } from "@/integrations/supabase/client";
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -76,15 +77,15 @@ export interface MetabaseDataResult {
   refresh: () => void;
 }
 
-export function useMetabaseData(): MetabaseDataResult {
-  const [flowData, setFlowData] = useState<ReturnType<typeof calculateFlowManagement>>([]);
+export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customPacking?: BenchmarkEntry[] | null): MetabaseDataResult {
+  const [rawMerchants, setRawMerchants] = useState<MerchantAgg[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const pickLookup = useRef(buildLookup(pickingBenchmarks));
-  const packLookup = useRef(buildLookup(packingBenchmarks));
+  const pickLookup = useMemo(() => buildLookup(customPicking ?? defaultPickingBenchmarks), [customPicking]);
+  const packLookup = useMemo(() => buildLookup(customPacking ?? defaultPackingBenchmarks), [customPacking]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -94,23 +95,13 @@ export function useMetabaseData(): MetabaseDataResult {
       const { data, error: fnError } = await supabase.functions.invoke("fetch-metabase-csv");
       if (fnError) throw new Error(fnError.message || "Edge function error");
 
-      const text = typeof data === "string" ? data : await data.text();
       const merchants = parseCSV(text);
 
       if (merchants.length === 0) {
         throw new Error("No data returned from Metabase");
       }
 
-      const calculated = calculateFlowManagement(
-        merchants,
-        pickLookup.current,
-        packLookup.current
-      );
-
-      // Sort by order volume desc
-      calculated.sort((a, b) => b.order_volume - a.order_volume);
-
-      setFlowData(calculated);
+      setRawMerchants(merchants);
       setLastUpdated(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch data");
@@ -126,6 +117,13 @@ export function useMetabaseData(): MetabaseDataResult {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [fetchData]);
+
+  const flowData = useMemo(() => {
+    if (rawMerchants.length === 0) return [];
+    const calculated = calculateFlowManagement(rawMerchants, pickLookup, packLookup);
+    calculated.sort((a, b) => b.order_volume - a.order_volume);
+    return calculated;
+  }, [rawMerchants, pickLookup, packLookup]);
 
   return { flowData, isLoading, error, lastUpdated, refresh: fetchData };
 }

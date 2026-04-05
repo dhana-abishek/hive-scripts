@@ -74,7 +74,7 @@ export function BenchmarkTable({ title, data, valueLabel, onUpload, onReset, isC
 
   return (
     <div className="space-y-3">
-      {unbenchmarkedStats && unbenchmarkedStats.count > 0 && (
+      {unbenchmarkedStats && (
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-md border bg-card p-3">
             <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Merchants Without Benchmark</p>

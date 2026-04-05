@@ -384,48 +384,59 @@ function AgingZoneView({
 
 // ─── Main AgingOrders component ───
 export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
-  const [rawData, setRawData] = useState<AgingRow[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_CSV);
-    if (saved) { try { return JSON.parse(saved) as AgingRow[]; } catch { return []; } }
-    return [];
-  });
-  const [hasFile, setHasFile] = useState(() => !!localStorage.getItem(STORAGE_KEY_CSV));
-  const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(STORAGE_KEY_START_DATE) || "");
-  const [endDate, setEndDate] = useState<string>(() => localStorage.getItem(STORAGE_KEY_END_DATE) || "");
+  const [rawData, setRawData] = useState<AgingRow[]>([]);
+  const [hasFile, setHasFile] = useState(false);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [sortKey, setSortKey] = useState<SortKey>("count_orders");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
-  const [backlog, setBacklog] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_BACKLOG);
-    if (saved) { try { return JSON.parse(saved); } catch { return {}; } }
-    return {};
-  });
+  const [backlog, setBacklog] = useState<Record<string, number>>({});
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [nonProdHC, setNonProdHC] = useState(() => {
-    const saved = localStorage.getItem("agingNonProdHC_main");
-    return saved !== null ? parseFloat(saved) : 12;
-  });
+  const [nonProdHC, setNonProdHC] = useState(12);
+  const idbLoaded = useRef(false);
+
+  // Load from IndexedDB on mount
+  useEffect(() => {
+    (async () => {
+      const [csv, bl, sd, ed, hc] = await Promise.all([
+        idbGet<AgingRow[]>(STORAGE_KEY_CSV),
+        idbGet<Record<string, number>>(STORAGE_KEY_BACKLOG),
+        idbGet<string>(STORAGE_KEY_START_DATE),
+        idbGet<string>(STORAGE_KEY_END_DATE),
+        idbGet<number>("agingNonProdHC_main"),
+      ]);
+      if (csv && csv.length > 0) { setRawData(csv); setHasFile(true); }
+      if (bl) setBacklog(bl);
+      if (sd) setStartDate(sd);
+      if (ed) setEndDate(ed);
+      if (hc !== null) setNonProdHC(hc);
+      idbLoaded.current = true;
+    })();
+  }, []);
 
   const handleNonProdChange = (val: number) => {
     setNonProdHC(val);
-    localStorage.setItem("agingNonProdHC_main", String(val));
+    idbSet("agingNonProdHC_main", val);
   };
 
   useEffect(() => {
+    if (!idbLoaded.current) return;
     if (rawData.length > 0 && !startDate && !endDate) {
       const d = uniqueDates(rawData);
       if (d.length > 0) {
         setStartDate(d[0]);
         setEndDate(d[d.length - 1]);
-        localStorage.setItem(STORAGE_KEY_START_DATE, d[0]);
-        localStorage.setItem(STORAGE_KEY_END_DATE, d[d.length - 1]);
+        idbSet(STORAGE_KEY_START_DATE, d[0]);
+        idbSet(STORAGE_KEY_END_DATE, d[d.length - 1]);
       }
     }
   }, [rawData, startDate, endDate]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_BACKLOG, JSON.stringify(backlog));
+    if (!idbLoaded.current) return;
+    idbSet(STORAGE_KEY_BACKLOG, backlog);
   }, [backlog]);
 
   const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -438,13 +449,13 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
       setRawData(parsed);
       setBacklog({});
       setHasFile(true);
-      localStorage.setItem(STORAGE_KEY_CSV, JSON.stringify(parsed));
-      localStorage.removeItem(STORAGE_KEY_BACKLOG);
+      idbSet(STORAGE_KEY_CSV, parsed);
+      idbRemove(STORAGE_KEY_BACKLOG);
       const dates = uniqueDates(parsed);
       if (dates.length > 0) {
         setStartDate(dates[0]); setEndDate(dates[dates.length - 1]);
-        localStorage.setItem(STORAGE_KEY_START_DATE, dates[0]);
-        localStorage.setItem(STORAGE_KEY_END_DATE, dates[dates.length - 1]);
+        idbSet(STORAGE_KEY_START_DATE, dates[0]);
+        idbSet(STORAGE_KEY_END_DATE, dates[dates.length - 1]);
       }
     };
     reader.readAsText(file);
@@ -457,10 +468,10 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     setHasFile(false);
     setStartDate("");
     setEndDate("");
-    localStorage.removeItem(STORAGE_KEY_CSV);
-    localStorage.removeItem(STORAGE_KEY_BACKLOG);
-    localStorage.removeItem(STORAGE_KEY_START_DATE);
-    localStorage.removeItem(STORAGE_KEY_END_DATE);
+    idbRemove(STORAGE_KEY_CSV);
+    idbRemove(STORAGE_KEY_BACKLOG);
+    idbRemove(STORAGE_KEY_START_DATE);
+    idbRemove(STORAGE_KEY_END_DATE);
   }, []);
 
   const handleBacklogChange = useCallback((merchant: string, val: number) => {

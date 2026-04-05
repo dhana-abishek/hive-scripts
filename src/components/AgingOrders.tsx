@@ -414,7 +414,12 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   useEffect(() => {
     if (rawData.length > 0 && !startDate && !endDate) {
       const d = uniqueDates(rawData);
-      if (d.length > 0) { setStartDate(d[0]); setEndDate(d[d.length - 1]); }
+      if (d.length > 0) {
+        setStartDate(d[0]);
+        setEndDate(d[d.length - 1]);
+        localStorage.setItem(STORAGE_KEY_START_DATE, d[0]);
+        localStorage.setItem(STORAGE_KEY_END_DATE, d[d.length - 1]);
+      }
     }
   }, [rawData, startDate, endDate]);
 

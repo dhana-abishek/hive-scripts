@@ -61,7 +61,7 @@ function calcTimeLeft(): number {
   return Math.max(0, totalShift - elapsed);
 }
 
-type SortKey = "name" | "order_volume" | "picking_hours" | "packing_hours" | "headcount";
+type SortKey = "serial" | "name" | "order_volume" | "picking_hours" | "packing_hours" | "headcount";
 
 export function ZoneView({ zone, flowData }: ZoneViewProps) {
   const [nonProdHC, setNonProdHC] = useState(() => {
@@ -73,8 +73,8 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
     setNonProdHC(val);
     localStorage.setItem(`nonProdHC_zone${zone}`, String(val));
   };
-  const [sortKey, setSortKey] = useState<SortKey>("order_volume");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [sortKey, setSortKey] = useState<SortKey>("serial");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [search, setSearch] = useState("");
 
   const timeLeft = calcTimeLeft();
@@ -139,12 +139,13 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
       const q = search.toLowerCase();
       result = result.filter((r) => r.name.toLowerCase().includes(q));
     }
-    if (!search && sortKey === "name" && sortDir === "desc") {
-      // Default: use serial order
+    if (sortKey === "serial") {
       return [...result].sort((a, b) => {
         const ai = order.indexOf(a.name);
         const bi = order.indexOf(b.name);
-        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        const aIdx = ai === -1 ? 999 : ai;
+        const bIdx = bi === -1 ? 999 : bi;
+        return sortDir === "asc" ? aIdx - bIdx : bIdx - aIdx;
       });
     }
     return [...result].sort((a, b) => {
@@ -247,7 +248,9 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
           <table className="w-full">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="border-b">
-                <th className="table-header px-3 py-2 text-center w-12">S.No</th>
+                <th className="table-header px-3 py-2 text-center w-12 cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("serial")}>
+                  <span className="inline-flex items-center gap-1">S.No <SortIcon col={"serial" as SortKey} /></span>
+                </th>
                 {columns.map((col) => (
                   <th
                     key={col.key}

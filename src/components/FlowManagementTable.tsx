@@ -19,11 +19,12 @@ interface FlowManagementTableProps {
   }[];
   pickingRates?: Record<string, number>;
   packingRates?: Record<string, number>;
+  onBacklogChange?: (backlog: Record<string, number>) => void;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {} }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange }: FlowManagementTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
@@ -34,7 +35,8 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
   const saveBacklog = useCallback((updated: Record<string, number>) => {
     setBacklog(updated);
     localStorage.setItem(BACKLOG_KEY, JSON.stringify(updated));
-  }, []);
+    onBacklogChange?.(updated);
+  }, [onBacklogChange]);
 
   const handleStartEdit = (merchant: string) => {
     setEditingMerchant(merchant);

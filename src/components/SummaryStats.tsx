@@ -1,4 +1,4 @@
-import { Package, Clock, TrendingUp, Users, Timer, UserPlus } from "lucide-react";
+import { Package, Clock, TrendingUp, Users, Timer, UserPlus, ArrowDownToLine, Gauge } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface StatCardProps {
@@ -43,6 +43,8 @@ interface SummaryStatsProps {
   merchantCount: number;
   nonProdHeadcount: number;
   onNonProdHeadcountChange: (value: number) => void;
+  totalPlannedBacklog?: number;
+  adjustedSph?: number;
 }
 
 function calcTimeLeft(): number {
@@ -89,6 +91,8 @@ export function SummaryStats({
   merchantCount,
   nonProdHeadcount,
   onNonProdHeadcountChange,
+  totalPlannedBacklog = 0,
+  adjustedSph = 0,
 }: SummaryStatsProps) {
   const pickingHeadcount = Math.ceil(totalPickingHours / TIME_LEFT);
   const packingHeadcount = Math.ceil(totalPackingHours / TIME_LEFT);
@@ -125,7 +129,7 @@ export function SummaryStats({
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard
           label="Time Left"
           value={`${TIME_LEFT}h`}
@@ -137,6 +141,19 @@ export function SummaryStats({
           value={avgSph.toFixed(1)}
           icon={<TrendingUp size={16} />}
           subtext="Orders / (Pick + Pack + NonProd hrs)"
+          variant="success"
+        />
+        <StatCard
+          label="Planned Backlog"
+          value={totalPlannedBacklog.toLocaleString()}
+          icon={<ArrowDownToLine size={16} />}
+          subtext="Orders deferred"
+        />
+        <StatCard
+          label="Adjusted SPH"
+          value={adjustedSph.toFixed(1)}
+          icon={<Gauge size={16} />}
+          subtext="SPH after backlog"
           variant="success"
         />
         <div className="rounded-md border bg-card p-4 border-primary/30">

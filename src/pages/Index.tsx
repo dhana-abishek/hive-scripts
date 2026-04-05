@@ -130,12 +130,41 @@ const Index = () => {
     });
   }, []);
 
+  const [backlog, setBacklog] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem("plannedBacklog") || "{}"); } catch { return {}; }
+  });
+
+  const handleBacklogChange = useCallback((updated: Record<string, number>) => {
+    setBacklog(updated);
+  }, []);
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
     const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);
     const totalPackingHours = flowData.reduce((s, r) => s + r.packing_hours, 0);
-    return { totalOrders, totalPickingHours, totalPackingHours, merchantCount: flowData.length };
-  }, [flowData]);
+    const totalPlannedBacklog = flowData.reduce((s, r) => s + (backlog[r.merchant_name] || 0), 0);
+
+    // Adjusted SPH: recalculate with backlog-reduced volumes
+    const MULTIPLIER = 1.125;
+    let adjPickHrs = 0;
+    let adjPackHrs = 0;
+    let adjVolume = 0;
+    for (const r of flowData) {
+      const bl = backlog[r.merchant_name] || 0;
+      const effVol = Math.max(0, r.order_volume - bl);
+      const effWait = Math.max(0, r.waiting_for_picking - bl);
+      const pickRate = pickingRates[r.merchant_name];
+      const packRate = packingRates[r.merchant_name];
+      if (pickRate && packRate && pickRate > 0 && packRate > 0) {
+        adjPickHrs += effWait / (pickRate * MULTIPLIER);
+        adjPackHrs += effVol / (packRate * MULTIPLIER);
+        adjVolume += effVol;
+      }
+    }
+    const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8); // approximate time
+    const adjustedSph = adjDenom > 0 ? adjVolume / adjDenom : 0;
+
+    return { totalOrders, totalPickingHours, totalPackingHours, merchantCount: flowData.length, totalPlannedBacklog, adjustedSph };
+  }, [flowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -207,7 +236,7 @@ const Index = () => {
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} />
+              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">

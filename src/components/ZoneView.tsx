@@ -84,14 +84,14 @@ function calcTimeLeft(): number {
 type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
 export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog }: ZoneViewProps) {
-  const [nonProdHC, setNonProdHC] = useState(() => {
-    const saved = localStorage.getItem(`nonProdHC_zone${zone}`);
-    return saved !== null ? parseFloat(saved) : 6;
-  });
+  const [nonProdHC, setNonProdHC] = useState(6);
+  useEffect(() => {
+    idbGet<number>(`nonProdHC_zone${zone}`).then((v) => { if (v !== null) setNonProdHC(v); });
+  }, [zone]);
 
   const handleNonProdChange = (val: number) => {
     setNonProdHC(val);
-    localStorage.setItem(`nonProdHC_zone${zone}`, String(val));
+    idbSet(`nonProdHC_zone${zone}`, val);
   };
   const [sortKey, setSortKey] = useState<SortKey>("serial");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -102,7 +102,7 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
   const BACKLOG_KEY = "plannedBacklog";
 
   const saveBacklog = useCallback((updated: Record<string, number>) => {
-    localStorage.setItem(BACKLOG_KEY, JSON.stringify(updated));
+    idbSet(BACKLOG_KEY, updated);
     onBacklogChange?.(updated);
   }, [onBacklogChange]);
 

@@ -95,6 +95,28 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
   const [sortKey, setSortKey] = useState<SortKey>("serial");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [search, setSearch] = useState("");
+  const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const BACKLOG_KEY = "plannedBacklog";
+
+  const saveBacklog = useCallback((updated: Record<string, number>) => {
+    localStorage.setItem(BACKLOG_KEY, JSON.stringify(updated));
+    onBacklogChange?.(updated);
+  }, [onBacklogChange]);
+
+  const handleStartEdit = (merchant: string) => {
+    setEditingMerchant(merchant);
+    setEditValue(String(backlog[merchant] || 0));
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingMerchant) return;
+    const val = parseInt(editValue, 10);
+    const updated = { ...backlog, [editingMerchant]: isNaN(val) || val < 0 ? 0 : val };
+    saveBacklog(updated);
+    setEditingMerchant(null);
+  };
 
   const timeLeft = calcTimeLeft();
   const groups = zone === "A" ? zoneAGroups : zoneBGroups;

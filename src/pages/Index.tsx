@@ -241,7 +241,7 @@ const Index = () => {
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} />
+              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">

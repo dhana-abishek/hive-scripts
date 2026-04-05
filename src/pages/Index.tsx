@@ -76,7 +76,7 @@ const Index = () => {
           </div>
         )}
 
-        <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={setNonProdHeadcount} />
+        <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} />
 
         <Tabs defaultValue="flow" className="space-y-4">
           <TabsList className="bg-secondary border border-border">

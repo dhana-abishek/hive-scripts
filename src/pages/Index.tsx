@@ -72,6 +72,23 @@ const Index = () => {
     });
   }, []);
 
+  const handlePickDelete = useCallback((id: string) => {
+    setPickUploads((prev) => {
+      const next = prev.filter((u) => u.id !== id);
+      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      return next;
+    });
+    setPickActiveId((curr) => {
+      if (curr === id) {
+        const remaining = pickUploads.filter((u) => u.id !== id);
+        const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+        if (newId) localStorage.setItem(PICK_ACTIVE_KEY, newId); else localStorage.removeItem(PICK_ACTIVE_KEY);
+        return newId;
+      }
+      return curr;
+    });
+  }, [pickUploads]);
+
   // Pack handlers
   const handlePackNewUpload = useCallback((upload: BenchmarkUpload) => {
     setPackUploads((prev) => {
@@ -82,6 +99,23 @@ const Index = () => {
     setPackActiveId(upload.id);
     localStorage.setItem(PACK_ACTIVE_KEY, upload.id);
   }, []);
+
+  const handlePackDelete = useCallback((id: string) => {
+    setPackUploads((prev) => {
+      const next = prev.filter((u) => u.id !== id);
+      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      return next;
+    });
+    setPackActiveId((curr) => {
+      if (curr === id) {
+        const remaining = packUploads.filter((u) => u.id !== id);
+        const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+        if (newId) localStorage.setItem(PACK_ACTIVE_KEY, newId); else localStorage.removeItem(PACK_ACTIVE_KEY);
+        return newId;
+      }
+      return curr;
+    });
+  }, [packUploads]);
 
   const handlePackSelect = useCallback((id: string) => {
     setPackActiveId(id);
@@ -193,6 +227,7 @@ const Index = () => {
               onNewUpload={handlePickNewUpload}
               onSelectUpload={handlePickSelect}
               onRenameUpload={handlePickRename}
+              onDeleteUpload={handlePickDelete}
               liveFlowData={flowData}
             />
           </TabsContent>
@@ -207,6 +242,7 @@ const Index = () => {
               onNewUpload={handlePackNewUpload}
               onSelectUpload={handlePackSelect}
               onRenameUpload={handlePackRename}
+              onDeleteUpload={handlePackDelete}
               liveFlowData={flowData}
             />
           </TabsContent>

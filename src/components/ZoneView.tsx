@@ -4,6 +4,14 @@ import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
 import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 
+// HC grouping for Zone A: merchants in the same group share a single combined HC value
+const zoneAHCGroups: string[][] = [
+  ["Horl", "ela mo", "MagicHolz", "Hydraid"],
+  ["Dr. Emi", "Shyne"],
+  ["Multi Small", "Multi Big", "SIOP"],
+  ["HAFERLÖWE", "Matchday Nutrition"],
+];
+
 const zoneSerialOrder: Record<string, string[]> = {
   A: [
     "Horl", "ela mo", "MagicHolz", "Hydraid", "Beyond Drinks",

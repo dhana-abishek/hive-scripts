@@ -9,6 +9,8 @@ import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 const MULTIPLIER = 1.125;
 const STORAGE_KEY_CSV = "agingOrdersCsv";
 const STORAGE_KEY_BACKLOG = "agingOrdersBacklog";
+const STORAGE_KEY_START_DATE = "agingStartDate";
+const STORAGE_KEY_END_DATE = "agingEndDate";
 
 interface AgingRow {
   ready_for_fulfillment_at: string;

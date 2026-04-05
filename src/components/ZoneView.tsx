@@ -4,6 +4,18 @@ import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
 import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 
+const zoneSerialOrder: Record<string, string[]> = {
+  A: [
+    "Horl", "ela mo", "MagicHolz", "Hydraid", "Beyond Drinks",
+    "Dr. Emi", "Shyne", "Dr. Massing", "Yummyeats -Smarter Choices GmbH",
+    "Multi Small", "Multi Big", "SIOP", "HAFERLÖWE",
+    "Matchday Nutrition", "Inkster", "Lotuscrafts GmbH",
+  ],
+  B: [
+    "AVA & MAY", "thebettercat", "Multi", "Multi Critical", "Multi Sizzlepak",
+  ],
+};
+
 const zoneLookup = buildZoneLookup();
 
 interface FlowRow {
@@ -121,10 +133,19 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
   }, [zoneRows, nonProdHC, timeLeft]);
 
   const filtered = useMemo(() => {
+    const order = zoneSerialOrder[zone] || [];
     let result = zoneRows;
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((r) => r.name.toLowerCase().includes(q));
+    }
+    if (!search && sortKey === "name" && sortDir === "desc") {
+      // Default: use serial order
+      return [...result].sort((a, b) => {
+        const ai = order.indexOf(a.name);
+        const bi = order.indexOf(b.name);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
     }
     return [...result].sort((a, b) => {
       const av = a[sortKey];
@@ -132,7 +153,14 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
       if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
       return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
     });
-  }, [zoneRows, sortKey, sortDir, search]);
+  }, [zoneRows, sortKey, sortDir, search, zone]);
+
+  const serialMap = useMemo(() => {
+    const order = zoneSerialOrder[zone] || [];
+    const map: Record<string, number> = {};
+    order.forEach((name, i) => { map[name] = i + 1; });
+    return map;
+  }, [zone]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -219,6 +247,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
           <table className="w-full">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="border-b">
+                <th className="table-header px-3 py-2 text-center w-12">S.No</th>
                 {columns.map((col) => (
                   <th
                     key={col.key}
@@ -235,6 +264,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
             <tbody>
               {filtered.map((row) => (
                 <tr key={row.name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
+                  <td className="px-3 py-2 text-sm text-center text-muted-foreground">{serialMap[row.name] ?? ""}</td>
                   <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">
                     {row.isGroup && <span className="text-xs text-primary mr-1">●</span>}
                     {row.name}
@@ -247,6 +277,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
               ))}
               {/* Total row */}
               <tr className="border-t-2 border-primary/30 bg-secondary/30 font-bold">
+                <td className="px-3 py-2 text-sm text-center"></td>
                 <td className="px-3 py-2 text-sm">Total</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalOrders}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalPick.toFixed(2)}</td>

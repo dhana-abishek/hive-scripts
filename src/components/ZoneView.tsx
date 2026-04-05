@@ -273,19 +273,42 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
-                <tr key={row.name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
-                  <td className="px-3 py-2 text-sm text-center text-muted-foreground">{serialMap[row.name] ?? ""}</td>
-                  <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">
-                    {row.isGroup && <span className="text-xs text-primary mr-1">●</span>}
-                    {row.name}
-                  </td>
-                  <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
-                  <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
-                  <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
-                  <td className="table-cell px-3 py-2 text-right font-semibold">{row.headcount.toFixed(2)}</td>
-                </tr>
-              ))}
+              {(() => {
+                // Build HC group info for Zone A
+                const hcGroupMap: Record<string, { groupHC: number; size: number; index: number }> = {};
+                if (zone === "A") {
+                  for (const group of zoneAHCGroups) {
+                    const membersInFiltered = filtered.filter(r => group.includes(r.name));
+                    const groupHC = membersInFiltered.reduce((s, r) => s + r.headcount, 0);
+                    membersInFiltered.forEach((r, i) => {
+                      hcGroupMap[r.name] = { groupHC, size: membersInFiltered.length, index: i };
+                    });
+                  }
+                }
+                return filtered.map((row) => {
+                  const hcInfo = hcGroupMap[row.name];
+                  const showHC = !hcInfo || hcInfo.index === 0;
+                  const hcRowSpan = hcInfo && hcInfo.index === 0 ? hcInfo.size : 1;
+                  const hcValue = hcInfo ? hcInfo.groupHC : row.headcount;
+                  return (
+                    <tr key={row.name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
+                      <td className="px-3 py-2 text-sm text-center text-muted-foreground">{serialMap[row.name] ?? ""}</td>
+                      <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">
+                        {row.isGroup && <span className="text-xs text-primary mr-1">●</span>}
+                        {row.name}
+                      </td>
+                      <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
+                      <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
+                      <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
+                      {showHC && (
+                        <td className={`table-cell px-3 py-2 text-right font-semibold ${hcInfo ? "bg-secondary/30 border-l border-border/50" : ""}`} rowSpan={hcRowSpan}>
+                          {hcValue.toFixed(2)}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                });
+              })()}
               {/* Total row */}
               <tr className="border-t-2 border-primary/30 bg-secondary/30 font-bold">
                 <td className="px-3 py-2 text-sm text-center"></td>

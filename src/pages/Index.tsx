@@ -100,6 +100,23 @@ const Index = () => {
     localStorage.setItem(PACK_ACTIVE_KEY, upload.id);
   }, []);
 
+  const handlePackDelete = useCallback((id: string) => {
+    setPackUploads((prev) => {
+      const next = prev.filter((u) => u.id !== id);
+      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      return next;
+    });
+    setPackActiveId((curr) => {
+      if (curr === id) {
+        const remaining = packUploads.filter((u) => u.id !== id);
+        const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+        if (newId) localStorage.setItem(PACK_ACTIVE_KEY, newId); else localStorage.removeItem(PACK_ACTIVE_KEY);
+        return newId;
+      }
+      return curr;
+    });
+  }, [packUploads]);
+
   const handlePackSelect = useCallback((id: string) => {
     setPackActiveId(id);
     localStorage.setItem(PACK_ACTIVE_KEY, id);

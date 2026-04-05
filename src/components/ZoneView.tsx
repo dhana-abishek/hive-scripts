@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
+import { RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search, PackageMinus, ArrowDownToLine } from "lucide-react";
 import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
@@ -55,6 +57,8 @@ interface ZoneViewProps {
   backlog?: Record<string, number>;
   pickingRates?: Record<string, number>;
   packingRates?: Record<string, number>;
+  onBacklogChange?: (backlog: Record<string, number>) => void;
+  onResetZoneBacklog?: (zone: "A" | "B") => void;
 }
 
 function calcTimeLeft(): number {
@@ -78,7 +82,7 @@ function calcTimeLeft(): number {
 
 type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
-export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {} }: ZoneViewProps) {
+export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog }: ZoneViewProps) {
   const [nonProdHC, setNonProdHC] = useState(() => {
     const saved = localStorage.getItem(`nonProdHC_zone${zone}`);
     return saved !== null ? parseFloat(saved) : 6;
@@ -91,6 +95,28 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
   const [sortKey, setSortKey] = useState<SortKey>("serial");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [search, setSearch] = useState("");
+  const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const BACKLOG_KEY = "plannedBacklog";
+
+  const saveBacklog = useCallback((updated: Record<string, number>) => {
+    localStorage.setItem(BACKLOG_KEY, JSON.stringify(updated));
+    onBacklogChange?.(updated);
+  }, [onBacklogChange]);
+
+  const handleStartEdit = (merchant: string) => {
+    setEditingMerchant(merchant);
+    setEditValue(String(backlog[merchant] || 0));
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingMerchant) return;
+    const val = parseInt(editValue, 10);
+    const updated = { ...backlog, [editingMerchant]: isNaN(val) || val < 0 ? 0 : val };
+    saveBacklog(updated);
+    setEditingMerchant(null);
+  };
 
   const timeLeft = calcTimeLeft();
   const groups = zone === "A" ? zoneAGroups : zoneBGroups;
@@ -260,12 +286,25 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
           value={`${timeLeft.toFixed(1)}h`}
           icon={<Timer size={16} />}
         />
-        <StatCard
-          label="Planned Backlog"
-          value={totals.totalBacklog.toLocaleString()}
-          icon={<ArrowDownToLine size={16} />}
-          subtext="Orders deferred"
-        />
+        <div className="relative h-full">
+          <StatCard
+            label="Planned Backlog"
+            value={totals.totalBacklog.toLocaleString()}
+            icon={<ArrowDownToLine size={16} />}
+            subtext="Orders deferred"
+          />
+          {totals.totalBacklog > 0 && onResetZoneBacklog && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-8 right-2 h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+              onClick={() => onResetZoneBacklog(zone)}
+              title="Reset zone planned backlog to 0"
+            >
+              <RotateCcw size={12} className="mr-1" /> Reset
+            </Button>
+          )}
+        </div>
         <StatCard
           label="Predicted SPH"
           value={totals.predictedSPH.toFixed(1)}
@@ -350,7 +389,29 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
                       </td>
                       <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
                       <td className="table-cell px-3 py-2 text-right">{row.waiting_for_picking}</td>
-                      <td className="table-cell px-3 py-2 text-right">{row.planned_backlog}</td>
+                      <td className="table-cell px-3 py-2 text-right">
+                        {row.isGroup ? (
+                          row.planned_backlog
+                        ) : editingMerchant === row.name ? (
+                          <input
+                            type="number"
+                            min={0}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={handleSaveEdit}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") setEditingMerchant(null); }}
+                            className="w-16 h-6 text-xs text-right bg-secondary border border-border rounded px-1"
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className="cursor-pointer hover:text-primary transition-colors border-b border-dashed border-muted-foreground/30"
+                            onClick={() => handleStartEdit(row.name)}
+                          >
+                            {row.planned_backlog}
+                          </span>
+                        )}
+                      </td>
                       <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
                       <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
                       {showHC && (

@@ -6,6 +6,7 @@ import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
 import { ZoneView } from "@/components/ZoneView";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
+import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
 
@@ -142,6 +143,18 @@ const Index = () => {
     setBacklog({});
     localStorage.setItem("plannedBacklog", "{}");
   }, []);
+
+  const handleResetZoneBacklog = useCallback((zone: "A" | "B") => {
+    const lookup = buildZoneLookup();
+    const updated = { ...backlog };
+    for (const merchant of Object.keys(updated)) {
+      if (lookup[merchant]?.zone === zone) {
+        updated[merchant] = 0;
+      }
+    }
+    setBacklog(updated);
+    localStorage.setItem("plannedBacklog", JSON.stringify(updated));
+  }, [backlog]);
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
     const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);
@@ -244,10 +257,10 @@ const Index = () => {
             )}
           </TabsContent>
           <TabsContent value="zoneA">
-            <ZoneView zone="A" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} />
+            <ZoneView zone="A" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
           </TabsContent>
           <TabsContent value="zoneB">
-            <ZoneView zone="B" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} />
+            <ZoneView zone="B" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
           </TabsContent>
 
           <TabsContent value="picking">

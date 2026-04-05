@@ -137,6 +137,7 @@ const Index = () => {
               isCustom={!!customPicking}
               onUpload={(entries) => { setCustomPicking(entries); localStorage.setItem("customPickingBenchmarks", JSON.stringify(entries)); }}
               onReset={() => { setCustomPicking(null); localStorage.removeItem("customPickingBenchmarks"); }}
+              liveFlowData={flowData}
             />
           </TabsContent>
 
@@ -148,6 +149,7 @@ const Index = () => {
               isCustom={!!customPacking}
               onUpload={(entries) => { setCustomPacking(entries); localStorage.setItem("customPackingBenchmarks", JSON.stringify(entries)); }}
               onReset={() => { setCustomPacking(null); localStorage.removeItem("customPackingBenchmarks"); }}
+              liveFlowData={flowData}
             />
           </TabsContent>
         </Tabs>

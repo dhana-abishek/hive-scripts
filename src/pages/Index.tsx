@@ -168,7 +168,7 @@ const Index = () => {
       }
     }
     setBacklog(updated);
-    localStorage.setItem("plannedBacklog", JSON.stringify(updated));
+    idbSet("plannedBacklog", updated);
   }, [backlog]);
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);

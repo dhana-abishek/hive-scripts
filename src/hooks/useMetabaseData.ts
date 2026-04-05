@@ -71,6 +71,8 @@ function parseCSVRow(row: string): string[] {
 
 export interface MetabaseDataResult {
   flowData: ReturnType<typeof calculateFlowManagement>;
+  pickingRates: Record<string, number>;
+  packingRates: Record<string, number>;
   isLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
@@ -126,5 +128,5 @@ export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customP
     return calculated;
   }, [rawMerchants, pickLookup, packLookup]);
 
-  return { flowData, isLoading, error, lastUpdated, refresh: fetchData };
+  return { flowData, pickingRates: pickLookup, packingRates: packLookup, isLoading, error, lastUpdated, refresh: fetchData };
 }

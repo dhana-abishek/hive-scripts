@@ -38,7 +38,7 @@ const Index = () => {
   const pickingBenchmarks = activePick?.entries ?? defaultPickingBenchmarks;
   const packingBenchmarks = activePack?.entries ?? defaultPackingBenchmarks;
 
-  const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData(
+  const { flowData, pickingRates, packingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
     activePick?.entries ?? null,
     activePack?.entries ?? null
   );
@@ -207,7 +207,7 @@ const Index = () => {
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={flowData} />
+              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">

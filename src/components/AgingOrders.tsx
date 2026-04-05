@@ -440,7 +440,11 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
       localStorage.setItem(STORAGE_KEY_CSV, JSON.stringify(parsed));
       localStorage.removeItem(STORAGE_KEY_BACKLOG);
       const dates = uniqueDates(parsed);
-      if (dates.length > 0) { setStartDate(dates[0]); setEndDate(dates[dates.length - 1]); }
+      if (dates.length > 0) {
+        setStartDate(dates[0]); setEndDate(dates[dates.length - 1]);
+        localStorage.setItem(STORAGE_KEY_START_DATE, dates[0]);
+        localStorage.setItem(STORAGE_KEY_END_DATE, dates[dates.length - 1]);
+      }
     };
     reader.readAsText(file);
     e.target.value = "";

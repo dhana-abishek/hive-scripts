@@ -602,13 +602,13 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
           <>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">From</label>
-              <select value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
+              <select value={startDate} onChange={(e) => { setStartDate(e.target.value); localStorage.setItem(STORAGE_KEY_START_DATE, e.target.value); }} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
                 {dates.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">To</label>
-              <select value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
+              <select value={endDate} onChange={(e) => { setEndDate(e.target.value); localStorage.setItem(STORAGE_KEY_END_DATE, e.target.value); }} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
                 {dates.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>

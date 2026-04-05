@@ -95,6 +95,7 @@ export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customP
       const { data, error: fnError } = await supabase.functions.invoke("fetch-metabase-csv");
       if (fnError) throw new Error(fnError.message || "Edge function error");
 
+      const text = typeof data === "string" ? data : await data.text();
       const merchants = parseCSV(text);
 
       if (merchants.length === 0) {

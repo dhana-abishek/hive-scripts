@@ -73,8 +73,8 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
     setNonProdHC(val);
     localStorage.setItem(`nonProdHC_zone${zone}`, String(val));
   };
-  const [sortKey, setSortKey] = useState<SortKey>("order_volume");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [sortKey, setSortKey] = useState<SortKey>("serial");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [search, setSearch] = useState("");
 
   const timeLeft = calcTimeLeft();

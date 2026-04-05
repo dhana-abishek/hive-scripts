@@ -1,10 +1,12 @@
-import { useState, useMemo, useCallback } from "react";
-import { Upload, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Search, Package, Clock, Gauge, RotateCcw } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Upload, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Search, Package, Clock, Gauge, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatCard } from "@/components/SummaryStats";
 
 const MULTIPLIER = 1.125;
+const STORAGE_KEY_CSV = "agingOrdersCsv";
+const STORAGE_KEY_BACKLOG = "agingOrdersBacklog";
 
 interface AgingRow {
   ready_for_fulfillment_at: string;
@@ -50,27 +52,52 @@ function uniqueDates(data: AgingRow[]): string[] {
 }
 
 export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
-  const [rawData, setRawData] = useState<AgingRow[]>([]);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [rawData, setRawData] = useState<AgingRow[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_CSV);
+    if (saved) {
+      try { return JSON.parse(saved) as AgingRow[]; } catch { return []; }
+    }
+    return [];
+  });
+  const [hasFile, setHasFile] = useState(() => !!localStorage.getItem(STORAGE_KEY_CSV));
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [sortKey, setSortKey] = useState<SortKey>("count_orders");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
-  const [backlog, setBacklog] = useState<Record<string, number>>({});
+  const [backlog, setBacklog] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_BACKLOG);
+    if (saved) { try { return JSON.parse(saved); } catch { return {}; } }
+    return {};
+  });
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  // Initialize date filters from loaded data
+  useEffect(() => {
+    if (rawData.length > 0 && !startDate && !endDate) {
+      const d = uniqueDates(rawData);
+      if (d.length > 0) { setStartDate(d[0]); setEndDate(d[d.length - 1]); }
+    }
+  }, [rawData, startDate, endDate]);
+
+  // Persist backlog
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_BACKLOG, JSON.stringify(backlog));
+  }, [backlog]);
 
   const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setFileName(file.name);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
       const parsed = parseCSV(text);
       setRawData(parsed);
       setBacklog({});
+      setHasFile(true);
+      localStorage.setItem(STORAGE_KEY_CSV, JSON.stringify(parsed));
+      localStorage.removeItem(STORAGE_KEY_BACKLOG);
       const dates = uniqueDates(parsed);
       if (dates.length > 0) {
         setStartDate(dates[0]);
@@ -79,6 +106,16 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     };
     reader.readAsText(file);
     e.target.value = "";
+  }, []);
+
+  const handleDeleteCsv = useCallback(() => {
+    setRawData([]);
+    setBacklog({});
+    setHasFile(false);
+    setStartDate("");
+    setEndDate("");
+    localStorage.removeItem(STORAGE_KEY_CSV);
+    localStorage.removeItem(STORAGE_KEY_BACKLOG);
   }, []);
 
   const dates = useMemo(() => uniqueDates(rawData), [rawData]);

@@ -248,6 +248,9 @@ const Index = () => {
             <TabsTrigger value="aging" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <CalendarClock size={14} /> Aging Orders
             </TabsTrigger>
+            <TabsTrigger value="performance" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Users size={14} /> Performance Tracker
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="flow" className="space-y-4">

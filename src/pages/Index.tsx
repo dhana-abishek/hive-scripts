@@ -6,6 +6,7 @@ import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
 import { ZoneView } from "@/components/ZoneView";
 import { AgingOrders } from "@/components/AgingOrders";
+import { PerformanceTracker } from "@/components/PerformanceTracker";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";

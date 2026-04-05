@@ -9,6 +9,8 @@ import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 const MULTIPLIER = 1.125;
 const STORAGE_KEY_CSV = "agingOrdersCsv";
 const STORAGE_KEY_BACKLOG = "agingOrdersBacklog";
+const STORAGE_KEY_START_DATE = "agingStartDate";
+const STORAGE_KEY_END_DATE = "agingEndDate";
 
 interface AgingRow {
   ready_for_fulfillment_at: string;
@@ -387,8 +389,8 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     return [];
   });
   const [hasFile, setHasFile] = useState(() => !!localStorage.getItem(STORAGE_KEY_CSV));
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(STORAGE_KEY_START_DATE) || "");
+  const [endDate, setEndDate] = useState<string>(() => localStorage.getItem(STORAGE_KEY_END_DATE) || "");
   const [sortKey, setSortKey] = useState<SortKey>("count_orders");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
@@ -412,7 +414,12 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   useEffect(() => {
     if (rawData.length > 0 && !startDate && !endDate) {
       const d = uniqueDates(rawData);
-      if (d.length > 0) { setStartDate(d[0]); setEndDate(d[d.length - 1]); }
+      if (d.length > 0) {
+        setStartDate(d[0]);
+        setEndDate(d[d.length - 1]);
+        localStorage.setItem(STORAGE_KEY_START_DATE, d[0]);
+        localStorage.setItem(STORAGE_KEY_END_DATE, d[d.length - 1]);
+      }
     }
   }, [rawData, startDate, endDate]);
 
@@ -433,7 +440,11 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
       localStorage.setItem(STORAGE_KEY_CSV, JSON.stringify(parsed));
       localStorage.removeItem(STORAGE_KEY_BACKLOG);
       const dates = uniqueDates(parsed);
-      if (dates.length > 0) { setStartDate(dates[0]); setEndDate(dates[dates.length - 1]); }
+      if (dates.length > 0) {
+        setStartDate(dates[0]); setEndDate(dates[dates.length - 1]);
+        localStorage.setItem(STORAGE_KEY_START_DATE, dates[0]);
+        localStorage.setItem(STORAGE_KEY_END_DATE, dates[dates.length - 1]);
+      }
     };
     reader.readAsText(file);
     e.target.value = "";
@@ -447,6 +458,8 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     setEndDate("");
     localStorage.removeItem(STORAGE_KEY_CSV);
     localStorage.removeItem(STORAGE_KEY_BACKLOG);
+    localStorage.removeItem(STORAGE_KEY_START_DATE);
+    localStorage.removeItem(STORAGE_KEY_END_DATE);
   }, []);
 
   const handleBacklogChange = useCallback((merchant: string, val: number) => {
@@ -589,13 +602,13 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
           <>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">From</label>
-              <select value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
+              <select value={startDate} onChange={(e) => { setStartDate(e.target.value); localStorage.setItem(STORAGE_KEY_START_DATE, e.target.value); }} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
                 {dates.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">To</label>
-              <select value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
+              <select value={endDate} onChange={(e) => { setEndDate(e.target.value); localStorage.setItem(STORAGE_KEY_END_DATE, e.target.value); }} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
                 {dates.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>

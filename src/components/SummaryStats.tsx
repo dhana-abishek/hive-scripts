@@ -97,36 +97,35 @@ export function SummaryStats({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatCard
           label="Total Orders"
           value={totalOrders.toLocaleString()}
           icon={<Package size={16} />}
           subtext={`${merchantCount} merchants`}
         />
-        <StatCard
-          label="Picking Hours"
-          value={totalPickingHours.toFixed(1)}
-          icon={<Clock size={16} />}
-          subtext="Hours needed"
-          variant="warning"
-        />
-        <StatCard
-          label="Packing Hours"
-          value={totalPackingHours.toFixed(1)}
-          icon={<Clock size={16} />}
-          subtext="Hours needed"
-          variant="warning"
-        />
-        <StatCard
-          label="Avg Ideal SPH"
-          value={avgSph.toFixed(1)}
-          icon={<TrendingUp size={16} />}
-          subtext="Orders / (Pick + Pack + NonProd hrs)"
-          variant="success"
-        />
+        <div className="rounded-md border bg-card p-4 border-warning/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="stat-label">Picking</span>
+            <span className="text-warning"><Clock size={16} /></span>
+          </div>
+          <div className="stat-value text-foreground">{totalPickingHours.toFixed(1)}h</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="font-semibold text-foreground">{pickingHeadcount} HC</span> needed ({totalPickingHours.toFixed(1)}h ÷ {TIME_LEFT}h)
+          </p>
+        </div>
+        <div className="rounded-md border bg-card p-4 border-warning/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="stat-label">Packing</span>
+            <span className="text-warning"><Clock size={16} /></span>
+          </div>
+          <div className="stat-value text-foreground">{totalPackingHours.toFixed(1)}h</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="font-semibold text-foreground">{packingHeadcount} HC</span> needed ({totalPackingHours.toFixed(1)}h ÷ {TIME_LEFT}h)
+          </p>
+        </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatCard
           label="Time Left"
           value={`${TIME_LEFT}h`}
@@ -134,18 +133,11 @@ export function SummaryStats({
           subtext="Remaining shift hours"
         />
         <StatCard
-          label="Picking Headcount"
-          value={pickingHeadcount}
-          icon={<Users size={16} />}
-          subtext={`${totalPickingHours.toFixed(1)}h ÷ ${TIME_LEFT}h`}
-          variant="warning"
-        />
-        <StatCard
-          label="Packing Headcount"
-          value={packingHeadcount}
-          icon={<Users size={16} />}
-          subtext={`${totalPackingHours.toFixed(1)}h ÷ ${TIME_LEFT}h`}
-          variant="warning"
+          label="Avg Ideal SPH"
+          value={avgSph.toFixed(1)}
+          icon={<TrendingUp size={16} />}
+          subtext="Orders / (Pick + Pack + NonProd hrs)"
+          variant="success"
         />
         <div className="rounded-md border bg-card p-4 border-primary/30">
           <div className="flex items-center justify-between mb-2">

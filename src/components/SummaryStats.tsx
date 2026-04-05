@@ -26,7 +26,7 @@ const iconStyles = {
 
 export function StatCard({ label, value, icon, subtext, variant = "default" }: StatCardProps) {
   return (
-    <div className={`rounded-md border bg-card p-4 ${variantStyles[variant]}`}>
+    <div className={`rounded-md border bg-card p-4 h-full ${variantStyles[variant]}`}>
       <div className="flex items-center justify-between mb-2">
         <span className="stat-label">{label}</span>
         <span className={iconStyles[variant]}>{icon}</span>
@@ -145,7 +145,7 @@ export function SummaryStats({
           icon={<Timer size={16} />}
           subtext="Remaining shift hours"
         />
-        <div className="relative">
+        <div className="relative h-full">
           <StatCard
             label="Planned Backlog"
             value={totalPlannedBacklog.toLocaleString()}

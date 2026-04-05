@@ -228,9 +228,14 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
           <label className="text-xs text-muted-foreground block mb-1">Upload CSV</label>
           <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors cursor-pointer">
             <Upload size={14} />
-            {fileName ?? "Choose file"}
+            {hasFile ? "Aging Orders" : "Choose file"}
             <input type="file" accept=".csv" onChange={handleUpload} className="hidden" />
           </label>
+          {hasFile && (
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive" onClick={handleDeleteCsv} title="Delete uploaded CSV">
+              <Trash2 size={14} className="mr-1" /> Delete CSV
+            </Button>
+          )}
         </div>
         {dates.length > 0 && (
           <>

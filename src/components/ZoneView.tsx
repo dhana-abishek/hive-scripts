@@ -4,6 +4,18 @@ import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
 import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 
+const zoneSerialOrder: Record<string, string[]> = {
+  A: [
+    "Horl", "ela mo", "MagicHolz", "Hydraid", "Beyond Drinks",
+    "Dr. Emi", "Shyne", "Dr. Massing", "Yummyeats -Smarter Choices GmbH",
+    "Multi Small", "Multi Big", "SIOP", "HAFERLÖWE",
+    "Matchday Nutrition", "Inkster", "Lotuscrafts GmbH",
+  ],
+  B: [
+    "AVA & MAY", "thebettercat", "Multi", "Multi Critical", "Multi Sizzlepak",
+  ],
+};
+
 const zoneLookup = buildZoneLookup();
 
 interface FlowRow {

@@ -396,10 +396,25 @@ export function PerformanceTracker() {
   const stats = useMemo(() => {
     const totalPickShipments = pickData.reduce((s, r) => s + r.total_shipments_picked, 0);
     const totalPackShipments = packData.reduce((s, r) => s + r.total_shipments_packed, 0);
-    const pickPerfs = pickData.map((r) => parsePercent(r.according_to_picking_benchmark));
-    const packPerfs = packData.map((r) => parsePercent(r.according_to_packing_benchmark));
-    const avgPickPerf = pickPerfs.length ? pickPerfs.reduce((a, b) => a + b, 0) / pickPerfs.length : 0;
-    const avgPackPerf = packPerfs.length ? packPerfs.reduce((a, b) => a + b, 0) / packPerfs.length : 0;
+    // Weighted average: weight = time spent = shipments / sph
+    let pickWeightedSum = 0, pickWeightTotal = 0;
+    for (const r of pickData) {
+      if (r.picking_sph > 0) {
+        const time = r.total_shipments_picked / r.picking_sph;
+        pickWeightedSum += parsePercent(r.according_to_picking_benchmark) * time;
+        pickWeightTotal += time;
+      }
+    }
+    let packWeightedSum = 0, packWeightTotal = 0;
+    for (const r of packData) {
+      if (r.packing_sph > 0) {
+        const time = r.total_shipments_packed / r.packing_sph;
+        packWeightedSum += parsePercent(r.according_to_packing_benchmark) * time;
+        packWeightTotal += time;
+      }
+    }
+    const avgPickPerf = pickWeightTotal > 0 ? pickWeightedSum / pickWeightTotal : 0;
+    const avgPackPerf = packWeightTotal > 0 ? packWeightedSum / packWeightTotal : 0;
     const pickWorkers = new Set(pickData.map((r) => r.full_name)).size;
     const packWorkers = new Set(packData.map((r) => r.full_name)).size;
 

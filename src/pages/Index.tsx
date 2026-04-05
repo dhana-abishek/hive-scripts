@@ -10,7 +10,6 @@ import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
 
 const Index = () => {
-  const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData(customPicking, customPacking);
   const [nonProdHeadcount, setNonProdHeadcount] = useState(() => {
     const saved = localStorage.getItem("nonProdHC_main");
     return saved !== null ? parseFloat(saved) : 12;
@@ -27,6 +26,8 @@ const Index = () => {
 
   const pickingBenchmarks = customPicking ?? defaultPickingBenchmarks;
   const packingBenchmarks = customPacking ?? defaultPackingBenchmarks;
+
+  const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData(customPicking, customPacking);
 
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);

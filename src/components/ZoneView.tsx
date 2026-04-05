@@ -286,12 +286,25 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
           value={`${timeLeft.toFixed(1)}h`}
           icon={<Timer size={16} />}
         />
-        <StatCard
-          label="Planned Backlog"
-          value={totals.totalBacklog.toLocaleString()}
-          icon={<ArrowDownToLine size={16} />}
-          subtext="Orders deferred"
-        />
+        <div className="relative h-full">
+          <StatCard
+            label="Planned Backlog"
+            value={totals.totalBacklog.toLocaleString()}
+            icon={<ArrowDownToLine size={16} />}
+            subtext="Orders deferred"
+          />
+          {totals.totalBacklog > 0 && onResetZoneBacklog && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-8 right-2 h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+              onClick={() => onResetZoneBacklog(zone)}
+              title="Reset zone planned backlog to 0"
+            >
+              <RotateCcw size={12} className="mr-1" /> Reset
+            </Button>
+          )}
+        </div>
         <StatCard
           label="Predicted SPH"
           value={totals.predictedSPH.toFixed(1)}
@@ -376,7 +389,29 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
                       </td>
                       <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
                       <td className="table-cell px-3 py-2 text-right">{row.waiting_for_picking}</td>
-                      <td className="table-cell px-3 py-2 text-right">{row.planned_backlog}</td>
+                      <td className="table-cell px-3 py-2 text-right">
+                        {row.isGroup ? (
+                          row.planned_backlog
+                        ) : editingMerchant === row.name ? (
+                          <input
+                            type="number"
+                            min={0}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={handleSaveEdit}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") setEditingMerchant(null); }}
+                            className="w-16 h-6 text-xs text-right bg-secondary border border-border rounded px-1"
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className="cursor-pointer hover:text-primary transition-colors border-b border-dashed border-muted-foreground/30"
+                            onClick={() => handleStartEdit(row.name)}
+                          >
+                            {row.planned_backlog}
+                          </span>
+                        )}
+                      </td>
                       <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
                       <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
                       {showHC && (

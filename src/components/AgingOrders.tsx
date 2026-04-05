@@ -389,8 +389,8 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     return [];
   });
   const [hasFile, setHasFile] = useState(() => !!localStorage.getItem(STORAGE_KEY_CSV));
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(STORAGE_KEY_START_DATE) || "");
+  const [endDate, setEndDate] = useState<string>(() => localStorage.getItem(STORAGE_KEY_END_DATE) || "");
   const [sortKey, setSortKey] = useState<SortKey>("count_orders");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");

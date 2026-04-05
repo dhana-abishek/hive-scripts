@@ -115,10 +115,6 @@ export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customP
 
   useEffect(() => {
     fetchData();
-    intervalRef.current = setInterval(fetchData, REFRESH_INTERVAL);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
   }, [fetchData]);
 
   const flowData = useMemo(() => {

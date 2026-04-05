@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search, PackageMinus, ArrowDownToLine } from "lucide-react";
 import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
 import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
+
+const MULTIPLIER = 1.125;
 
 // HC grouping for Zone A: merchants in the same group share a single combined HC value
 const zoneAHCGroups: string[][] = [
@@ -38,6 +40,8 @@ interface FlowRow {
 interface ZoneRow {
   name: string;
   order_volume: number;
+  waiting_for_picking: number;
+  planned_backlog: number;
   picking_hours: number;
   packing_hours: number;
   headcount: number;
@@ -48,6 +52,9 @@ interface ZoneViewProps {
   zone: "A" | "B";
   flowData: FlowRow[];
   timeLeft: number;
+  backlog?: Record<string, number>;
+  pickingRates?: Record<string, number>;
+  packingRates?: Record<string, number>;
 }
 
 function calcTimeLeft(): number {
@@ -69,9 +76,9 @@ function calcTimeLeft(): number {
   return Math.max(0, totalShift - elapsed);
 }
 
-type SortKey = "serial" | "name" | "order_volume" | "picking_hours" | "packing_hours" | "headcount";
+type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
-export function ZoneView({ zone, flowData }: ZoneViewProps) {
+export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {} }: ZoneViewProps) {
   const [nonProdHC, setNonProdHC] = useState(() => {
     const saved = localStorage.getItem(`nonProdHC_zone${zone}`);
     return saved !== null ? parseFloat(saved) : 6;
@@ -88,6 +95,9 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
   const timeLeft = calcTimeLeft();
   const groups = zone === "A" ? zoneAGroups : zoneBGroups;
 
+  // Collect zone merchants' backlog by resolving group members
+  const getBacklogForMerchant = (merchantName: string) => backlog[merchantName] || 0;
+
   const zoneRows = useMemo(() => {
     const rows: ZoneRow[] = [];
 
@@ -95,12 +105,21 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
     for (const row of flowData) {
       const assignment = zoneLookup[row.merchant_name];
       if (assignment && assignment.zone === zone && !assignment.group) {
-        const hc = timeLeft > 0 ? (row.picking_hours + row.packing_hours) / timeLeft : 0;
+        const bl = getBacklogForMerchant(row.merchant_name);
+        const effectiveVol = Math.max(0, row.order_volume - bl);
+        const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
+        const pickRate = pickingRates[row.merchant_name] || 30;
+        const packRate = packingRates[row.merchant_name] || 20;
+        const pickHrs = effectiveWaiting / (pickRate * MULTIPLIER);
+        const packHrs = effectiveVol / (packRate * MULTIPLIER);
+        const hc = timeLeft > 0 ? (pickHrs + packHrs) / timeLeft : 0;
         rows.push({
           name: row.merchant_name,
           order_volume: row.order_volume,
-          picking_hours: row.picking_hours,
-          packing_hours: row.packing_hours,
+          waiting_for_picking: row.waiting_for_picking,
+          planned_backlog: bl,
+          picking_hours: pickHrs,
+          packing_hours: packHrs,
           headcount: Math.round(hc * 100) / 100,
         });
       }
@@ -108,18 +127,27 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
 
     // Grouped merchants
     for (const [groupName, members] of Object.entries(groups)) {
-      let totalOrders = 0, totalPick = 0, totalPack = 0;
+      let totalOrders = 0, totalWaiting = 0, totalBacklog = 0, totalPick = 0, totalPack = 0;
       for (const row of flowData) {
         if (members.includes(row.merchant_name)) {
+          const bl = getBacklogForMerchant(row.merchant_name);
+          const pickRate = pickingRates[row.merchant_name] || 30;
+          const packRate = packingRates[row.merchant_name] || 20;
+          const effectiveVol = Math.max(0, row.order_volume - bl);
+          const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
           totalOrders += row.order_volume;
-          totalPick += row.picking_hours;
-          totalPack += row.packing_hours;
+          totalWaiting += row.waiting_for_picking;
+          totalBacklog += bl;
+          totalPick += effectiveWaiting / (pickRate * MULTIPLIER);
+          totalPack += effectiveVol / (packRate * MULTIPLIER);
         }
       }
       const hc = timeLeft > 0 ? (totalPick + totalPack) / timeLeft : 0;
       rows.push({
         name: groupName,
         order_volume: totalOrders,
+        waiting_for_picking: totalWaiting,
+        planned_backlog: totalBacklog,
         picking_hours: Math.round(totalPick * 100) / 100,
         packing_hours: Math.round(totalPack * 100) / 100,
         headcount: Math.round(hc * 100) / 100,
@@ -128,16 +156,20 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
     }
 
     return rows;
-  }, [flowData, zone, groups, timeLeft]);
+  }, [flowData, zone, groups, timeLeft, backlog, pickingRates, packingRates]);
 
   const totals = useMemo(() => {
     const totalOrders = zoneRows.reduce((s, r) => s + r.order_volume, 0);
+    const totalBacklog = zoneRows.reduce((s, r) => s + r.planned_backlog, 0);
+    const effectiveOrders = Math.max(0, totalOrders - totalBacklog);
     const totalPick = zoneRows.reduce((s, r) => s + r.picking_hours, 0);
     const totalPack = zoneRows.reduce((s, r) => s + r.packing_hours, 0);
     const totalHC = zoneRows.reduce((s, r) => s + r.headcount, 0);
+    const pickHC = timeLeft > 0 ? Math.ceil(totalPick / timeLeft) : 0;
+    const packHC = timeLeft > 0 ? Math.ceil(totalPack / timeLeft) : 0;
     const denom = totalPick + totalPack + (nonProdHC * timeLeft);
-    const predictedSPH = denom > 0 ? totalOrders / denom : 0;
-    return { totalOrders, totalPick, totalPack, totalHC, predictedSPH };
+    const predictedSPH = denom > 0 ? effectiveOrders / denom : 0;
+    return { totalOrders, totalBacklog, effectiveOrders, totalPick, totalPack, totalHC, pickHC, packHC, predictedSPH };
   }, [zoneRows, nonProdHC, timeLeft]);
 
   const filtered = useMemo(() => {
@@ -184,6 +216,8 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
   const columns: { key: SortKey; label: string; align?: string }[] = [
     { key: "name", label: "Merchant" },
     { key: "order_volume", label: "Orders", align: "right" },
+    { key: "waiting_for_picking", label: "Waiting", align: "right" },
+    { key: "planned_backlog", label: "Backlog", align: "right" },
     { key: "picking_hours", label: "Pick Hrs", align: "right" },
     { key: "packing_hours", label: "Pack Hrs", align: "right" },
     { key: "headcount", label: "HC", align: "right" },
@@ -192,28 +226,45 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
   return (
     <div className="space-y-4">
       {/* Zone summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Total Orders"
           value={totals.totalOrders.toLocaleString()}
           icon={<Package size={16} />}
         />
         <StatCard
+          label="Effective Orders"
+          value={totals.effectiveOrders.toLocaleString()}
+          icon={<PackageMinus size={16} />}
+          subtext={`After ${totals.totalBacklog} backlog`}
+          variant="success"
+        />
+        <StatCard
           label="Picking Hours"
           value={totals.totalPick.toFixed(1)}
           icon={<Clock size={16} />}
+          subtext={`HC needed: ${totals.pickHC}`}
           variant="warning"
         />
         <StatCard
           label="Packing Hours"
           value={totals.totalPack.toFixed(1)}
           icon={<Clock size={16} />}
+          subtext={`HC needed: ${totals.packHC}`}
           variant="warning"
         />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Time Left"
           value={`${timeLeft.toFixed(1)}h`}
           icon={<Timer size={16} />}
+        />
+        <StatCard
+          label="Planned Backlog"
+          value={totals.totalBacklog.toLocaleString()}
+          icon={<ArrowDownToLine size={16} />}
+          subtext="Orders deferred"
         />
         <StatCard
           label="Predicted SPH"
@@ -221,7 +272,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
           icon={<TrendingUp size={16} />}
           variant="success"
         />
-        <div className="rounded-md border bg-card p-4 border-primary/30">
+        <div className="rounded-md border bg-card p-4 h-full border-primary/30">
           <div className="flex items-center justify-between mb-2">
             <span className="stat-label">Non-Prod HC</span>
             <span className="text-primary"><UserPlus size={16} /></span>
@@ -298,6 +349,8 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
                         {row.name}
                       </td>
                       <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
+                      <td className="table-cell px-3 py-2 text-right">{row.waiting_for_picking}</td>
+                      <td className="table-cell px-3 py-2 text-right">{row.planned_backlog}</td>
                       <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
                       <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
                       {showHC && (
@@ -314,6 +367,8 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
                 <td className="px-3 py-2 text-sm text-center"></td>
                 <td className="px-3 py-2 text-sm">Total</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalOrders}</td>
+                <td className="table-cell px-3 py-2 text-right">{zoneRows.reduce((s, r) => s + r.waiting_for_picking, 0)}</td>
+                <td className="table-cell px-3 py-2 text-right">{totals.totalBacklog}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalPick.toFixed(2)}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalPack.toFixed(2)}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalHC.toFixed(2)}</td>

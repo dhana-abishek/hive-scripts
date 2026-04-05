@@ -245,10 +245,10 @@ const Index = () => {
             )}
           </TabsContent>
           <TabsContent value="zoneA">
-            <ZoneView zone="A" flowData={flowData} timeLeft={0} />
+            <ZoneView zone="A" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} />
           </TabsContent>
           <TabsContent value="zoneB">
-            <ZoneView zone="B" flowData={flowData} timeLeft={0} />
+            <ZoneView zone="B" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} />
           </TabsContent>
 
           <TabsContent value="picking">

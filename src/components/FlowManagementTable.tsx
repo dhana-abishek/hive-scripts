@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
 
 const MULTIPLIER = 1.125;
@@ -20,17 +20,24 @@ interface FlowManagementTableProps {
   pickingRates?: Record<string, number>;
   packingRates?: Record<string, number>;
   onBacklogChange?: (backlog: Record<string, number>) => void;
+  externalBacklog?: Record<string, number>;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog }: FlowManagementTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
   const [backlog, setBacklog] = useState<Record<string, number>>(loadBacklog);
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  useEffect(() => {
+    if (externalBacklog !== undefined) {
+      setBacklog(externalBacklog);
+    }
+  }, [externalBacklog]);
 
   const saveBacklog = useCallback((updated: Record<string, number>) => {
     setBacklog(updated);

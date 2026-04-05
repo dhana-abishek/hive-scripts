@@ -343,12 +343,21 @@ function WorkerTable({ pickData, packData }: { pickData: PickingRow[]; packData:
 }
 
 export function PerformanceTracker() {
-  const [pickData, setPickData] = useState<PickingRow[]>(() => {
-    try { const s = localStorage.getItem(PICK_CSV_KEY); return s ? parsePickingCsv(s) : []; } catch { return []; }
-  });
-  const [packData, setPackData] = useState<PackingRow[]>(() => {
-    try { const s = localStorage.getItem(PACK_CSV_KEY); return s ? parsePackingCsv(s) : []; } catch { return []; }
-  });
+  const [pickData, setPickData] = useState<PickingRow[]>([]);
+  const [packData, setPackData] = useState<PackingRow[]>([]);
+  const idbLoaded = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      const [pickCsv, packCsv] = await Promise.all([
+        idbGet<string>(PICK_CSV_KEY),
+        idbGet<string>(PACK_CSV_KEY),
+      ]);
+      if (pickCsv) setPickData(parsePickingCsv(pickCsv));
+      if (packCsv) setPackData(parsePackingCsv(packCsv));
+      idbLoaded.current = true;
+    })();
+  }, []);
 
   const [pickSearch, setPickSearch] = useState("");
   const [packSearch, setPackSearch] = useState("");
@@ -361,7 +370,7 @@ export function PerformanceTracker() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      localStorage.setItem(PICK_CSV_KEY, text);
+      idbSet(PICK_CSV_KEY, text);
       setPickData(parsePickingCsv(text));
     };
     reader.readAsText(file);
@@ -374,15 +383,15 @@ export function PerformanceTracker() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      localStorage.setItem(PACK_CSV_KEY, text);
+      idbSet(PACK_CSV_KEY, text);
       setPackData(parsePackingCsv(text));
     };
     reader.readAsText(file);
     e.target.value = "";
   }, []);
 
-  const handleDeletePick = useCallback(() => { localStorage.removeItem(PICK_CSV_KEY); setPickData([]); }, []);
-  const handleDeletePack = useCallback(() => { localStorage.removeItem(PACK_CSV_KEY); setPackData([]); }, []);
+  const handleDeletePick = useCallback(() => { idbRemove(PICK_CSV_KEY); setPickData([]); }, []);
+  const handleDeletePack = useCallback(() => { idbRemove(PACK_CSV_KEY); setPackData([]); }, []);
 
   const { picking: pickMerchants, packing: packMerchants } = useMemo(() => computeMerchantPerf(pickData, packData), [pickData, packData]);
 

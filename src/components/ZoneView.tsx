@@ -52,7 +52,15 @@ function calcTimeLeft(): number {
 type SortKey = "name" | "order_volume" | "picking_hours" | "packing_hours" | "headcount";
 
 export function ZoneView({ zone, flowData }: ZoneViewProps) {
-  const [nonProdHC, setNonProdHC] = useState(0);
+  const [nonProdHC, setNonProdHC] = useState(() => {
+    const saved = localStorage.getItem(`nonProdHC_zone${zone}`);
+    return saved !== null ? parseFloat(saved) : 6;
+  });
+
+  const handleNonProdChange = (val: number) => {
+    setNonProdHC(val);
+    localStorage.setItem(`nonProdHC_zone${zone}`, String(val));
+  };
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");

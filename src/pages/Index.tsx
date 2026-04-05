@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
@@ -11,15 +11,12 @@ import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as def
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
+import { idbGet, idbSet, idbRemove } from "@/lib/idbStorage";
 
 const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
 const PICK_ACTIVE_KEY = "pickBenchmarkActiveId";
 const PACK_UPLOADS_KEY = "packBenchmarkUploads";
 const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
-
-function loadUploads(key: string): BenchmarkUpload[] {
-  try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
-}
 
 const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(() => {

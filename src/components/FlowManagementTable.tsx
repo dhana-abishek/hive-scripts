@@ -1,12 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { idbGet, idbSet } from "@/lib/idbStorage";
 
 const MULTIPLIER = 1.125;
 const BACKLOG_KEY = "plannedBacklog";
-
-function loadBacklog(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(BACKLOG_KEY) || "{}"); } catch { return {}; }
-}
 
 interface FlowManagementTableProps {
   data: {
@@ -29,9 +26,13 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
-  const [backlog, setBacklog] = useState<Record<string, number>>(loadBacklog);
+  const [backlog, setBacklog] = useState<Record<string, number>>({});
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  useEffect(() => {
+    idbGet<Record<string, number>>(BACKLOG_KEY).then((v) => { if (v) setBacklog(v); });
+  }, []);
 
   useEffect(() => {
     if (externalBacklog !== undefined) {
@@ -41,7 +42,7 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
 
   const saveBacklog = useCallback((updated: Record<string, number>) => {
     setBacklog(updated);
-    localStorage.setItem(BACKLOG_KEY, JSON.stringify(updated));
+    idbSet(BACKLOG_KEY, updated);
     onBacklogChange?.(updated);
   }, [onBacklogChange]);
 

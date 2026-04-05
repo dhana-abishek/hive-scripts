@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
@@ -11,29 +11,39 @@ import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as def
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
+import { idbGet, idbSet, idbRemove } from "@/lib/idbStorage";
 
 const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
 const PICK_ACTIVE_KEY = "pickBenchmarkActiveId";
 const PACK_UPLOADS_KEY = "packBenchmarkUploads";
 const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
 
-function loadUploads(key: string): BenchmarkUpload[] {
-  try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
-}
-
 const Index = () => {
-  const [nonProdHeadcount, setNonProdHeadcount] = useState(() => {
-    const saved = localStorage.getItem("nonProdHC_main");
-    return saved !== null ? parseFloat(saved) : 12;
-  });
+  const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
+  const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
+  const [pickActiveId, setPickActiveId] = useState<string | null>(null);
+  const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);
+  const [packActiveId, setPackActiveId] = useState<string | null>(null);
+  const idbLoaded = useRef(false);
 
-  // Pick uploads
-  const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>(() => loadUploads(PICK_UPLOADS_KEY));
-  const [pickActiveId, setPickActiveId] = useState<string | null>(() => localStorage.getItem(PICK_ACTIVE_KEY));
-
-  // Pack uploads
-  const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>(() => loadUploads(PACK_UPLOADS_KEY));
-  const [packActiveId, setPackActiveId] = useState<string | null>(() => localStorage.getItem(PACK_ACTIVE_KEY));
+  // Load all from IndexedDB on mount
+  useEffect(() => {
+    (async () => {
+      const [pu, pa, pku, pka, hc] = await Promise.all([
+        idbGet<BenchmarkUpload[]>(PICK_UPLOADS_KEY),
+        idbGet<string>(PICK_ACTIVE_KEY),
+        idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
+        idbGet<string>(PACK_ACTIVE_KEY),
+        idbGet<number>("nonProdHC_main"),
+      ]);
+      if (pu) setPickUploads(pu);
+      if (pa) setPickActiveId(pa);
+      if (pku) setPackUploads(pku);
+      if (pka) setPackActiveId(pka);
+      if (hc !== null) setNonProdHeadcount(hc);
+      idbLoaded.current = true;
+    })();
+  }, []);
 
   const activePick = pickUploads.find((u) => u.id === pickActiveId);
   const activePack = packUploads.find((u) => u.id === packActiveId);
@@ -48,29 +58,29 @@ const Index = () => {
 
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);
-    localStorage.setItem("nonProdHC_main", String(val));
+    idbSet("nonProdHC_main", val);
   };
 
   // Pick handlers
   const handlePickNewUpload = useCallback((upload: BenchmarkUpload) => {
     setPickUploads((prev) => {
       const next = [...prev, upload];
-      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PICK_UPLOADS_KEY, next);
       return next;
     });
     setPickActiveId(upload.id);
-    localStorage.setItem(PICK_ACTIVE_KEY, upload.id);
+    idbSet(PICK_ACTIVE_KEY, upload.id);
   }, []);
 
   const handlePickSelect = useCallback((id: string) => {
     setPickActiveId(id);
-    localStorage.setItem(PICK_ACTIVE_KEY, id);
+    idbSet(PICK_ACTIVE_KEY, id);
   }, []);
 
   const handlePickRename = useCallback((id: string, newName: string) => {
     setPickUploads((prev) => {
       const next = prev.map((u) => u.id === id ? { ...u, name: newName } : u);
-      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PICK_UPLOADS_KEY, next);
       return next;
     });
   }, []);
@@ -78,14 +88,14 @@ const Index = () => {
   const handlePickDelete = useCallback((id: string) => {
     setPickUploads((prev) => {
       const next = prev.filter((u) => u.id !== id);
-      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PICK_UPLOADS_KEY, next);
       return next;
     });
     setPickActiveId((curr) => {
       if (curr === id) {
         const remaining = pickUploads.filter((u) => u.id !== id);
         const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-        if (newId) localStorage.setItem(PICK_ACTIVE_KEY, newId); else localStorage.removeItem(PICK_ACTIVE_KEY);
+        if (newId) idbSet(PICK_ACTIVE_KEY, newId); else idbRemove(PICK_ACTIVE_KEY);
         return newId;
       }
       return curr;
@@ -96,24 +106,24 @@ const Index = () => {
   const handlePackNewUpload = useCallback((upload: BenchmarkUpload) => {
     setPackUploads((prev) => {
       const next = [...prev, upload];
-      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PACK_UPLOADS_KEY, next);
       return next;
     });
     setPackActiveId(upload.id);
-    localStorage.setItem(PACK_ACTIVE_KEY, upload.id);
+    idbSet(PACK_ACTIVE_KEY, upload.id);
   }, []);
 
   const handlePackDelete = useCallback((id: string) => {
     setPackUploads((prev) => {
       const next = prev.filter((u) => u.id !== id);
-      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PACK_UPLOADS_KEY, next);
       return next;
     });
     setPackActiveId((curr) => {
       if (curr === id) {
         const remaining = packUploads.filter((u) => u.id !== id);
         const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-        if (newId) localStorage.setItem(PACK_ACTIVE_KEY, newId); else localStorage.removeItem(PACK_ACTIVE_KEY);
+        if (newId) idbSet(PACK_ACTIVE_KEY, newId); else idbRemove(PACK_ACTIVE_KEY);
         return newId;
       }
       return curr;
@@ -122,20 +132,23 @@ const Index = () => {
 
   const handlePackSelect = useCallback((id: string) => {
     setPackActiveId(id);
-    localStorage.setItem(PACK_ACTIVE_KEY, id);
+    idbSet(PACK_ACTIVE_KEY, id);
   }, []);
 
   const handlePackRename = useCallback((id: string, newName: string) => {
     setPackUploads((prev) => {
       const next = prev.map((u) => u.id === id ? { ...u, name: newName } : u);
-      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      idbSet(PACK_UPLOADS_KEY, next);
       return next;
     });
   }, []);
 
-  const [backlog, setBacklog] = useState<Record<string, number>>(() => {
-    try { return JSON.parse(localStorage.getItem("plannedBacklog") || "{}"); } catch { return {}; }
-  });
+  const [backlog, setBacklog] = useState<Record<string, number>>({});
+
+  // Load backlog from IDB
+  useEffect(() => {
+    idbGet<Record<string, number>>("plannedBacklog").then((v) => { if (v) setBacklog(v); });
+  }, []);
 
   const handleBacklogChange = useCallback((updated: Record<string, number>) => {
     setBacklog(updated);
@@ -143,7 +156,7 @@ const Index = () => {
 
   const handleResetBacklog = useCallback(() => {
     setBacklog({});
-    localStorage.setItem("plannedBacklog", "{}");
+    idbSet("plannedBacklog", {});
   }, []);
 
   const handleResetZoneBacklog = useCallback((zone: "A" | "B") => {
@@ -155,7 +168,7 @@ const Index = () => {
       }
     }
     setBacklog(updated);
-    localStorage.setItem("plannedBacklog", JSON.stringify(updated));
+    idbSet("plannedBacklog", updated);
   }, [backlog]);
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);

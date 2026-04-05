@@ -458,6 +458,8 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     setEndDate("");
     localStorage.removeItem(STORAGE_KEY_CSV);
     localStorage.removeItem(STORAGE_KEY_BACKLOG);
+    localStorage.removeItem(STORAGE_KEY_START_DATE);
+    localStorage.removeItem(STORAGE_KEY_END_DATE);
   }, []);
 
   const handleBacklogChange = useCallback((merchant: string, val: number) => {

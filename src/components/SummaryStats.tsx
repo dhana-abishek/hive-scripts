@@ -1,4 +1,4 @@
-import { Package, Clock, TrendingUp, Users, Timer, UserPlus, ArrowDownToLine, Gauge } from "lucide-react";
+import { Package, Clock, Timer, UserPlus, ArrowDownToLine, Gauge, PackageMinus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface StatCardProps {
@@ -96,17 +96,23 @@ export function SummaryStats({
 }: SummaryStatsProps) {
   const pickingHeadcount = Math.ceil(totalPickingHours / TIME_LEFT);
   const packingHeadcount = Math.ceil(totalPackingHours / TIME_LEFT);
-  const denominator = totalPickingHours + totalPackingHours + (nonProdHeadcount * TIME_LEFT);
-  const avgSph = denominator > 0 ? totalOrders / denominator : 0;
+  const effectiveOrders = Math.max(0, totalOrders - totalPlannedBacklog);
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Total Orders"
           value={totalOrders.toLocaleString()}
           icon={<Package size={16} />}
           subtext={`${merchantCount} merchants`}
+        />
+        <StatCard
+          label="Effective Orders"
+          value={effectiveOrders.toLocaleString()}
+          icon={<PackageMinus size={16} />}
+          subtext={`After ${totalPlannedBacklog} backlog`}
+          variant="success"
         />
         <div className="rounded-md border bg-card p-4 border-warning/30">
           <div className="flex items-center justify-between mb-2">
@@ -129,19 +135,12 @@ export function SummaryStats({
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Time Left"
           value={`${TIME_LEFT}h`}
           icon={<Timer size={16} />}
           subtext="Remaining shift hours"
-        />
-        <StatCard
-          label="Avg Ideal SPH"
-          value={avgSph.toFixed(1)}
-          icon={<TrendingUp size={16} />}
-          subtext="Orders / (Pick + Pack + NonProd hrs)"
-          variant="success"
         />
         <StatCard
           label="Planned Backlog"

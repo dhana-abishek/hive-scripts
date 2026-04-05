@@ -163,7 +163,7 @@ const Index = () => {
     const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8); // approximate time
     const adjustedSph = adjDenom > 0 ? adjVolume / adjDenom : 0;
 
-    return { totalOrders, totalPickingHours, totalPackingHours, merchantCount: flowData.length, totalPlannedBacklog, adjustedSph };
+    return { totalOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: flowData.length, totalPlannedBacklog, adjustedSph };
   }, [flowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
 
   return (

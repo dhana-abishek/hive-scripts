@@ -133,10 +133,19 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
   }, [zoneRows, nonProdHC, timeLeft]);
 
   const filtered = useMemo(() => {
+    const order = zoneSerialOrder[zone] || [];
     let result = zoneRows;
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((r) => r.name.toLowerCase().includes(q));
+    }
+    if (!search && sortKey === "name" && sortDir === "desc") {
+      // Default: use serial order
+      return [...result].sort((a, b) => {
+        const ai = order.indexOf(a.name);
+        const bi = order.indexOf(b.name);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
     }
     return [...result].sort((a, b) => {
       const av = a[sortKey];
@@ -144,7 +153,14 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
       if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
       return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
     });
-  }, [zoneRows, sortKey, sortDir, search]);
+  }, [zoneRows, sortKey, sortDir, search, zone]);
+
+  const serialMap = useMemo(() => {
+    const order = zoneSerialOrder[zone] || [];
+    const map: Record<string, number> = {};
+    order.forEach((name, i) => { map[name] = i + 1; });
+    return map;
+  }, [zone]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));

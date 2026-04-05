@@ -195,7 +195,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
             value={nonProdHC}
             onChange={(e) => {
               const v = parseFloat(e.target.value);
-              setNonProdHC(isNaN(v) || v < 0 ? 0 : v);
+              handleNonProdChange(isNaN(v) || v < 0 ? 0 : v);
             }}
             className="h-8 text-lg font-bold w-20 bg-secondary border-border"
           />

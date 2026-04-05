@@ -498,7 +498,7 @@ export function PerformanceTracker() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <StatCard title="Avg Pick Performance" value={`${stats.avgPickPerf.toFixed(0)}%`} subtitle={`${stats.totalPickShipments.toLocaleString()} shipments • ${stats.pickWorkers} workers`} icon={BarChart3} color="text-primary" />
             <StatCard title="Avg Pack Performance" value={`${stats.avgPackPerf.toFixed(0)}%`} subtitle={`${stats.totalPackShipments.toLocaleString()} shipments • ${stats.packWorkers} workers`} icon={Gauge} color="text-primary" />
-            <StatCard title="Real SPH" value={stats.realSph.toFixed(1)} subtitle={`${(stats.totalPickShipments + stats.totalPackShipments).toLocaleString()} total shipments`} icon={TrendingUp} color="text-emerald-600" />
+            <StatCard title="Real SPH" value={stats.realSph.toFixed(1)} subtitle={`${stats.totalPackShipments.toLocaleString()} packed shipments`} icon={TrendingUp} color="text-emerald-600" />
           </div>
 
           {/* Merchant tables */}

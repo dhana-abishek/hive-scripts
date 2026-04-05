@@ -1,12 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { idbGet, idbSet } from "@/lib/idbStorage";
 
 const MULTIPLIER = 1.125;
 const BACKLOG_KEY = "plannedBacklog";
-
-function loadBacklog(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(BACKLOG_KEY) || "{}"); } catch { return {}; }
-}
 
 interface FlowManagementTableProps {
   data: {

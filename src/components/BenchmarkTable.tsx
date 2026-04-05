@@ -1,14 +1,41 @@
-import { useState, useMemo } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Upload, RotateCcw } from "lucide-react";
 import type { BenchmarkEntry } from "@/types/warehouse";
 
 interface BenchmarkTableProps {
   title: string;
   data: BenchmarkEntry[];
   valueLabel: string;
+  onUpload?: (entries: BenchmarkEntry[]) => void;
+  onReset?: () => void;
+  isCustom?: boolean;
 }
 
-export function BenchmarkTable({ title, data, valueLabel }: BenchmarkTableProps) {
+export function BenchmarkTable({ title, data, valueLabel, onUpload, onReset, isCustom }: BenchmarkTableProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpload) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.trim().split("\n");
+      const entries: BenchmarkEntry[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(",");
+        if (parts.length < 2) continue;
+        const merchant_name = parts.slice(0, -1).join(",").trim().replace(/^"|"$/g, "");
+        const benchmark = parseFloat(parts[parts.length - 1].trim());
+        if (merchant_name && !isNaN(benchmark)) {
+          entries.push({ merchant_name, benchmark });
+        }
+      }
+      if (entries.length > 0) onUpload(entries);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
   const [sortKey, setSortKey] = useState<"merchant_name" | "benchmark">("benchmark");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
@@ -35,8 +62,32 @@ export function BenchmarkTable({ title, data, valueLabel }: BenchmarkTableProps)
   return (
     <div className="rounded-md border bg-card">
       <div className="p-3 border-b flex items-center justify-between">
-        <h3 className="text-sm font-semibold">{title}</h3>
         <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {isCustom && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">Custom</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {onUpload && (
+            <>
+              <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors"
+              >
+                <Upload size={12} /> Upload CSV
+              </button>
+            </>
+          )}
+          {isCustom && onReset && (
+            <button
+              onClick={onReset}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors"
+            >
+              <RotateCcw size={12} /> Reset
+            </button>
+          )}
           <Search size={14} className="text-muted-foreground" />
           <input
             type="text"

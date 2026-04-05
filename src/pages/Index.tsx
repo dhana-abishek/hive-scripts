@@ -142,6 +142,19 @@ const Index = () => {
     setBacklog({});
     localStorage.setItem("plannedBacklog", "{}");
   }, []);
+
+  const handleResetZoneBacklog = useCallback((zone: "A" | "B") => {
+    const { buildZoneLookup } = require("@/data/zoneMappings");
+    const lookup = buildZoneLookup();
+    const updated = { ...backlog };
+    for (const merchant of Object.keys(updated)) {
+      if (lookup[merchant]?.zone === zone) {
+        updated[merchant] = 0;
+      }
+    }
+    setBacklog(updated);
+    localStorage.setItem("plannedBacklog", JSON.stringify(updated));
+  }, [backlog]);
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
     const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);

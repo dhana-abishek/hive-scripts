@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
 
 const MULTIPLIER = 1.125;

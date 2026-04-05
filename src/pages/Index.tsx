@@ -213,8 +213,6 @@ const Index = () => {
           </div>
         )}
 
-        <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} />
-
         <Tabs defaultValue="flow" className="space-y-4">
           <TabsList className="bg-secondary border border-border">
             <TabsTrigger value="flow" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
@@ -234,7 +232,8 @@ const Index = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="flow">
+          <TabsContent value="flow" className="space-y-4">
+            <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} />
             {isLoading && flowData.length === 0 ? (
               <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
                 <Loader2 size={16} className="animate-spin" />

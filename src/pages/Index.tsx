@@ -145,7 +145,6 @@ const Index = () => {
   }, []);
 
   const handleResetZoneBacklog = useCallback((zone: "A" | "B") => {
-    const { buildZoneLookup } = require("@/data/zoneMappings");
     const lookup = buildZoneLookup();
     const updated = { ...backlog };
     for (const merchant of Object.keys(updated)) {

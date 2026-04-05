@@ -43,6 +43,8 @@ interface SummaryStatsProps {
   merchantCount: number;
   nonProdHeadcount: number;
   onNonProdHeadcountChange: (value: number) => void;
+  totalPlannedBacklog?: number;
+  adjustedSph?: number;
 }
 
 function calcTimeLeft(): number {
@@ -89,6 +91,8 @@ export function SummaryStats({
   merchantCount,
   nonProdHeadcount,
   onNonProdHeadcountChange,
+  totalPlannedBacklog = 0,
+  adjustedSph = 0,
 }: SummaryStatsProps) {
   const pickingHeadcount = Math.ceil(totalPickingHours / TIME_LEFT);
   const packingHeadcount = Math.ceil(totalPackingHours / TIME_LEFT);

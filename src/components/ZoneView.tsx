@@ -139,12 +139,13 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
       const q = search.toLowerCase();
       result = result.filter((r) => r.name.toLowerCase().includes(q));
     }
-    if (!search && sortKey === "name" && sortDir === "desc") {
-      // Default: use serial order
+    if (sortKey === "serial") {
       return [...result].sort((a, b) => {
         const ai = order.indexOf(a.name);
         const bi = order.indexOf(b.name);
-        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        const aIdx = ai === -1 ? 999 : ai;
+        const bIdx = bi === -1 ? 999 : bi;
+        return sortDir === "asc" ? aIdx - bIdx : bIdx - aIdx;
       });
     }
     return [...result].sort((a, b) => {

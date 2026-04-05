@@ -424,7 +424,11 @@ export function PerformanceTracker() {
     const bestPack = packMerchants.length ? [...packMerchants].sort((a, b) => b.avgPerformance - a.avgPerformance)[0] : null;
     const worstPack = packMerchants.length ? [...packMerchants].sort((a, b) => a.avgPerformance - b.avgPerformance)[0] : null;
 
-    return { totalPickShipments, totalPackShipments, avgPickPerf, avgPackPerf, pickWorkers, packWorkers, bestPick, worstPick, bestPack, worstPack };
+    // Real SPH: total shipments / total time spent
+    const totalTime = pickWeightTotal + packWeightTotal;
+    const realSph = totalTime > 0 ? (totalPickShipments + totalPackShipments) / totalTime : 0;
+
+    return { totalPickShipments, totalPackShipments, avgPickPerf, avgPackPerf, pickWorkers, packWorkers, bestPick, worstPick, bestPack, worstPack, realSph };
   }, [pickData, packData, pickMerchants, packMerchants]);
 
   const hasData = pickData.length > 0 || packData.length > 0;

@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
+import { RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search, PackageMinus, ArrowDownToLine } from "lucide-react";
 import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
@@ -55,6 +57,8 @@ interface ZoneViewProps {
   backlog?: Record<string, number>;
   pickingRates?: Record<string, number>;
   packingRates?: Record<string, number>;
+  onBacklogChange?: (backlog: Record<string, number>) => void;
+  onResetZoneBacklog?: (zone: "A" | "B") => void;
 }
 
 function calcTimeLeft(): number {
@@ -78,7 +82,7 @@ function calcTimeLeft(): number {
 
 type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
-export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {} }: ZoneViewProps) {
+export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog }: ZoneViewProps) {
   const [nonProdHC, setNonProdHC] = useState(() => {
     const saved = localStorage.getItem(`nonProdHC_zone${zone}`);
     return saved !== null ? parseFloat(saved) : 6;

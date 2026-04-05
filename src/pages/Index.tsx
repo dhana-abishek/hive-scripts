@@ -137,6 +137,11 @@ const Index = () => {
   const handleBacklogChange = useCallback((updated: Record<string, number>) => {
     setBacklog(updated);
   }, []);
+
+  const handleResetBacklog = useCallback(() => {
+    setBacklog({});
+    localStorage.setItem("plannedBacklog", "{}");
+  }, []);
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
     const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);
@@ -208,7 +213,7 @@ const Index = () => {
           </div>
         )}
 
-        <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} />
+        <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} />
 
         <Tabs defaultValue="flow" className="space-y-4">
           <TabsList className="bg-secondary border border-border">

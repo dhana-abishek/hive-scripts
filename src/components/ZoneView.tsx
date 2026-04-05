@@ -242,8 +242,8 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
   const columns: { key: SortKey; label: string; align?: string }[] = [
     { key: "name", label: "Merchant" },
     { key: "order_volume", label: "Orders", align: "right" },
-    { key: "waiting_for_picking", label: "Waiting", align: "right" },
     { key: "planned_backlog", label: "Backlog", align: "right" },
+    { key: "waiting_for_picking", label: "Waiting", align: "right" },
     { key: "picking_hours", label: "Pick Hrs", align: "right" },
     { key: "packing_hours", label: "Pack Hrs", align: "right" },
     { key: "headcount", label: "HC", align: "right" },
@@ -388,6 +388,29 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
                         {row.name}
                       </td>
                       <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
+                      <td className="table-cell px-3 py-2 text-right">
+                        {row.isGroup ? (
+                          row.planned_backlog
+                        ) : editingMerchant === row.name ? (
+                          <input
+                            type="number"
+                            min={0}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={handleSaveEdit}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); if (e.key === "Escape") setEditingMerchant(null); }}
+                            className="w-16 h-6 text-xs text-right bg-secondary border border-border rounded px-1"
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className="cursor-pointer hover:text-primary transition-colors border-b border-dashed border-muted-foreground/30"
+                            onClick={() => handleStartEdit(row.name)}
+                          >
+                            {row.planned_backlog}
+                          </span>
+                        )}
+                      </td>
                       <td className="table-cell px-3 py-2 text-right">{row.waiting_for_picking}</td>
                       <td className="table-cell px-3 py-2 text-right">
                         {row.isGroup ? (

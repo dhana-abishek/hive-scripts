@@ -401,13 +401,14 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   useEffect(() => {
     (async () => {
       const [csv, bl, sd, ed, hc] = await Promise.all([
-        idbGet<AgingRow[]>(STORAGE_KEY_CSV),
+        idbGet<string | AgingRow[]>(STORAGE_KEY_CSV),
         idbGet<Record<string, number>>(STORAGE_KEY_BACKLOG),
         idbGet<string>(STORAGE_KEY_START_DATE),
         idbGet<string>(STORAGE_KEY_END_DATE),
         idbGet<number>("agingNonProdHC_main"),
       ]);
-      if (csv && csv.length > 0) { setRawData(csv); setHasFile(true); }
+      const parsedCsv = typeof csv === "string" ? parseCSV(csv) : csv;
+      if (parsedCsv && parsedCsv.length > 0) { setRawData(parsedCsv); setHasFile(true); }
       if (bl) setBacklog(bl);
       if (sd) setStartDate(sd);
       if (ed) setEndDate(ed);
@@ -443,35 +444,46 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const text = ev.target?.result as string;
       const parsed = parseCSV(text);
+      const dates = uniqueDates(parsed);
+      const nextStartDate = dates[0] ?? "";
+      const nextEndDate = dates[dates.length - 1] ?? "";
+
+      await Promise.all([
+        idbSet(STORAGE_KEY_CSV, text),
+        idbRemove(STORAGE_KEY_BACKLOG),
+        nextStartDate ? idbSet(STORAGE_KEY_START_DATE, nextStartDate) : idbRemove(STORAGE_KEY_START_DATE),
+        nextEndDate ? idbSet(STORAGE_KEY_END_DATE, nextEndDate) : idbRemove(STORAGE_KEY_END_DATE),
+      ]);
+
       setRawData(parsed);
       setBacklog({});
       setHasFile(true);
-      idbSet(STORAGE_KEY_CSV, parsed);
-      idbRemove(STORAGE_KEY_BACKLOG);
-      const dates = uniqueDates(parsed);
-      if (dates.length > 0) {
-        setStartDate(dates[0]); setEndDate(dates[dates.length - 1]);
-        idbSet(STORAGE_KEY_START_DATE, dates[0]);
-        idbSet(STORAGE_KEY_END_DATE, dates[dates.length - 1]);
+      setStartDate(nextStartDate);
+      setEndDate(nextEndDate);
+      if (!nextStartDate || !nextEndDate) {
+        setStartDate("");
+        setEndDate("");
       }
     };
     reader.readAsText(file);
     e.target.value = "";
   }, []);
 
-  const handleDeleteCsv = useCallback(() => {
+  const handleDeleteCsv = useCallback(async () => {
+    await Promise.all([
+      idbRemove(STORAGE_KEY_CSV),
+      idbRemove(STORAGE_KEY_BACKLOG),
+      idbRemove(STORAGE_KEY_START_DATE),
+      idbRemove(STORAGE_KEY_END_DATE),
+    ]);
     setRawData([]);
     setBacklog({});
     setHasFile(false);
     setStartDate("");
     setEndDate("");
-    idbRemove(STORAGE_KEY_CSV);
-    idbRemove(STORAGE_KEY_BACKLOG);
-    idbRemove(STORAGE_KEY_START_DATE);
-    idbRemove(STORAGE_KEY_END_DATE);
   }, []);
 
   const handleBacklogChange = useCallback((merchant: string, val: number) => {

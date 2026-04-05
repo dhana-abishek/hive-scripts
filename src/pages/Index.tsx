@@ -130,10 +130,13 @@ const Index = () => {
     });
   }, []);
 
-  const backlog = useMemo(() => {
-    try { return JSON.parse(localStorage.getItem("plannedBacklog") || "{}") as Record<string, number>; } catch { return {} as Record<string, number>; }
-  }, [flowData]); // re-read when flowData changes (trigger for re-render after edits)
+  const [backlog, setBacklog] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem("plannedBacklog") || "{}"); } catch { return {}; }
+  });
 
+  const handleBacklogChange = useCallback((updated: Record<string, number>) => {
+    setBacklog(updated);
+  }, []);
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
     const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);

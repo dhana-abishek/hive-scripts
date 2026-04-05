@@ -128,13 +128,13 @@ function AgingZoneView({
   onBacklogChange: (merchant: string, val: number) => void;
   onResetZoneBacklog: () => void;
 }) {
-  const [nonProdHC, setNonProdHC] = useState(() => {
-    const saved = localStorage.getItem(`agingNonProdHC_zone${zone}`);
-    return saved !== null ? parseFloat(saved) : 6;
-  });
+  const [nonProdHC, setNonProdHC] = useState(6);
+  useEffect(() => {
+    idbGet<number>(`agingNonProdHC_zone${zone}`).then((v) => { if (v !== null) setNonProdHC(v); });
+  }, [zone]);
   const handleNonProdChange = (val: number) => {
     setNonProdHC(val);
-    localStorage.setItem(`agingNonProdHC_zone${zone}`, String(val));
+    idbSet(`agingNonProdHC_zone${zone}`, val);
   };
 
   const [sortKey, setSortKey] = useState<ZoneSortKey>("serial");

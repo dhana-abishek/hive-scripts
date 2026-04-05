@@ -10,7 +10,15 @@ import { useMetabaseData } from "@/hooks/useMetabaseData";
 
 const Index = () => {
   const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData();
-  const [nonProdHeadcount, setNonProdHeadcount] = useState(0);
+  const [nonProdHeadcount, setNonProdHeadcount] = useState(() => {
+    const saved = localStorage.getItem("nonProdHC_main");
+    return saved !== null ? parseFloat(saved) : 12;
+  });
+
+  const handleNonProdChange = (val: number) => {
+    setNonProdHeadcount(val);
+    localStorage.setItem("nonProdHC_main", String(val));
+  };
 
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
@@ -68,7 +76,7 @@ const Index = () => {
           </div>
         )}
 
-        <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={setNonProdHeadcount} />
+        <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} />
 
         <Tabs defaultValue="flow" className="space-y-4">
           <TabsList className="bg-secondary border border-border">

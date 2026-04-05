@@ -1,13 +1,22 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
-import { BenchmarkTable } from "@/components/BenchmarkTable";
+import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
 import { ZoneView } from "@/components/ZoneView";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
+
+const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
+const PICK_ACTIVE_KEY = "pickBenchmarkActiveId";
+const PACK_UPLOADS_KEY = "packBenchmarkUploads";
+const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
+
+function loadUploads(key: string): BenchmarkUpload[] {
+  try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
+}
 
 const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(() => {
@@ -15,24 +24,77 @@ const Index = () => {
     return saved !== null ? parseFloat(saved) : 12;
   });
 
-  const [customPicking, setCustomPicking] = useState<BenchmarkEntry[] | null>(() => {
-    const saved = localStorage.getItem("customPickingBenchmarks");
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [customPacking, setCustomPacking] = useState<BenchmarkEntry[] | null>(() => {
-    const saved = localStorage.getItem("customPackingBenchmarks");
-    return saved ? JSON.parse(saved) : null;
-  });
+  // Pick uploads
+  const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>(() => loadUploads(PICK_UPLOADS_KEY));
+  const [pickActiveId, setPickActiveId] = useState<string | null>(() => localStorage.getItem(PICK_ACTIVE_KEY));
 
-  const pickingBenchmarks = customPicking ?? defaultPickingBenchmarks;
-  const packingBenchmarks = customPacking ?? defaultPackingBenchmarks;
+  // Pack uploads
+  const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>(() => loadUploads(PACK_UPLOADS_KEY));
+  const [packActiveId, setPackActiveId] = useState<string | null>(() => localStorage.getItem(PACK_ACTIVE_KEY));
 
-  const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData(customPicking, customPacking);
+  const activePick = pickUploads.find((u) => u.id === pickActiveId);
+  const activePack = packUploads.find((u) => u.id === packActiveId);
+
+  const pickingBenchmarks = activePick?.entries ?? defaultPickingBenchmarks;
+  const packingBenchmarks = activePack?.entries ?? defaultPackingBenchmarks;
+
+  const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData(
+    activePick?.entries ?? null,
+    activePack?.entries ?? null
+  );
 
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);
     localStorage.setItem("nonProdHC_main", String(val));
   };
+
+  // Pick handlers
+  const handlePickNewUpload = useCallback((upload: BenchmarkUpload) => {
+    setPickUploads((prev) => {
+      const next = [...prev, upload];
+      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      return next;
+    });
+    setPickActiveId(upload.id);
+    localStorage.setItem(PICK_ACTIVE_KEY, upload.id);
+  }, []);
+
+  const handlePickSelect = useCallback((id: string) => {
+    setPickActiveId(id);
+    localStorage.setItem(PICK_ACTIVE_KEY, id);
+  }, []);
+
+  const handlePickRename = useCallback((id: string, newName: string) => {
+    setPickUploads((prev) => {
+      const next = prev.map((u) => u.id === id ? { ...u, name: newName } : u);
+      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // Pack handlers
+  const handlePackNewUpload = useCallback((upload: BenchmarkUpload) => {
+    setPackUploads((prev) => {
+      const next = [...prev, upload];
+      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      return next;
+    });
+    setPackActiveId(upload.id);
+    localStorage.setItem(PACK_ACTIVE_KEY, upload.id);
+  }, []);
+
+  const handlePackSelect = useCallback((id: string) => {
+    setPackActiveId(id);
+    localStorage.setItem(PACK_ACTIVE_KEY, id);
+  }, []);
+
+  const handlePackRename = useCallback((id: string, newName: string) => {
+    setPackUploads((prev) => {
+      const next = prev.map((u) => u.id === id ? { ...u, name: newName } : u);
+      localStorage.setItem(PACK_UPLOADS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const stats = useMemo(() => {
     const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
@@ -43,7 +105,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -56,17 +117,12 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Refresh button & status */}
             <button
               onClick={refresh}
               disabled={isLoading}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors disabled:opacity-50"
             >
-              {isLoading ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <RefreshCw size={12} />
-              )}
+              {isLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
               Refresh
             </button>
             {lastUpdated && (
@@ -82,7 +138,6 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {error && (
           <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
@@ -124,7 +179,6 @@ const Index = () => {
           <TabsContent value="zoneA">
             <ZoneView zone="A" flowData={flowData} timeLeft={0} />
           </TabsContent>
-
           <TabsContent value="zoneB">
             <ZoneView zone="B" flowData={flowData} timeLeft={0} />
           </TabsContent>
@@ -134,9 +188,11 @@ const Index = () => {
               title="Picking Benchmark (SPH)"
               data={pickingBenchmarks}
               valueLabel="Pick SPH"
-              isCustom={!!customPicking}
-              onUpload={(entries) => { setCustomPicking(entries); localStorage.setItem("customPickingBenchmarks", JSON.stringify(entries)); }}
-              onReset={() => { setCustomPicking(null); localStorage.removeItem("customPickingBenchmarks"); }}
+              uploads={pickUploads}
+              activeUploadId={pickActiveId}
+              onNewUpload={handlePickNewUpload}
+              onSelectUpload={handlePickSelect}
+              onRenameUpload={handlePickRename}
               liveFlowData={flowData}
             />
           </TabsContent>
@@ -146,9 +202,11 @@ const Index = () => {
               title="Packing Benchmark (SPH)"
               data={packingBenchmarks}
               valueLabel="Pack SPH"
-              isCustom={!!customPacking}
-              onUpload={(entries) => { setCustomPacking(entries); localStorage.setItem("customPackingBenchmarks", JSON.stringify(entries)); }}
-              onReset={() => { setCustomPacking(null); localStorage.removeItem("customPackingBenchmarks"); }}
+              uploads={packUploads}
+              activeUploadId={packActiveId}
+              onNewUpload={handlePackNewUpload}
+              onSelectUpload={handlePackSelect}
+              onRenameUpload={handlePackRename}
               liveFlowData={flowData}
             />
           </TabsContent>

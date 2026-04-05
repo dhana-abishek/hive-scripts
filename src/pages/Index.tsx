@@ -5,8 +5,9 @@ import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable } from "@/components/BenchmarkTable";
 import { ZoneView } from "@/components/ZoneView";
-import { pickingBenchmarks, packingBenchmarks } from "@/data/warehouseData";
+import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
+import type { BenchmarkEntry } from "@/types/warehouse";
 
 const Index = () => {
   const { flowData, isLoading, error, lastUpdated, refresh } = useMetabaseData();
@@ -14,6 +15,18 @@ const Index = () => {
     const saved = localStorage.getItem("nonProdHC_main");
     return saved !== null ? parseFloat(saved) : 12;
   });
+
+  const [customPicking, setCustomPicking] = useState<BenchmarkEntry[] | null>(() => {
+    const saved = localStorage.getItem("customPickingBenchmarks");
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [customPacking, setCustomPacking] = useState<BenchmarkEntry[] | null>(() => {
+    const saved = localStorage.getItem("customPackingBenchmarks");
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const pickingBenchmarks = customPicking ?? defaultPickingBenchmarks;
+  const packingBenchmarks = customPacking ?? defaultPackingBenchmarks;
 
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);
@@ -120,6 +133,9 @@ const Index = () => {
               title="Picking Benchmark (SPH)"
               data={pickingBenchmarks}
               valueLabel="Pick SPH"
+              isCustom={!!customPicking}
+              onUpload={(entries) => { setCustomPicking(entries); localStorage.setItem("customPickingBenchmarks", JSON.stringify(entries)); }}
+              onReset={() => { setCustomPicking(null); localStorage.removeItem("customPickingBenchmarks"); }}
             />
           </TabsContent>
 
@@ -128,6 +144,9 @@ const Index = () => {
               title="Packing Benchmark (SPH)"
               data={packingBenchmarks}
               valueLabel="Pack SPH"
+              isCustom={!!customPacking}
+              onUpload={(entries) => { setCustomPacking(entries); localStorage.setItem("customPackingBenchmarks", JSON.stringify(entries)); }}
+              onReset={() => { setCustomPacking(null); localStorage.removeItem("customPackingBenchmarks"); }}
             />
           </TabsContent>
         </Tabs>

@@ -45,6 +45,7 @@ interface SummaryStatsProps {
   onNonProdHeadcountChange: (value: number) => void;
   totalPlannedBacklog?: number;
   adjustedSph?: number;
+  onResetBacklog?: () => void;
 }
 
 function calcTimeLeft(): number {
@@ -93,6 +94,7 @@ export function SummaryStats({
   onNonProdHeadcountChange,
   totalPlannedBacklog = 0,
   adjustedSph = 0,
+  onResetBacklog,
 }: SummaryStatsProps) {
   const pickingHeadcount = Math.ceil(totalPickingHours / TIME_LEFT);
   const packingHeadcount = Math.ceil(totalPackingHours / TIME_LEFT);
@@ -142,12 +144,25 @@ export function SummaryStats({
           icon={<Timer size={16} />}
           subtext="Remaining shift hours"
         />
-        <StatCard
-          label="Planned Backlog"
-          value={totalPlannedBacklog.toLocaleString()}
-          icon={<ArrowDownToLine size={16} />}
-          subtext="Orders deferred"
-        />
+        <div className="relative">
+          <StatCard
+            label="Planned Backlog"
+            value={totalPlannedBacklog.toLocaleString()}
+            icon={<ArrowDownToLine size={16} />}
+            subtext="Orders deferred"
+          />
+          {totalPlannedBacklog > 0 && onResetBacklog && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 right-2 h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+              onClick={onResetBacklog}
+              title="Reset all planned backlog to 0"
+            >
+              <RotateCcw size={12} className="mr-1" /> Reset
+            </Button>
+          )}
+        </div>
         <StatCard
           label="Adjusted SPH"
           value={adjustedSph.toFixed(1)}

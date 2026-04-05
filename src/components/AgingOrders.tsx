@@ -21,7 +21,7 @@ interface AgingOrdersProps {
   packingRates: Record<string, number>;
 }
 
-type SortKey = "merchant" | "count_orders" | "picking_hours" | "packing_hours" | "ideal_sph";
+type SortKey = "merchant" | "count_orders" | "planned_backlog" | "picking_hours" | "packing_hours" | "ideal_sph";
 
 function parseCSV(text: string): AgingRow[] {
   const lines = text.trim().split("\n");
@@ -562,6 +562,7 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   const columns: { key: SortKey; label: string; align?: string }[] = [
     { key: "merchant", label: "Merchant" },
     { key: "count_orders", label: "Orders", align: "right" },
+    { key: "planned_backlog", label: "Backlog", align: "right" },
     { key: "picking_hours", label: "Pick Hrs", align: "right" },
     { key: "packing_hours", label: "Pack Hrs", align: "right" },
     { key: "ideal_sph", label: "Ideal SPH", align: "right" },
@@ -684,7 +685,7 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
                           <span className="inline-flex items-center gap-1">{col.label} <SortIcon col={col.key} /></span>
                         </th>
                       ))}
-                      <th className="table-header px-3 py-2 text-right">Backlog</th>
+                      
                     </tr>
                   </thead>
                   <tbody>
@@ -692,9 +693,6 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
                       <tr key={row.merchant} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
                         <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">{row.merchant}</td>
                         <td className="table-cell px-3 py-2 text-right">{row.count_orders}</td>
-                        <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
-                        <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
-                        <td className={`table-cell px-3 py-2 text-right font-semibold ${getSphColor(row.ideal_sph)}`}>{row.ideal_sph.toFixed(2)}</td>
                         <td className="table-cell px-3 py-2 text-right">
                           {editingMerchant === row.merchant ? (
                             <input type="number" min={0} value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleCommitEdit} onKeyDown={(e) => { if (e.key === "Enter") handleCommitEdit(); if (e.key === "Escape") setEditingMerchant(null); }} autoFocus className="w-16 bg-secondary border border-border rounded px-1 py-0.5 text-xs text-right text-foreground outline-none focus:ring-1 focus:ring-primary" />
@@ -702,6 +700,9 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
                             <button onClick={() => handleStartEdit(row.merchant)} className="text-xs hover:text-primary transition-colors cursor-pointer tabular-nums" title="Click to edit planned backlog">{row.planned_backlog}</button>
                           )}
                         </td>
+                        <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
+                        <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
+                        <td className={`table-cell px-3 py-2 text-right font-semibold ${getSphColor(row.ideal_sph)}`}>{row.ideal_sph.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

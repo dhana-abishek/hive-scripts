@@ -33,6 +33,12 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
+  useEffect(() => {
+    if (externalBacklog !== undefined) {
+      setBacklog(externalBacklog);
+    }
+  }, [externalBacklog]);
+
   const saveBacklog = useCallback((updated: Record<string, number>) => {
     setBacklog(updated);
     localStorage.setItem(BACKLOG_KEY, JSON.stringify(updated));

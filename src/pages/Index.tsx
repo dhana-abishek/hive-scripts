@@ -19,18 +19,31 @@ const PACK_UPLOADS_KEY = "packBenchmarkUploads";
 const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
 
 const Index = () => {
-  const [nonProdHeadcount, setNonProdHeadcount] = useState(() => {
-    const saved = localStorage.getItem("nonProdHC_main");
-    return saved !== null ? parseFloat(saved) : 12;
-  });
+  const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
+  const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
+  const [pickActiveId, setPickActiveId] = useState<string | null>(null);
+  const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);
+  const [packActiveId, setPackActiveId] = useState<string | null>(null);
+  const idbLoaded = useRef(false);
 
-  // Pick uploads
-  const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>(() => loadUploads(PICK_UPLOADS_KEY));
-  const [pickActiveId, setPickActiveId] = useState<string | null>(() => localStorage.getItem(PICK_ACTIVE_KEY));
-
-  // Pack uploads
-  const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>(() => loadUploads(PACK_UPLOADS_KEY));
-  const [packActiveId, setPackActiveId] = useState<string | null>(() => localStorage.getItem(PACK_ACTIVE_KEY));
+  // Load all from IndexedDB on mount
+  useEffect(() => {
+    (async () => {
+      const [pu, pa, pku, pka, hc] = await Promise.all([
+        idbGet<BenchmarkUpload[]>(PICK_UPLOADS_KEY),
+        idbGet<string>(PICK_ACTIVE_KEY),
+        idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
+        idbGet<string>(PACK_ACTIVE_KEY),
+        idbGet<number>("nonProdHC_main"),
+      ]);
+      if (pu) setPickUploads(pu);
+      if (pa) setPickActiveId(pa);
+      if (pku) setPackUploads(pku);
+      if (pka) setPackActiveId(pka);
+      if (hc !== null) setNonProdHeadcount(hc);
+      idbLoaded.current = true;
+    })();
+  }, []);
 
   const activePick = pickUploads.find((u) => u.id === pickActiveId);
   const activePack = packUploads.find((u) => u.id === packActiveId);
@@ -45,7 +58,7 @@ const Index = () => {
 
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);
-    localStorage.setItem("nonProdHC_main", String(val));
+    idbSet("nonProdHC_main", val);
   };
 
   // Pick handlers

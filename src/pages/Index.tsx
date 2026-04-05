@@ -1,11 +1,12 @@
 import { useMemo, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
 import { ZoneView } from "@/components/ZoneView";
 import { AgingOrders } from "@/components/AgingOrders";
+import { PerformanceTracker } from "@/components/PerformanceTracker";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
@@ -247,6 +248,9 @@ const Index = () => {
             <TabsTrigger value="aging" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <CalendarClock size={14} /> Aging Orders
             </TabsTrigger>
+            <TabsTrigger value="performance" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Users size={14} /> Performance Tracker
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="flow" className="space-y-4">
@@ -299,6 +303,10 @@ const Index = () => {
 
           <TabsContent value="aging">
             <AgingOrders pickingRates={pickingRates} packingRates={packingRates} />
+          </TabsContent>
+
+          <TabsContent value="performance">
+            <PerformanceTracker />
           </TabsContent>
         </Tabs>
       </main>

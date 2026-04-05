@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Upload, ChevronDown, Pencil, Check, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Upload, ChevronDown, Pencil, Check, X, Trash2 } from "lucide-react";
 import type { BenchmarkEntry } from "@/types/warehouse";
 
 interface FlowRow {
@@ -23,10 +23,11 @@ interface BenchmarkTableProps {
   onNewUpload?: (upload: BenchmarkUpload) => void;
   onSelectUpload?: (id: string) => void;
   onRenameUpload?: (id: string, newName: string) => void;
+  onDeleteUpload?: (id: string) => void;
   liveFlowData?: FlowRow[];
 }
 
-export function BenchmarkTable({ title, data, valueLabel, uploads, activeUploadId, onNewUpload, onSelectUpload, onRenameUpload, liveFlowData }: BenchmarkTableProps) {
+export function BenchmarkTable({ title, data, valueLabel, uploads, activeUploadId, onNewUpload, onSelectUpload, onRenameUpload, onDeleteUpload, liveFlowData }: BenchmarkTableProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -184,6 +185,12 @@ export function BenchmarkTable({ title, data, valueLabel, uploads, activeUploadI
                               className="text-muted-foreground hover:text-foreground"
                             >
                               <Pencil size={10} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onDeleteUpload?.(u.id); }}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 size={10} />
                             </button>
                             {u.id === activeUploadId && <span className="text-primary font-bold">✓</span>}
                           </>

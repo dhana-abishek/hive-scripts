@@ -61,7 +61,7 @@ function calcTimeLeft(): number {
   return Math.max(0, totalShift - elapsed);
 }
 
-type SortKey = "name" | "order_volume" | "picking_hours" | "packing_hours" | "headcount";
+type SortKey = "serial" | "name" | "order_volume" | "picking_hours" | "packing_hours" | "headcount";
 
 export function ZoneView({ zone, flowData }: ZoneViewProps) {
   const [nonProdHC, setNonProdHC] = useState(() => {

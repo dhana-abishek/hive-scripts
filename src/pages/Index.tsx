@@ -227,6 +227,7 @@ const Index = () => {
               onNewUpload={handlePickNewUpload}
               onSelectUpload={handlePickSelect}
               onRenameUpload={handlePickRename}
+              onDeleteUpload={handlePickDelete}
               liveFlowData={flowData}
             />
           </TabsContent>
@@ -241,6 +242,7 @@ const Index = () => {
               onNewUpload={handlePackNewUpload}
               onSelectUpload={handlePackSelect}
               onRenameUpload={handlePackRename}
+              onDeleteUpload={handlePackDelete}
               liveFlowData={flowData}
             />
           </TabsContent>

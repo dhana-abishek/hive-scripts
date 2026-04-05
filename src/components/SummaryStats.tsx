@@ -156,7 +156,7 @@ export function SummaryStats({
             <Button
               variant="ghost"
               size="sm"
-              className="absolute bottom-2 right-2 h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+              className="absolute top-8 right-2 h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
               onClick={onResetBacklog}
               title="Reset all planned backlog to 0"
             >

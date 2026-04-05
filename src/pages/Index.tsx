@@ -72,6 +72,23 @@ const Index = () => {
     });
   }, []);
 
+  const handlePickDelete = useCallback((id: string) => {
+    setPickUploads((prev) => {
+      const next = prev.filter((u) => u.id !== id);
+      localStorage.setItem(PICK_UPLOADS_KEY, JSON.stringify(next));
+      return next;
+    });
+    setPickActiveId((curr) => {
+      if (curr === id) {
+        const remaining = pickUploads.filter((u) => u.id !== id);
+        const newId = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+        if (newId) localStorage.setItem(PICK_ACTIVE_KEY, newId); else localStorage.removeItem(PICK_ACTIVE_KEY);
+        return newId;
+      }
+      return curr;
+    });
+  }, [pickUploads]);
+
   // Pack handlers
   const handlePackNewUpload = useCallback((upload: BenchmarkUpload) => {
     setPackUploads((prev) => {

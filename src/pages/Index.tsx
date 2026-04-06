@@ -12,6 +12,7 @@ import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
 import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
+import type { ExtraMerchant } from "@/components/PerformanceTracker";
 
 const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
 const PICK_ACTIVE_KEY = "pickBenchmarkActiveId";
@@ -20,6 +21,7 @@ const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
 
 const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
+  const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
   const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
   const [pickActiveId, setPickActiveId] = useState<string | null>(null);
   const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);
@@ -27,18 +29,20 @@ const Index = () => {
   // Load all from IndexedDB on mount
   useEffect(() => {
     (async () => {
-      const [pu, pa, pku, pka, hc] = await Promise.all([
+      const [pu, pa, pku, pka, hc, em] = await Promise.all([
         idbGet<BenchmarkUpload[]>(PICK_UPLOADS_KEY),
         idbGet<string>(PICK_ACTIVE_KEY),
         idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
         idbGet<string>(PACK_ACTIVE_KEY),
         idbGet<number>("nonProdHC_main"),
+        idbGet<ExtraMerchant[]>("perfExtraMerchants"),
       ]);
       if (pu) setPickUploads(pu);
       if (pa) setPickActiveId(pa);
       if (pku) setPackUploads(pku);
       if (pka) setPackActiveId(pka);
       if (hc !== null) setNonProdHeadcount(hc);
+      if (em) setExtraMerchants(em);
     })();
   }, []);
 
@@ -291,7 +295,7 @@ const Index = () => {
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} />
+              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">
@@ -336,7 +340,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="performance">
-            <PerformanceTracker />
+            <PerformanceTracker extraMerchants={extraMerchants} />
           </TabsContent>
         </Tabs>
       </main>

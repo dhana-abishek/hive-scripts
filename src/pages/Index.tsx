@@ -334,20 +334,20 @@ const Index = () => {
 
           <TabsContent value="flow" className="space-y-4">
             <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} />
-            {isLoading && flowData.length === 0 ? (
+            {isLoading && mergedFlowData.length === 0 ? (
               <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
                 <Loader2 size={16} className="animate-spin" />
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} />
+              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">
-            <ZoneView zone="A" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
+            <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
           </TabsContent>
           <TabsContent value="zoneB">
-            <ZoneView zone="B" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
+            <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
           </TabsContent>
 
           <TabsContent value="picking">

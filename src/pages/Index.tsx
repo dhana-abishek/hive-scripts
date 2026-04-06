@@ -21,6 +21,7 @@ const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
 
 const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
+  const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
   const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
   const [pickActiveId, setPickActiveId] = useState<string | null>(null);
   const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);

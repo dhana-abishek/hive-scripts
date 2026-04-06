@@ -44,3 +44,84 @@ export function getInflowFactor(now?: Date): { factor: number; baseFactor: numbe
     label: `${label} · ${Math.round(factor * 100)}% remaining`,
   };
 }
+
+/**
+ * Parse the shipments CSV and count orders per merchant that arrived
+ * between 1 PM the previous day and 7 AM today (overnight orders).
+ * These are the orders whose inflow pattern we can project forward.
+ */
+export function parseOvernightVolumes(csvText: string, now?: Date): Record<string, number> {
+  const d = now ?? new Date();
+
+  // 1 PM yesterday
+  const yesterday1PM = new Date(d);
+  yesterday1PM.setDate(yesterday1PM.getDate() - 1);
+  yesterday1PM.setHours(13, 0, 0, 0);
+
+  // 7 AM today
+  const today7AM = new Date(d);
+  today7AM.setHours(7, 0, 0, 0);
+
+  const lines = csvText.split("\n");
+  if (lines.length < 2) return {};
+
+  // Find column indices from header
+  const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+  const readyIdx = header.findIndex(h => h.includes("ready_for_fulfillment"));
+  const merchantIdx = header.indexOf("merchant");
+  if (readyIdx === -1 || merchantIdx === -1) return {};
+
+  const counts: Record<string, number> = {};
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    // Parse CSV respecting quoted fields
+    const fields = parseCSVLine(line);
+    if (fields.length <= Math.max(readyIdx, merchantIdx)) continue;
+
+    const merchant = fields[merchantIdx].trim();
+    const readyRaw = fields[readyIdx].trim();
+    if (!merchant || !readyRaw) continue;
+
+    const readyDate = parseMetabaseDate(readyRaw);
+    if (!readyDate) continue;
+
+    if (readyDate >= yesterday1PM && readyDate < today7AM) {
+      counts[merchant] = (counts[merchant] || 0) + 1;
+    }
+  }
+
+  return counts;
+}
+
+function parseCSVLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      fields.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  fields.push(current);
+  return fields;
+}
+
+/** Parse dates like "April 2, 2026, 10:30" */
+function parseMetabaseDate(raw: string): Date | null {
+  try {
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) return d;
+    return null;
+  } catch {
+    return null;
+  }
+}

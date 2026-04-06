@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp, Upload, FileText } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getInflowFactor } from "@/lib/inflowEstimation";
+import { getInflowFactor, parseOvernightVolumes } from "@/lib/inflowEstimation";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
 
 const MULTIPLIER = 1.125;
@@ -27,11 +27,12 @@ interface FlowManagementTableProps {
   onExtraMerchantsChange?: (merchants: ExtraMerchant[]) => void;
   inflowEnabled?: boolean;
   onInflowToggle?: (enabled: boolean) => void;
+  onInflowCsvParsed?: (overnightVolumes: Record<string, number>) => void;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed }: FlowManagementTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
@@ -196,23 +197,51 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
           </div>
         )}
 
-        {/* Estimate Inflow Toggle */}
+        {/* Estimate Inflow via CSV Upload */}
         <div className="flex items-center gap-3 pt-2 border-t border-border/50">
           {(() => {
             const { factor, label } = getInflowFactor();
+            const fileInputRef = useRef<HTMLInputElement>(null);
+            const handleInflowCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                const text = ev.target?.result as string;
+                if (!text) return;
+                const overnight = parseOvernightVolumes(text);
+                onInflowCsvParsed?.(overnight);
+                onInflowToggle?.(true);
+              };
+              reader.readAsText(file);
+              e.target.value = "";
+            };
             return (
               <>
-                <Button
-                  size="sm"
-                  variant={inflowEnabled ? "default" : "outline"}
-                  onClick={() => onInflowToggle?.(!inflowEnabled)}
-                  className="h-8 px-3 text-xs gap-1.5"
-                >
-                  <TrendingUp size={12} />
-                  {inflowEnabled ? "Inflow Estimation On" : "Estimate Inflow"}
-                </Button>
+                <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleInflowCsv} />
+                {inflowEnabled ? (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => { onInflowToggle?.(false); onInflowCsvParsed?.({}); }}
+                    className="h-8 px-3 text-xs gap-1.5"
+                  >
+                    <TrendingUp size={12} />
+                    Inflow Estimation On
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-8 px-3 text-xs gap-1.5"
+                  >
+                    <Upload size={12} />
+                    Estimate Inflow (Upload CSV)
+                  </Button>
+                )}
                 <span className="text-xs text-muted-foreground">
-                  {label} {inflowEnabled && factor > 0 && `· +${Math.round(factor * 100)}% applied`}
+                  {label} {inflowEnabled && factor > 0 && `· +${Math.round(factor * 100)}% applied to overnight orders`}
                   {inflowEnabled && factor === 0 && "· No additional inflow at this time"}
                 </span>
               </>

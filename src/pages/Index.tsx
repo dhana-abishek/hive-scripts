@@ -385,7 +385,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="performance">
-            <PerformanceTracker extraMerchants={extraMerchants} />
+            <PerformanceTracker />
           </TabsContent>
         </Tabs>
       </main>

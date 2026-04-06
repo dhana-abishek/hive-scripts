@@ -263,5 +263,6 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
         </table>
       </div>
     </div>
+    </div>
   );
 }

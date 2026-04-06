@@ -232,6 +232,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
           <table className="w-full">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="border-b">
+                <th className="table-header px-3 py-2 text-center w-10">#</th>
                 {columns.map((col) => (
                   <th
                     key={col.key}
@@ -248,6 +249,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
             <tbody>
               {filtered.map((row) => (
                 <tr key={row.name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
+                  <td className="px-3 py-2 text-xs text-muted-foreground text-center">{serialOrder[row.name] ?? ""}</td>
                   <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">
                     {row.isGroup && <span className="text-xs text-primary mr-1">●</span>}
                     {row.name}

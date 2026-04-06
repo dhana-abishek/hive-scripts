@@ -1,9 +1,13 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import type { ExtraMerchant } from "@/components/PerformanceTracker";
 
 const MULTIPLIER = 1.125;
 const BACKLOG_KEY = "plannedBacklog";
+const EXTRA_MERCHANTS_KEY = "perfExtraMerchants";
 
 interface FlowManagementTableProps {
   data: {
@@ -18,6 +22,8 @@ interface FlowManagementTableProps {
   packingRates?: Record<string, number>;
   onBacklogChange?: (backlog: Record<string, number>) => void;
   externalBacklog?: Record<string, number>;
+  extraMerchants?: ExtraMerchant[];
+  onExtraMerchantsChange?: (merchants: ExtraMerchant[]) => void;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";

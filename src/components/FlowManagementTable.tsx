@@ -195,6 +195,30 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
             <span className="text-xs text-muted-foreground self-center">Total: {extraMerchants.reduce((s, m) => s + m.orderVolume, 0).toLocaleString()}</span>
           </div>
         )}
+
+        {/* Estimate Inflow Toggle */}
+        <div className="flex items-center gap-3 pt-2 border-t border-border/50">
+          {(() => {
+            const { factor, label } = getInflowFactor();
+            return (
+              <>
+                <Button
+                  size="sm"
+                  variant={inflowEnabled ? "default" : "outline"}
+                  onClick={() => onInflowToggle?.(!inflowEnabled)}
+                  className="h-8 px-3 text-xs gap-1.5"
+                >
+                  <TrendingUp size={12} />
+                  {inflowEnabled ? "Inflow Estimation On" : "Estimate Inflow"}
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {label} {inflowEnabled && factor > 0 && `· +${Math.round(factor * 100)}% applied`}
+                  {inflowEnabled && factor === 0 && "· No additional inflow at this time"}
+                </span>
+              </>
+            );
+          })()}
+        </div>
       </div>
 
       <div className="rounded-md border bg-card">

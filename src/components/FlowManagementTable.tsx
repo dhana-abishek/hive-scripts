@@ -28,13 +28,15 @@ interface FlowManagementTableProps {
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange }: FlowManagementTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
   const [backlog, setBacklog] = useState<Record<string, number>>({});
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [newMerchantName, setNewMerchantName] = useState("");
+  const [newMerchantVolume, setNewMerchantVolume] = useState("");
 
   useEffect(() => {
     idbGet<Record<string, number>>(BACKLOG_KEY).then((v) => { if (v) setBacklog(v); });

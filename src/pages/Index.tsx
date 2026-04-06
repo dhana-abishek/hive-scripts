@@ -240,17 +240,14 @@ const Index = () => {
     idbSet("plannedBacklog", updated);
   }, [backlog]);
   const stats = useMemo(() => {
-    const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
-    const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);
-    const totalPackingHours = flowData.reduce((s, r) => s + r.packing_hours, 0);
-    const totalPlannedBacklog = flowData.reduce((s, r) => s + (backlog[r.merchant_name] || 0), 0);
+    const totalOrders = mergedFlowData.reduce((s, r) => s + r.order_volume, 0);
+    const totalPlannedBacklog = mergedFlowData.reduce((s, r) => s + (backlog[r.merchant_name] || 0), 0);
 
-    // Adjusted SPH: recalculate with backlog-reduced volumes
     const MULTIPLIER = 1.125;
     let adjPickHrs = 0;
     let adjPackHrs = 0;
     let adjVolume = 0;
-    for (const r of flowData) {
+    for (const r of mergedFlowData) {
       const bl = backlog[r.merchant_name] || 0;
       const effVol = Math.max(0, r.order_volume - bl);
       const effWait = Math.max(0, r.waiting_for_picking - bl);
@@ -262,11 +259,11 @@ const Index = () => {
         adjVolume += effVol;
       }
     }
-    const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8); // approximate time
+    const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8);
     const adjustedSph = adjDenom > 0 ? adjVolume / adjDenom : 0;
 
-    return { totalOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: flowData.length, totalPlannedBacklog, adjustedSph };
-  }, [flowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
+    return { totalOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: mergedFlowData.length, totalPlannedBacklog, adjustedSph };
+  }, [mergedFlowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
 
   return (
     <div className="min-h-screen bg-background">

@@ -124,7 +124,7 @@ export function SummaryStats({
           </div>
           <div className="stat-value text-foreground">{totalPickingHours.toFixed(1)}h</div>
           <p className="text-xs text-muted-foreground mt-1">
-            <span className="font-semibold text-foreground">{pickingHeadcount} HC</span> needed ({totalPickingHours.toFixed(1)}h ÷ {TIME_LEFT}h)
+            <span className="font-semibold text-foreground">{pickingHeadcount} HC</span> needed ({totalPickingHours.toFixed(1)}h ÷ {TIME_LEFT.toFixed(2)}h)
           </p>
         </div>
         <div className="rounded-md border bg-card p-4 border-warning/30">
@@ -134,7 +134,7 @@ export function SummaryStats({
           </div>
           <div className="stat-value text-foreground">{totalPackingHours.toFixed(1)}h</div>
           <p className="text-xs text-muted-foreground mt-1">
-            <span className="font-semibold text-foreground">{packingHeadcount} HC</span> needed ({totalPackingHours.toFixed(1)}h ÷ {TIME_LEFT}h)
+            <span className="font-semibold text-foreground">{packingHeadcount} HC</span> needed ({totalPackingHours.toFixed(1)}h ÷ {TIME_LEFT.toFixed(2)}h)
           </p>
         </div>
       </div>

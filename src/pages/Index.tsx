@@ -29,18 +29,20 @@ const Index = () => {
   // Load all from IndexedDB on mount
   useEffect(() => {
     (async () => {
-      const [pu, pa, pku, pka, hc] = await Promise.all([
+      const [pu, pa, pku, pka, hc, em] = await Promise.all([
         idbGet<BenchmarkUpload[]>(PICK_UPLOADS_KEY),
         idbGet<string>(PICK_ACTIVE_KEY),
         idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
         idbGet<string>(PACK_ACTIVE_KEY),
         idbGet<number>("nonProdHC_main"),
+        idbGet<ExtraMerchant[]>("perfExtraMerchants"),
       ]);
       if (pu) setPickUploads(pu);
       if (pa) setPickActiveId(pa);
       if (pku) setPackUploads(pku);
       if (pka) setPackActiveId(pka);
       if (hc !== null) setNonProdHeadcount(hc);
+      if (em) setExtraMerchants(em);
     })();
   }, []);
 

@@ -1,12 +1,18 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Upload, Trash2, TrendingUp, TrendingDown, BarChart3, Gauge, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { Upload, Trash2, TrendingUp, TrendingDown, BarChart3, Gauge, ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const PICK_CSV_KEY = "perfPickingCsv";
 const PACK_CSV_KEY = "perfPackingCsv";
+const EXTRA_MERCHANTS_KEY = "perfExtraMerchants";
 
+interface ExtraMerchant {
+  id: string;
+  name: string;
+  orderVolume: number;
+}
 interface PickingRow {
   day_of_transaction: string;
   warehouse_name: string;

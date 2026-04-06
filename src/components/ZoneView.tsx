@@ -6,6 +6,17 @@ import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 
 const zoneLookup = buildZoneLookup();
 
+const zoneAOrder: Record<string, number> = {
+  "Horl": 1, "ela mo": 2, "MagicHolz": 3, "Hydraid": 4, "Beyond Drinks": 5,
+  "Dr. Emi": 6, "Shyne": 7, "Dr. Massing": 8, "Yummyeats -Smarter Choices GmbH": 9,
+  "Multi Small": 10, "Multi Big": 11, "SIOP": 12, "HAFERLÖWE": 13,
+  "Matchday Nutrition": 14, "Inkster": 15, "Lotuscrafts GmbH": 16,
+};
+
+const zoneBOrder: Record<string, number> = {
+  "AVA & MAY": 1, "thebettercat": 2, "Multi": 3, "Multi Critical": 4, "Multi Sizzlepak": 5,
+};
+
 interface FlowRow {
   merchant_name: string;
   order_volume: number;

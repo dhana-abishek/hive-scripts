@@ -155,6 +155,8 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
     return sortDir === "asc" ? <ArrowUp size={12} className="text-primary" /> : <ArrowDown size={12} className="text-primary" />;
   };
 
+  const serialOrder = zone === "A" ? zoneAOrder : zoneBOrder;
+
   const columns: { key: SortKey; label: string; align?: string }[] = [
     { key: "name", label: "Merchant" },
     { key: "order_volume", label: "Orders", align: "right" },

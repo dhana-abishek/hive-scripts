@@ -6,6 +6,17 @@ import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 
 const zoneLookup = buildZoneLookup();
 
+const zoneAOrder: Record<string, number> = {
+  "Horl": 1, "ela mo": 2, "MagicHolz": 3, "Hydraid": 4, "Beyond Drinks": 5,
+  "Dr. Emi": 6, "Shyne": 7, "Dr. Massing": 8, "Yummyeats -Smarter Choices GmbH": 9,
+  "Multi Small": 10, "Multi Big": 11, "SIOP": 12, "HAFERLÖWE": 13,
+  "Matchday Nutrition": 14, "Inkster": 15, "Lotuscrafts GmbH": 16,
+};
+
+const zoneBOrder: Record<string, number> = {
+  "AVA & MAY": 1, "thebettercat": 2, "Multi": 3, "Multi Critical": 4, "Multi Sizzlepak": 5,
+};
+
 interface FlowRow {
   merchant_name: string;
   order_volume: number;
@@ -144,6 +155,8 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
     return sortDir === "asc" ? <ArrowUp size={12} className="text-primary" /> : <ArrowDown size={12} className="text-primary" />;
   };
 
+  const serialOrder = zone === "A" ? zoneAOrder : zoneBOrder;
+
   const columns: { key: SortKey; label: string; align?: string }[] = [
     { key: "name", label: "Merchant" },
     { key: "order_volume", label: "Orders", align: "right" },
@@ -219,6 +232,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
           <table className="w-full">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="border-b">
+                <th className="table-header px-3 py-2 text-center w-10">#</th>
                 {columns.map((col) => (
                   <th
                     key={col.key}
@@ -235,6 +249,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
             <tbody>
               {filtered.map((row) => (
                 <tr key={row.name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
+                  <td className="px-3 py-2 text-xs text-muted-foreground text-center">{serialOrder[row.name] ?? ""}</td>
                   <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">
                     {row.isGroup && <span className="text-xs text-primary mr-1">●</span>}
                     {row.name}
@@ -247,6 +262,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
               ))}
               {/* Total row */}
               <tr className="border-t-2 border-primary/30 bg-secondary/30 font-bold">
+                <td className="px-3 py-2"></td>
                 <td className="px-3 py-2 text-sm">Total</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalOrders}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalPick.toFixed(2)}</td>

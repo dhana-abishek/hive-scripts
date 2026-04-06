@@ -1,7 +1,7 @@
 // Zone A: named merchants that appear directly in flow data
 export const zoneANamedMerchants = [
   "Horl", "ela mo", "MagicHolz", "Hydraid", "Beyond Drinks",
-  "Dr. Emi", "Shyne", "Dr. Massing",
+  "Dr. Emi", "SHYNE", "Dr. Massing",
   "Yummyeats -Smarter Choices GmbH", "HAFERLÖWE",
   "Matchday Nutrition", "Inkster", "Lotuscrafts GmbH",
 ];

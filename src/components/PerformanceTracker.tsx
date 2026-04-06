@@ -348,11 +348,7 @@ function WorkerTable({ pickData, packData }: { pickData: PickingRow[]; packData:
   );
 }
 
-interface PerformanceTrackerProps {
-  extraMerchants?: ExtraMerchant[];
-}
-
-export function PerformanceTracker({ extraMerchants = [] }: PerformanceTrackerProps) {
+export function PerformanceTracker() {
   const [pickData, setPickData] = useState<PickingRow[]>([]);
   const [packData, setPackData] = useState<PackingRow[]>([]);
 
@@ -449,13 +445,12 @@ export function PerformanceTracker({ extraMerchants = [] }: PerformanceTrackerPr
     const bestPack = packMerchants.length ? [...packMerchants].sort((a, b) => b.avgPerformance - a.avgPerformance)[0] : null;
     const worstPack = packMerchants.length ? [...packMerchants].sort((a, b) => a.avgPerformance - b.avgPerformance)[0] : null;
 
-    // Real SPH: (total packed shipments + extra merchant volumes) / (pick time + pack time)
-    const extraVolume = extraMerchants.reduce((s, m) => s + m.orderVolume, 0);
+    // Real SPH: total packed shipments / (pick time + pack time)
     const totalTime = pickWeightTotal + packWeightTotal;
-    const realSph = totalTime > 0 ? (totalPackShipments + extraVolume) / totalTime : 0;
+    const realSph = totalTime > 0 ? totalPackShipments / totalTime : 0;
 
-    return { totalPickShipments, totalPackShipments, avgPickPerf, avgPackPerf, pickWorkers, packWorkers, bestPick, worstPick, bestPack, worstPack, realSph, extraVolume };
-  }, [pickData, packData, pickMerchants, packMerchants, extraMerchants]);
+    return { totalPickShipments, totalPackShipments, avgPickPerf, avgPackPerf, pickWorkers, packWorkers, bestPick, worstPick, bestPack, worstPack, realSph };
+  }, [pickData, packData, pickMerchants, packMerchants]);
 
   const hasData = pickData.length > 0 || packData.length > 0;
 
@@ -524,7 +519,7 @@ export function PerformanceTracker({ extraMerchants = [] }: PerformanceTrackerPr
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <StatCard title="Avg Pick Performance" value={`${stats.avgPickPerf.toFixed(0)}%`} subtitle={`${stats.totalPickShipments.toLocaleString()} shipments • ${stats.pickWorkers} workers`} icon={BarChart3} color="text-primary" />
             <StatCard title="Avg Pack Performance" value={`${stats.avgPackPerf.toFixed(0)}%`} subtitle={`${stats.totalPackShipments.toLocaleString()} shipments • ${stats.packWorkers} workers`} icon={Gauge} color="text-primary" />
-            <StatCard title="Real SPH" value={stats.realSph.toFixed(1)} subtitle={`${(stats.totalPackShipments + stats.extraVolume).toLocaleString()} total shipments${stats.extraVolume > 0 ? ` (incl. ${stats.extraVolume.toLocaleString()} extra)` : ""}`} icon={TrendingUp} color="text-emerald-600" />
+            <StatCard title="Real SPH" value={stats.realSph.toFixed(1)} subtitle={`${stats.totalPackShipments.toLocaleString()} packed shipments`} icon={TrendingUp} color="text-emerald-600" />
           </div>
 
           {/* Merchant tables */}

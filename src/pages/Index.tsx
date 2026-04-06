@@ -120,12 +120,11 @@ const Index = () => {
       });
     const adjusted = flowData.map(r => {
       const extra = extraMerchants.find(m => m.name === r.merchant_name);
-      const baseVol = extra ? r.order_volume + extra.orderVolume : r.order_volume;
-      const baseWaiting = extra ? r.waiting_for_picking + extra.orderVolume : r.waiting_for_picking;
+      const extraVol = extra ? extra.orderVolume : 0;
 
-      // Apply inflow estimation
-      const newVol = applyInflow(baseVol);
-      const newWaiting = applyInflow(baseWaiting);
+      // Apply inflow only to CSV-sourced volumes, not manually added merchants
+      const newVol = applyInflow(r.order_volume) + extraVol;
+      const newWaiting = applyInflow(r.waiting_for_picking) + extraVol;
 
       if (newVol !== r.order_volume || newWaiting !== r.waiting_for_picking) {
         const pickRate = pickingRates[r.merchant_name];

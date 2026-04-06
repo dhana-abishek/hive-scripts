@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
-import { idbGet, idbSet } from "@/lib/idbStorage";
+import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 
 const MULTIPLIER = 1.125;
 const BACKLOG_KEY = "plannedBacklog";

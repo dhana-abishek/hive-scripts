@@ -11,7 +11,7 @@ import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as def
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
-import { idbGet, idbSet, idbRemove } from "@/lib/idbStorage";
+import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
 
 const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
 const PICK_ACTIVE_KEY = "pickBenchmarkActiveId";

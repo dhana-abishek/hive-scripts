@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Upload, Trash2, TrendingUp, TrendingDown, BarChart3, Gauge, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
-import { idbGet, idbSet, idbRemove } from "@/lib/idbStorage";
+import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

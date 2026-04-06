@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatCard } from "@/components/SummaryStats";
 import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
-import { idbGet, idbSet, idbRemove } from "@/lib/idbStorage";
+import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
 
 const MULTIPLIER = 1.125;
 const STORAGE_KEY_CSV = "agingOrdersCsv";

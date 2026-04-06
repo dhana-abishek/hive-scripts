@@ -163,9 +163,8 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
       {/* Additional Merchant Orders */}
       <div className="rounded-lg border bg-card p-4 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Plus size={14} className="text-primary" /> Additional Merchant Orders
+          <Plus size={14} className="text-primary" /> Order Inflow
         </h3>
-        <p className="text-xs text-muted-foreground">Add merchants whose orders arrived after the shift started. Their volume is included in SPH calculations.</p>
         <div className="flex items-end gap-2">
           <div className="flex-1 space-y-1">
             <label className="text-xs text-muted-foreground">Merchant Name</label>

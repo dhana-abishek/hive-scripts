@@ -12,7 +12,7 @@ const MULTIPLIER = 1.125;
 // HC grouping for Zone A: merchants in the same group share a single combined HC value
 const zoneAHCGroups: string[][] = [
   ["Horl", "ela mo", "MagicHolz", "Hydraid"],
-  ["Dr. Emi", "Shyne"],
+  ["Dr. Emi", "SHYNE"],
   ["Multi Small", "Multi Big", "SIOP"],
   ["HAFERLÖWE", "Matchday Nutrition"],
 ];

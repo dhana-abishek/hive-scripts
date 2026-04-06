@@ -361,7 +361,7 @@ const Index = () => {
               onSelectUpload={handlePickSelect}
               onRenameUpload={handlePickRename}
               onDeleteUpload={handlePickDelete}
-              liveFlowData={flowData}
+              liveFlowData={mergedFlowData}
             />
           </TabsContent>
 
@@ -376,7 +376,7 @@ const Index = () => {
               onSelectUpload={handlePackSelect}
               onRenameUpload={handlePackRename}
               onDeleteUpload={handlePackDelete}
-              liveFlowData={flowData}
+              liveFlowData={mergedFlowData}
             />
           </TabsContent>
 

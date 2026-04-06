@@ -12,6 +12,7 @@ import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
 import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
+import { getInflowFactor } from "@/lib/inflowEstimation";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
 
 const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
@@ -22,6 +23,7 @@ const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
 const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
   const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
+  const [inflowEnabled, setInflowEnabled] = useState(false);
   const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
   const [pickActiveId, setPickActiveId] = useState<string | null>(null);
   const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);

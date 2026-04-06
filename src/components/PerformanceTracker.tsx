@@ -468,12 +468,13 @@ export function PerformanceTracker() {
     const bestPack = packMerchants.length ? [...packMerchants].sort((a, b) => b.avgPerformance - a.avgPerformance)[0] : null;
     const worstPack = packMerchants.length ? [...packMerchants].sort((a, b) => a.avgPerformance - b.avgPerformance)[0] : null;
 
-    // Real SPH: total packed shipments / (pick time + pack time)
+    // Real SPH: (total packed shipments + extra merchant volumes) / (pick time + pack time)
+    const extraVolume = extraMerchants.reduce((s, m) => s + m.orderVolume, 0);
     const totalTime = pickWeightTotal + packWeightTotal;
-    const realSph = totalTime > 0 ? totalPackShipments / totalTime : 0;
+    const realSph = totalTime > 0 ? (totalPackShipments + extraVolume) / totalTime : 0;
 
-    return { totalPickShipments, totalPackShipments, avgPickPerf, avgPackPerf, pickWorkers, packWorkers, bestPick, worstPick, bestPack, worstPack, realSph };
-  }, [pickData, packData, pickMerchants, packMerchants]);
+    return { totalPickShipments, totalPackShipments, avgPickPerf, avgPackPerf, pickWorkers, packWorkers, bestPick, worstPick, bestPack, worstPack, realSph, extraVolume };
+  }, [pickData, packData, pickMerchants, packMerchants, extraMerchants]);
 
   const hasData = pickData.length > 0 || packData.length > 0;
 

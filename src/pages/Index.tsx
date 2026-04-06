@@ -89,6 +89,54 @@ const Index = () => {
     activePack?.entries ?? null
   );
 
+  // Merge extra merchants into flowData as additional rows
+  const mergedFlowData = useMemo(() => {
+    const existing = new Set(flowData.map(r => r.merchant_name));
+    const extraRows = extraMerchants
+      .filter(m => !existing.has(m.name))
+      .map(m => {
+        const pickRate = pickingRates[m.name];
+        const packRate = packingRates[m.name];
+        const MULT = 1.125;
+        const pickHrs = pickRate && pickRate > 0 ? m.orderVolume / (pickRate * MULT) : 0;
+        const packHrs = packRate && packRate > 0 ? m.orderVolume / (packRate * MULT) : 0;
+        const totalHrs = pickHrs + packHrs;
+        const idealSph = totalHrs > 0 ? m.orderVolume / totalHrs : 0;
+        return {
+          merchant_name: m.name,
+          order_volume: m.orderVolume,
+          waiting_for_picking: m.orderVolume,
+          picking_hours: Math.round(pickHrs * 100) / 100,
+          packing_hours: Math.round(packHrs * 100) / 100,
+          ideal_sph: Math.round(idealSph * 100) / 100,
+        };
+      });
+    const adjusted = flowData.map(r => {
+      const extra = extraMerchants.find(m => m.name === r.merchant_name);
+      if (!extra) return r;
+      const newVol = r.order_volume + extra.orderVolume;
+      const newWaiting = r.waiting_for_picking + extra.orderVolume;
+      const pickRate = pickingRates[r.merchant_name];
+      const packRate = packingRates[r.merchant_name];
+      const MULT = 1.125;
+      if (pickRate && packRate && pickRate > 0 && packRate > 0) {
+        const pickHrs = newWaiting / (pickRate * MULT);
+        const packHrs = newVol / (packRate * MULT);
+        const totalHrs = pickHrs + packHrs;
+        return {
+          ...r,
+          order_volume: newVol,
+          waiting_for_picking: newWaiting,
+          picking_hours: Math.round(pickHrs * 100) / 100,
+          packing_hours: Math.round(packHrs * 100) / 100,
+          ideal_sph: totalHrs > 0 ? Math.round((newVol / totalHrs) * 100) / 100 : r.ideal_sph,
+        };
+      }
+      return { ...r, order_volume: newVol, waiting_for_picking: newWaiting };
+    });
+    return [...adjusted, ...extraRows];
+  }, [flowData, extraMerchants, pickingRates, packingRates]);
+
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);
     idbSet("nonProdHC_main", val);
@@ -192,17 +240,14 @@ const Index = () => {
     idbSet("plannedBacklog", updated);
   }, [backlog]);
   const stats = useMemo(() => {
-    const totalOrders = flowData.reduce((s, r) => s + r.order_volume, 0);
-    const totalPickingHours = flowData.reduce((s, r) => s + r.picking_hours, 0);
-    const totalPackingHours = flowData.reduce((s, r) => s + r.packing_hours, 0);
-    const totalPlannedBacklog = flowData.reduce((s, r) => s + (backlog[r.merchant_name] || 0), 0);
+    const totalOrders = mergedFlowData.reduce((s, r) => s + r.order_volume, 0);
+    const totalPlannedBacklog = mergedFlowData.reduce((s, r) => s + (backlog[r.merchant_name] || 0), 0);
 
-    // Adjusted SPH: recalculate with backlog-reduced volumes
     const MULTIPLIER = 1.125;
     let adjPickHrs = 0;
     let adjPackHrs = 0;
     let adjVolume = 0;
-    for (const r of flowData) {
+    for (const r of mergedFlowData) {
       const bl = backlog[r.merchant_name] || 0;
       const effVol = Math.max(0, r.order_volume - bl);
       const effWait = Math.max(0, r.waiting_for_picking - bl);
@@ -214,11 +259,11 @@ const Index = () => {
         adjVolume += effVol;
       }
     }
-    const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8); // approximate time
+    const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8);
     const adjustedSph = adjDenom > 0 ? adjVolume / adjDenom : 0;
 
-    return { totalOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: flowData.length, totalPlannedBacklog, adjustedSph };
-  }, [flowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
+    return { totalOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: mergedFlowData.length, totalPlannedBacklog, adjustedSph };
+  }, [mergedFlowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -289,20 +334,20 @@ const Index = () => {
 
           <TabsContent value="flow" className="space-y-4">
             <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} />
-            {isLoading && flowData.length === 0 ? (
+            {isLoading && mergedFlowData.length === 0 ? (
               <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
                 <Loader2 size={16} className="animate-spin" />
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={flowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} />
+              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">
-            <ZoneView zone="A" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
+            <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
           </TabsContent>
           <TabsContent value="zoneB">
-            <ZoneView zone="B" flowData={flowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
+            <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
           </TabsContent>
 
           <TabsContent value="picking">
@@ -316,7 +361,7 @@ const Index = () => {
               onSelectUpload={handlePickSelect}
               onRenameUpload={handlePickRename}
               onDeleteUpload={handlePickDelete}
-              liveFlowData={flowData}
+              liveFlowData={mergedFlowData}
             />
           </TabsContent>
 
@@ -331,7 +376,7 @@ const Index = () => {
               onSelectUpload={handlePackSelect}
               onRenameUpload={handlePackRename}
               onDeleteUpload={handlePackDelete}
-              liveFlowData={flowData}
+              liveFlowData={mergedFlowData}
             />
           </TabsContent>
 
@@ -340,7 +385,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="performance">
-            <PerformanceTracker extraMerchants={extraMerchants} />
+            <PerformanceTracker />
           </TabsContent>
         </Tabs>
       </main>

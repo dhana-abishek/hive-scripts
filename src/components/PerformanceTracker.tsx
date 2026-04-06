@@ -348,43 +348,24 @@ function WorkerTable({ pickData, packData }: { pickData: PickingRow[]; packData:
   );
 }
 
-export function PerformanceTracker() {
+interface PerformanceTrackerProps {
+  extraMerchants?: ExtraMerchant[];
+}
+
+export function PerformanceTracker({ extraMerchants = [] }: PerformanceTrackerProps) {
   const [pickData, setPickData] = useState<PickingRow[]>([]);
   const [packData, setPackData] = useState<PackingRow[]>([]);
-  const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
-  const [newMerchantName, setNewMerchantName] = useState("");
-  const [newMerchantVolume, setNewMerchantVolume] = useState("");
 
   useEffect(() => {
     (async () => {
-      const [pickCsv, packCsv, extras] = await Promise.all([
+      const [pickCsv, packCsv] = await Promise.all([
         idbGet<string>(PICK_CSV_KEY),
         idbGet<string>(PACK_CSV_KEY),
-        idbGet<ExtraMerchant[]>(EXTRA_MERCHANTS_KEY),
       ]);
       if (pickCsv) setPickData(parsePickingCsv(pickCsv));
       if (packCsv) setPackData(parsePackingCsv(packCsv));
-      if (extras) setExtraMerchants(extras);
     })();
   }, []);
-
-  const addExtraMerchant = useCallback(async () => {
-    const name = newMerchantName.trim();
-    const volume = parseInt(newMerchantVolume);
-    if (!name || !volume || volume <= 0) return;
-    const entry: ExtraMerchant = { id: crypto.randomUUID(), name, orderVolume: volume };
-    const updated = [...extraMerchants, entry];
-    setExtraMerchants(updated);
-    await idbSet(EXTRA_MERCHANTS_KEY, updated);
-    setNewMerchantName("");
-    setNewMerchantVolume("");
-  }, [extraMerchants, newMerchantName, newMerchantVolume]);
-
-  const removeExtraMerchant = useCallback(async (id: string) => {
-    const updated = extraMerchants.filter((m) => m.id !== id);
-    setExtraMerchants(updated);
-    await idbSet(EXTRA_MERCHANTS_KEY, updated);
-  }, [extraMerchants]);
 
   const [pickSearch, setPickSearch] = useState("");
   const [packSearch, setPackSearch] = useState("");

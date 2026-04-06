@@ -141,7 +141,7 @@ export function SummaryStats({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Time Left"
-          value={`${TIME_LEFT}h`}
+          value={`${TIME_LEFT.toFixed(2)}h`}
           icon={<Timer size={16} />}
           subtext="Remaining shift hours"
         />

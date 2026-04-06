@@ -262,6 +262,7 @@ export function ZoneView({ zone, flowData }: ZoneViewProps) {
               ))}
               {/* Total row */}
               <tr className="border-t-2 border-primary/30 bg-secondary/30 font-bold">
+                <td className="px-3 py-2"></td>
                 <td className="px-3 py-2 text-sm">Total</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalOrders}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalPick.toFixed(2)}</td>

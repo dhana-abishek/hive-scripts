@@ -12,6 +12,7 @@ import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import type { BenchmarkEntry } from "@/types/warehouse";
 import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
+import { getInflowFactor } from "@/lib/inflowEstimation";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
 
 const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
@@ -22,6 +23,7 @@ const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
 const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
   const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
+  const [inflowEnabled, setInflowEnabled] = useState(false);
   const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
   const [pickActiveId, setPickActiveId] = useState<string | null>(null);
   const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);
@@ -89,8 +91,13 @@ const Index = () => {
     activePack?.entries ?? null
   );
 
-  // Merge extra merchants into flowData as additional rows
+  // Merge extra merchants into flowData as additional rows, with optional inflow estimation
   const mergedFlowData = useMemo(() => {
+    const inflowFactor = inflowEnabled ? getInflowFactor().factor : 0;
+
+    // Helper: apply inflow factor to a volume
+    const applyInflow = (vol: number) => inflowFactor > 0 ? Math.round(vol * (1 + inflowFactor)) : vol;
+
     const existing = new Set(flowData.map(r => r.merchant_name));
     const extraRows = extraMerchants
       .filter(m => !existing.has(m.name))
@@ -113,29 +120,36 @@ const Index = () => {
       });
     const adjusted = flowData.map(r => {
       const extra = extraMerchants.find(m => m.name === r.merchant_name);
-      if (!extra) return r;
-      const newVol = r.order_volume + extra.orderVolume;
-      const newWaiting = r.waiting_for_picking + extra.orderVolume;
-      const pickRate = pickingRates[r.merchant_name];
-      const packRate = packingRates[r.merchant_name];
-      const MULT = 1.125;
-      if (pickRate && packRate && pickRate > 0 && packRate > 0) {
-        const pickHrs = newWaiting / (pickRate * MULT);
-        const packHrs = newVol / (packRate * MULT);
-        const totalHrs = pickHrs + packHrs;
-        return {
-          ...r,
-          order_volume: newVol,
-          waiting_for_picking: newWaiting,
-          picking_hours: Math.round(pickHrs * 100) / 100,
-          packing_hours: Math.round(packHrs * 100) / 100,
-          ideal_sph: totalHrs > 0 ? Math.round((newVol / totalHrs) * 100) / 100 : r.ideal_sph,
-        };
+      const baseVol = extra ? r.order_volume + extra.orderVolume : r.order_volume;
+      const baseWaiting = extra ? r.waiting_for_picking + extra.orderVolume : r.waiting_for_picking;
+
+      // Apply inflow estimation
+      const newVol = applyInflow(baseVol);
+      const newWaiting = applyInflow(baseWaiting);
+
+      if (newVol !== r.order_volume || newWaiting !== r.waiting_for_picking) {
+        const pickRate = pickingRates[r.merchant_name];
+        const packRate = packingRates[r.merchant_name];
+        const MULT = 1.125;
+        if (pickRate && packRate && pickRate > 0 && packRate > 0) {
+          const pickHrs = newWaiting / (pickRate * MULT);
+          const packHrs = newVol / (packRate * MULT);
+          const totalHrs = pickHrs + packHrs;
+          return {
+            ...r,
+            order_volume: newVol,
+            waiting_for_picking: newWaiting,
+            picking_hours: Math.round(pickHrs * 100) / 100,
+            packing_hours: Math.round(packHrs * 100) / 100,
+            ideal_sph: totalHrs > 0 ? Math.round((newVol / totalHrs) * 100) / 100 : r.ideal_sph,
+          };
+        }
+        return { ...r, order_volume: newVol, waiting_for_picking: newWaiting };
       }
-      return { ...r, order_volume: newVol, waiting_for_picking: newWaiting };
+      return r;
     });
     return [...adjusted, ...extraRows];
-  }, [flowData, extraMerchants, pickingRates, packingRates]);
+  }, [flowData, extraMerchants, pickingRates, packingRates, inflowEnabled]);
 
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);
@@ -340,7 +354,7 @@ const Index = () => {
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} />
+              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">

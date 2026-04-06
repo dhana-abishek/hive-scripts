@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getInflowFactor } from "@/lib/inflowEstimation";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
 
 const MULTIPLIER = 1.125;
@@ -24,11 +25,13 @@ interface FlowManagementTableProps {
   externalBacklog?: Record<string, number>;
   extraMerchants?: ExtraMerchant[];
   onExtraMerchantsChange?: (merchants: ExtraMerchant[]) => void;
+  inflowEnabled?: boolean;
+  onInflowToggle?: (enabled: boolean) => void;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle }: FlowManagementTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
@@ -192,6 +195,30 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
             <span className="text-xs text-muted-foreground self-center">Total: {extraMerchants.reduce((s, m) => s + m.orderVolume, 0).toLocaleString()}</span>
           </div>
         )}
+
+        {/* Estimate Inflow Toggle */}
+        <div className="flex items-center gap-3 pt-2 border-t border-border/50">
+          {(() => {
+            const { factor, label } = getInflowFactor();
+            return (
+              <>
+                <Button
+                  size="sm"
+                  variant={inflowEnabled ? "default" : "outline"}
+                  onClick={() => onInflowToggle?.(!inflowEnabled)}
+                  className="h-8 px-3 text-xs gap-1.5"
+                >
+                  <TrendingUp size={12} />
+                  {inflowEnabled ? "Inflow Estimation On" : "Estimate Inflow"}
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {label} {inflowEnabled && factor > 0 && `· +${Math.round(factor * 100)}% applied`}
+                  {inflowEnabled && factor === 0 && "· No additional inflow at this time"}
+                </span>
+              </>
+            );
+          })()}
+        </div>
       </div>
 
       <div className="rounded-md border bg-card">

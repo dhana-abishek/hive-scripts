@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getInflowFactor } from "@/lib/inflowEstimation";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
 
 const MULTIPLIER = 1.125;
@@ -24,11 +25,13 @@ interface FlowManagementTableProps {
   externalBacklog?: Record<string, number>;
   extraMerchants?: ExtraMerchant[];
   onExtraMerchantsChange?: (merchants: ExtraMerchant[]) => void;
+  inflowEnabled?: boolean;
+  onInflowToggle?: (enabled: boolean) => void;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle }: FlowManagementTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");

@@ -89,6 +89,54 @@ const Index = () => {
     activePack?.entries ?? null
   );
 
+  // Merge extra merchants into flowData as additional rows
+  const mergedFlowData = useMemo(() => {
+    const existing = new Set(flowData.map(r => r.merchant_name));
+    const extraRows = extraMerchants
+      .filter(m => !existing.has(m.name))
+      .map(m => {
+        const pickRate = pickingRates[m.name];
+        const packRate = packingRates[m.name];
+        const MULT = 1.125;
+        const pickHrs = pickRate && pickRate > 0 ? m.orderVolume / (pickRate * MULT) : 0;
+        const packHrs = packRate && packRate > 0 ? m.orderVolume / (packRate * MULT) : 0;
+        const totalHrs = pickHrs + packHrs;
+        const idealSph = totalHrs > 0 ? m.orderVolume / totalHrs : 0;
+        return {
+          merchant_name: m.name,
+          order_volume: m.orderVolume,
+          waiting_for_picking: m.orderVolume,
+          picking_hours: Math.round(pickHrs * 100) / 100,
+          packing_hours: Math.round(packHrs * 100) / 100,
+          ideal_sph: Math.round(idealSph * 100) / 100,
+        };
+      });
+    const adjusted = flowData.map(r => {
+      const extra = extraMerchants.find(m => m.name === r.merchant_name);
+      if (!extra) return r;
+      const newVol = r.order_volume + extra.orderVolume;
+      const newWaiting = r.waiting_for_picking + extra.orderVolume;
+      const pickRate = pickingRates[r.merchant_name];
+      const packRate = packingRates[r.merchant_name];
+      const MULT = 1.125;
+      if (pickRate && packRate && pickRate > 0 && packRate > 0) {
+        const pickHrs = newWaiting / (pickRate * MULT);
+        const packHrs = newVol / (packRate * MULT);
+        const totalHrs = pickHrs + packHrs;
+        return {
+          ...r,
+          order_volume: newVol,
+          waiting_for_picking: newWaiting,
+          picking_hours: Math.round(pickHrs * 100) / 100,
+          packing_hours: Math.round(packHrs * 100) / 100,
+          ideal_sph: totalHrs > 0 ? Math.round((newVol / totalHrs) * 100) / 100 : r.ideal_sph,
+        };
+      }
+      return { ...r, order_volume: newVol, waiting_for_picking: newWaiting };
+    });
+    return [...adjusted, ...extraRows];
+  }, [flowData, extraMerchants, pickingRates, packingRates]);
+
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);
     idbSet("nonProdHC_main", val);

@@ -24,6 +24,7 @@ const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
   const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
   const [inflowEnabled, setInflowEnabled] = useState(false);
+  const [overnightVolumes, setOvernightVolumes] = useState<Record<string, number>>({});
   const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
   const [pickActiveId, setPickActiveId] = useState<string | null>(null);
   const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);
@@ -95,9 +96,6 @@ const Index = () => {
   const mergedFlowData = useMemo(() => {
     const inflowFactor = inflowEnabled ? getInflowFactor().factor : 0;
 
-    // Helper: apply inflow factor to a volume
-    const applyInflow = (vol: number) => inflowFactor > 0 ? Math.round(vol * (1 + inflowFactor)) : vol;
-
     const existing = new Set(flowData.map(r => r.merchant_name));
     const extraRows = extraMerchants
       .filter(m => !existing.has(m.name))
@@ -122,9 +120,11 @@ const Index = () => {
       const extra = extraMerchants.find(m => m.name === r.merchant_name);
       const extraVol = extra ? extra.orderVolume : 0;
 
-      // Apply inflow only to CSV-sourced volumes, not manually added merchants
-      const newVol = applyInflow(r.order_volume) + extraVol;
-      const newWaiting = applyInflow(r.waiting_for_picking) + extraVol;
+      // Apply inflow factor only to overnight portion (from CSV), not entire volume
+      const overnightCount = overnightVolumes[r.merchant_name] || 0;
+      const additionalInflow = inflowFactor > 0 ? Math.round(overnightCount * inflowFactor) : 0;
+      const newVol = r.order_volume + additionalInflow + extraVol;
+      const newWaiting = r.waiting_for_picking + additionalInflow + extraVol;
 
       if (newVol !== r.order_volume || newWaiting !== r.waiting_for_picking) {
         const pickRate = pickingRates[r.merchant_name];
@@ -148,7 +148,7 @@ const Index = () => {
       return r;
     });
     return [...adjusted, ...extraRows];
-  }, [flowData, extraMerchants, pickingRates, packingRates, inflowEnabled]);
+  }, [flowData, extraMerchants, pickingRates, packingRates, inflowEnabled, overnightVolumes]);
 
   const handleNonProdChange = (val: number) => {
     setNonProdHeadcount(val);
@@ -353,7 +353,7 @@ const Index = () => {
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} />
+              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">

@@ -220,7 +220,7 @@ function PerfTable({ data, search, sortKey, sortDir, onSort, type }: {
             <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => onSort("performance")}>
               <span className="inline-flex items-center gap-1 justify-end">Avg Performance <SortIcon k="performance" /></span>
             </th>
-            <th className="px-3 py-2 text-right">Workers</th>
+            <th className="px-3 py-2 text-right">Associates</th>
           </tr>
         </thead>
         <tbody>
@@ -305,14 +305,14 @@ function WorkerTable({ pickData, packData }: { pickData: PickingRow[]; packData:
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Search size={14} className="text-muted-foreground" />
-        <Input placeholder="Search worker..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-xs max-w-xs" />
+        <Input placeholder="Search associate..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-xs max-w-xs" />
       </div>
       <div className="rounded-md border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50 text-xs text-muted-foreground">
               <th className="px-3 py-2 text-left cursor-pointer select-none" onClick={() => handleSort("name")}>
-                <span className="inline-flex items-center gap-1">Worker <SortIcon k="name" /></span>
+                <span className="inline-flex items-center gap-1">Associate <SortIcon k="name" /></span>
               </th>
               <th className="px-3 py-2 text-right">Pick Ships</th>
               <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => handleSort("pickPerf")}>
@@ -479,7 +479,7 @@ export function PerformanceTracker() {
             </div>
           </div>
           {pickData.length > 0 ? (
-            <p className="text-xs text-muted-foreground">{pickData.length} records loaded • {new Set(pickData.map((r) => r.full_name)).size} workers • {new Set(pickData.map((r) => r.merchant_name)).size} merchants</p>
+            <p className="text-xs text-muted-foreground">{pickData.length} records loaded • {new Set(pickData.map((r) => r.full_name)).size} associates • {new Set(pickData.map((r) => r.merchant_name)).size} merchants</p>
           ) : (
             <p className="text-xs text-muted-foreground">No picking performance data uploaded</p>
           )}
@@ -506,7 +506,7 @@ export function PerformanceTracker() {
             </div>
           </div>
           {packData.length > 0 ? (
-            <p className="text-xs text-muted-foreground">{packData.length} records loaded • {new Set(packData.map((r) => r.full_name)).size} workers • {new Set(packData.map((r) => r.merchant_name)).size} merchants</p>
+            <p className="text-xs text-muted-foreground">{packData.length} records loaded • {new Set(packData.map((r) => r.full_name)).size} associates • {new Set(packData.map((r) => r.merchant_name)).size} merchants</p>
           ) : (
             <p className="text-xs text-muted-foreground">No packing performance data uploaded</p>
           )}
@@ -517,8 +517,8 @@ export function PerformanceTracker() {
         <>
           {/* Summary Stats */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <StatCard title="Avg Pick Performance" value={`${stats.avgPickPerf.toFixed(0)}%`} subtitle={`${stats.totalPickShipments.toLocaleString()} shipments • ${stats.pickWorkers} workers`} icon={BarChart3} color="text-primary" />
-            <StatCard title="Avg Pack Performance" value={`${stats.avgPackPerf.toFixed(0)}%`} subtitle={`${stats.totalPackShipments.toLocaleString()} shipments • ${stats.packWorkers} workers`} icon={Gauge} color="text-primary" />
+            <StatCard title="Avg Pick Performance" value={`${stats.avgPickPerf.toFixed(0)}%`} subtitle={`${stats.totalPickShipments.toLocaleString()} shipments • ${stats.pickWorkers} associates`} icon={BarChart3} color="text-primary" />
+            <StatCard title="Avg Pack Performance" value={`${stats.avgPackPerf.toFixed(0)}%`} subtitle={`${stats.totalPackShipments.toLocaleString()} shipments • ${stats.packWorkers} associates`} icon={Gauge} color="text-primary" />
             <StatCard title="Real SPH" value={stats.realSph.toFixed(1)} subtitle={`${stats.totalPackShipments.toLocaleString()} packed shipments`} icon={TrendingUp} color="text-emerald-600" />
           </div>
 
@@ -552,7 +552,7 @@ export function PerformanceTracker() {
           {/* Worker performance table */}
           {(pickData.length > 0 || packData.length > 0) && (
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Worker Performance Overview</h3>
+              <h3 className="text-sm font-semibold">Associate Performance Overview</h3>
               <WorkerTable pickData={pickData} packData={packData} />
             </div>
           )}

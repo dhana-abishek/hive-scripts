@@ -5,7 +5,7 @@ import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowU
 import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
 import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
-import { idbGet, idbSet } from "@/lib/idbStorage";
+import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 
 const MULTIPLIER = 1.125;
 

@@ -1,5 +1,6 @@
-import { Package, Clock, TrendingUp, Users, Timer, UserPlus } from "lucide-react";
+import { Package, Clock, Timer, UserPlus, ArrowDownToLine, Gauge, PackageMinus, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface StatCardProps {
   label: string;
@@ -25,7 +26,7 @@ const iconStyles = {
 
 export function StatCard({ label, value, icon, subtext, variant = "default" }: StatCardProps) {
   return (
-    <div className={`rounded-md border bg-card p-4 ${variantStyles[variant]}`}>
+    <div className={`rounded-md border bg-card p-4 h-full ${variantStyles[variant]}`}>
       <div className="flex items-center justify-between mb-2">
         <span className="stat-label">{label}</span>
         <span className={iconStyles[variant]}>{icon}</span>
@@ -43,6 +44,9 @@ interface SummaryStatsProps {
   merchantCount: number;
   nonProdHeadcount: number;
   onNonProdHeadcountChange: (value: number) => void;
+  totalPlannedBacklog?: number;
+  adjustedSph?: number;
+  onResetBacklog?: () => void;
 }
 
 function calcTimeLeft(): number {
@@ -89,11 +93,13 @@ export function SummaryStats({
   merchantCount,
   nonProdHeadcount,
   onNonProdHeadcountChange,
+  totalPlannedBacklog = 0,
+  adjustedSph = 0,
+  onResetBacklog,
 }: SummaryStatsProps) {
   const pickingHeadcount = Math.ceil(totalPickingHours / TIME_LEFT);
   const packingHeadcount = Math.ceil(totalPackingHours / TIME_LEFT);
-  const denominator = totalPickingHours + totalPackingHours + (nonProdHeadcount * TIME_LEFT);
-  const avgSph = denominator > 0 ? totalOrders / denominator : 0;
+  const effectiveOrders = Math.max(0, totalOrders - totalPlannedBacklog);
 
   return (
     <div className="space-y-3">
@@ -105,47 +111,65 @@ export function SummaryStats({
           subtext={`${merchantCount} merchants`}
         />
         <StatCard
-          label="Picking Hours"
-          value={totalPickingHours.toFixed(1)}
-          icon={<Clock size={16} />}
-          subtext="Hours needed"
-          variant="warning"
-        />
-        <StatCard
-          label="Packing Hours"
-          value={totalPackingHours.toFixed(1)}
-          icon={<Clock size={16} />}
-          subtext="Hours needed"
-          variant="warning"
-        />
-        <StatCard
-          label="Avg Ideal SPH"
-          value={avgSph.toFixed(1)}
-          icon={<TrendingUp size={16} />}
-          subtext="Orders / (Pick + Pack + NonProd hrs)"
+          label="Effective Orders"
+          value={effectiveOrders.toLocaleString()}
+          icon={<PackageMinus size={16} />}
+          subtext={`After ${totalPlannedBacklog} backlog`}
           variant="success"
         />
+        <div className="rounded-md border bg-card p-4 border-warning/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="stat-label">Picking</span>
+            <span className="text-warning"><Clock size={16} /></span>
+          </div>
+          <div className="stat-value text-foreground">{totalPickingHours.toFixed(1)}h</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="font-semibold text-foreground">{pickingHeadcount} HC</span> needed ({totalPickingHours.toFixed(1)}h ÷ {TIME_LEFT.toFixed(2)}h)
+          </p>
+        </div>
+        <div className="rounded-md border bg-card p-4 border-warning/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="stat-label">Packing</span>
+            <span className="text-warning"><Clock size={16} /></span>
+          </div>
+          <div className="stat-value text-foreground">{totalPackingHours.toFixed(1)}h</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="font-semibold text-foreground">{packingHeadcount} HC</span> needed ({totalPackingHours.toFixed(1)}h ÷ {TIME_LEFT.toFixed(2)}h)
+          </p>
+        </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Time Left"
-          value={`${TIME_LEFT}h`}
+          value={`${TIME_LEFT.toFixed(2)}h`}
           icon={<Timer size={16} />}
           subtext="Remaining shift hours"
         />
+        <div className="relative h-full">
+          <StatCard
+            label="Planned Backlog"
+            value={totalPlannedBacklog.toLocaleString()}
+            icon={<ArrowDownToLine size={16} />}
+            subtext="Orders deferred"
+          />
+          {totalPlannedBacklog > 0 && onResetBacklog && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-8 right-2 h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+              onClick={onResetBacklog}
+              title="Reset all planned backlog to 0"
+            >
+              <RotateCcw size={12} className="mr-1" /> Reset
+            </Button>
+          )}
+        </div>
         <StatCard
-          label="Picking Headcount"
-          value={pickingHeadcount}
-          icon={<Users size={16} />}
-          subtext={`${totalPickingHours.toFixed(1)}h ÷ ${TIME_LEFT}h`}
-          variant="warning"
-        />
-        <StatCard
-          label="Packing Headcount"
-          value={packingHeadcount}
-          icon={<Users size={16} />}
-          subtext={`${totalPackingHours.toFixed(1)}h ÷ ${TIME_LEFT}h`}
-          variant="warning"
+          label="Adjusted SPH"
+          value={adjustedSph.toFixed(1)}
+          icon={<Gauge size={16} />}
+          subtext="SPH after backlog"
+          variant="success"
         />
         <div className="rounded-md border bg-card p-4 border-primary/30">
           <div className="flex items-center justify-between mb-2">

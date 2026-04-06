@@ -518,41 +518,6 @@ export function PerformanceTracker({ extraMerchants = [] }: PerformanceTrackerPr
         </div>
       </div>
 
-      {/* Extra Merchants for SPH */}
-      <div className="rounded-lg border bg-card p-4 space-y-3">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Plus size={14} className="text-primary" /> Additional Merchant Orders (for Real SPH)
-        </h3>
-        <p className="text-xs text-muted-foreground">Add merchants whose orders arrived after the shift started. Their volume is added to the Real SPH numerator.</p>
-        <div className="flex items-end gap-2">
-          <div className="flex-1 space-y-1">
-            <label className="text-xs text-muted-foreground">Merchant Name</label>
-            <Input placeholder="e.g. Merchant XYZ" value={newMerchantName} onChange={(e) => setNewMerchantName(e.target.value)} className="h-8 text-xs" />
-          </div>
-          <div className="w-32 space-y-1">
-            <label className="text-xs text-muted-foreground">Order Volume</label>
-            <Input type="number" placeholder="0" value={newMerchantVolume} onChange={(e) => setNewMerchantVolume(e.target.value)} className="h-8 text-xs"
-              onKeyDown={(e) => { if (e.key === "Enter") addExtraMerchant(); }} />
-          </div>
-          <Button size="sm" onClick={addExtraMerchant} className="h-8 px-3 text-xs" disabled={!newMerchantName.trim() || !newMerchantVolume || parseInt(newMerchantVolume) <= 0}>
-            <Plus size={12} className="mr-1" /> Add
-          </Button>
-        </div>
-        {extraMerchants.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {extraMerchants.map((m) => (
-              <span key={m.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary border border-border">
-                {m.name}: {m.orderVolume.toLocaleString()}
-                <button onClick={() => removeExtraMerchant(m.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                  <X size={12} />
-                </button>
-              </span>
-            ))}
-            <span className="text-xs text-muted-foreground self-center">Total: {extraMerchants.reduce((s, m) => s + m.orderVolume, 0).toLocaleString()}</span>
-          </div>
-        )}
-      </div>
-
       {hasData && (
         <>
           {/* Summary Stats */}

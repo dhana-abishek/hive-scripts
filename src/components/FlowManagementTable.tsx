@@ -67,6 +67,24 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
     setEditingMerchant(null);
   };
 
+  const addExtraMerchant = useCallback(async () => {
+    const name = newMerchantName.trim();
+    const volume = parseInt(newMerchantVolume);
+    if (!name || !volume || volume <= 0) return;
+    const entry: ExtraMerchant = { id: crypto.randomUUID(), name, orderVolume: volume };
+    const updated = [...extraMerchants, entry];
+    await idbSet(EXTRA_MERCHANTS_KEY, updated);
+    onExtraMerchantsChange?.(updated);
+    setNewMerchantName("");
+    setNewMerchantVolume("");
+  }, [extraMerchants, newMerchantName, newMerchantVolume, onExtraMerchantsChange]);
+
+  const removeExtraMerchant = useCallback(async (id: string) => {
+    const updated = extraMerchants.filter((m) => m.id !== id);
+    await idbSet(EXTRA_MERCHANTS_KEY, updated);
+    onExtraMerchantsChange?.(updated);
+  }, [extraMerchants, onExtraMerchantsChange]);
+
   const adjustedData = useMemo(() => {
     return data.map((row) => {
       const bl = backlog[row.merchant_name] || 0;

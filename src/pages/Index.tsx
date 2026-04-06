@@ -340,7 +340,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="performance">
-            <PerformanceTracker />
+            <PerformanceTracker extraMerchants={extraMerchants} />
           </TabsContent>
         </Tabs>
       </main>

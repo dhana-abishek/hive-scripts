@@ -20,7 +20,7 @@ const zoneAHCGroups: string[][] = [
 const zoneSerialOrder: Record<string, string[]> = {
   A: [
     "Horl", "ela mo", "MagicHolz", "Hydraid", "Beyond Drinks",
-    "Dr. Emi", "Shyne", "Dr. Massing", "Yummyeats -Smarter Choices GmbH",
+    "Dr. Emi", "SHYNE", "Dr. Massing", "Yummyeats -Smarter Choices GmbH",
     "Multi Small", "Multi Big", "SIOP", "HAFERLÖWE",
     "Matchday Nutrition", "Inkster", "Lotuscrafts GmbH",
   ],

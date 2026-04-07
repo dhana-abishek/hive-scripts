@@ -1,19 +1,22 @@
-import { useRef, useState, useCallback, useMemo } from "react";
+import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import { Upload, X, TrendingUp, TrendingDown, Minus, Info, Users } from "lucide-react";
 import { calculateFlowManagement } from "@/lib/warehouseProcessing";
+import { cloudGet, cloudSet, cloudRemove } from "@/lib/cloudStorage";
+
+const MERCHANTS_KEY = "actualSphMerchants";
+const FILENAME_KEY  = "actualSphFileName";
+const NON_PROD_KEY  = "actualSphNonProdHC";
 
 interface ActualSPHProps {
   pickingRates: Record<string, number>;
   packingRates: Record<string, number>;
 }
 
-interface FlowRow {
+type MerchantData = {
   merchant_name: string;
   order_volume: number;
-  picking_hours: number;
-  packing_hours: number;
-  ideal_sph: number;
-}
+  waiting_for_picking: number;
+};
 
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
 
@@ -44,7 +47,7 @@ function findCol(headers: string[], ...candidates: string[]): number {
 }
 
 interface ParseResult {
-  merchants: { merchant_name: string; order_volume: number; waiting_for_picking: number }[];
+  merchants: MerchantData[];
   strategy: string;
   headerRow: string[];
 }
@@ -126,14 +129,45 @@ function parseShipmentsCSV(text: string): ParseResult {
 export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Raw merchant volumes — source of truth, persisted to Supabase
+  const [merchants, setMerchants]         = useState<MerchantData[]>([]);
   const [fileName, setFileName]           = useState<string | null>(null);
-  const [flowRows, setFlowRows]           = useState<FlowRow[]>([]);
   const [actualSph, setActualSph]         = useState<string>("");
   const [nonProdHC, setNonProdHC]         = useState<string>("12");
   const [parseError, setParseError]       = useState<string | null>(null);
   const [debugStrategy, setDebugStrategy] = useState<string | null>(null);
+  const [isLoading, setIsLoading]         = useState(true);
 
-  // ── Derived stats — recalculate live whenever nonProdHC changes ───────────
+  // ── Load persisted data on mount ──────────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      const [savedMerchants, savedFileName, savedNonProd] = await Promise.all([
+        cloudGet<MerchantData[]>(MERCHANTS_KEY),
+        cloudGet<string>(FILENAME_KEY),
+        cloudGet<string>(NON_PROD_KEY),
+      ]);
+      if (savedMerchants && savedMerchants.length > 0) setMerchants(savedMerchants);
+      if (savedFileName) setFileName(savedFileName);
+      if (savedNonProd)  setNonProdHC(savedNonProd);
+      setIsLoading(false);
+    })();
+  }, []);
+
+  // ── Persist nonProdHC whenever it changes (skip initial render) ───────────
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    void cloudSet(NON_PROD_KEY, nonProdHC);
+  }, [nonProdHC]);
+
+  // ── flowRows: recomputed from raw merchants + current benchmarks ──────────
+  // Benchmark changes automatically refresh the SPH on every device.
+  const flowRows = useMemo(
+    () => (merchants.length > 0 ? calculateFlowManagement(merchants, pickingRates, packingRates) : []),
+    [merchants, pickingRates, packingRates]
+  );
+
+  // ── Derived stats — recalculate live when nonProdHC or flowRows change ────
   const { idealSph, totalVolume, totalPickHours, totalPackHours, nonProdHours, tableRows } =
     useMemo(() => {
       if (flowRows.length === 0) return {
@@ -164,41 +198,43 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
   const handleFile = useCallback(
     (file: File) => {
       setParseError(null);
-      setFileName(file.name);
 
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const text = e.target?.result as string;
         try {
-          const { merchants, strategy, headerRow } = parseShipmentsCSV(text);
+          const { merchants: parsed, strategy, headerRow } = parseShipmentsCSV(text);
           setDebugStrategy(strategy);
 
-          if (merchants.length === 0) {
+          if (parsed.length === 0) {
             const hint = headerRow.length ? `Detected columns: ${headerRow.join(" | ")}` : "No header row found.";
             setParseError(
               strategy === "no-merchant-column"
                 ? `No merchant column found. ${hint}`
                 : `No rows could be parsed (strategy: ${strategy}). ${hint}`
             );
-            setFlowRows([]);
             return;
           }
 
-          const calculated = calculateFlowManagement(merchants, pickingRates, packingRates);
-
+          const calculated = calculateFlowManagement(parsed, pickingRates, packingRates);
           if (calculated.length === 0) {
             setParseError(
-              `Parsed ${merchants.length} merchants but none matched the active benchmarks. ` +
-              `Sample names: ${merchants.slice(0, 5).map((m) => m.merchant_name).join(", ")}`
+              `Parsed ${parsed.length} merchants but none matched the active benchmarks. ` +
+              `Sample names: ${parsed.slice(0, 5).map((m) => m.merchant_name).join(", ")}`
             );
-            setFlowRows([]);
             return;
           }
 
-          setFlowRows(calculated);
+          // Save raw merchants (not computed flowRows) so benchmark changes
+          // automatically refresh the SPH on reload without re-uploading.
+          setMerchants(parsed);
+          setFileName(file.name);
+          await Promise.all([
+            cloudSet(MERCHANTS_KEY, parsed),
+            cloudSet(FILENAME_KEY, file.name),
+          ]);
         } catch (err) {
           setParseError(`Parse error: ${err instanceof Error ? err.message : String(err)}`);
-          setFlowRows([]);
         }
       };
       reader.readAsText(file);
@@ -218,12 +254,16 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
     if (file && file.name.endsWith(".csv")) handleFile(file);
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     setFileName(null);
-    setFlowRows([]);
+    setMerchants([]);
     setActualSph("");
     setParseError(null);
     setDebugStrategy(null);
+    await Promise.all([
+      cloudRemove(MERCHANTS_KEY),
+      cloudRemove(FILENAME_KEY),
+    ]);
   };
 
   const parsedActual = parseFloat(actualSph);
@@ -231,6 +271,14 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
   const diff         = validActual && idealSph !== null ? parsedActual - idealSph : null;
   const diffPct      = diff !== null && idealSph !== null && idealSph > 0
     ? (diff / idealSph) * 100 : null;
+
+  if (isLoading) {
+    return (
+      <div className="rounded-md border bg-card p-12 flex items-center justify-center text-xs text-muted-foreground">
+        Loading saved data…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -241,11 +289,11 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
           <div>
             <h2 className="text-sm font-semibold">Actual SPH Comparison</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Upload the "total orders shipped by merchant" CSV. Ideal SPH is calculated as
+              Upload the &quot;total orders shipped by merchant&quot; CSV. Ideal SPH is calculated as
               <code className="mx-1 font-mono text-[11px] bg-secondary px-1 py-0.5 rounded">
                 total volume ÷ (pick hours + pack hours + non-prod hours)
               </code>
-              — identical to the Flow Management formula.
+              — identical to the Flow Management formula. Data is saved across devices.
             </p>
           </div>
           {fileName && (
@@ -258,7 +306,7 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
           )}
         </div>
 
-        {/* Non-prod headcount — always visible, live-updates the SPH */}
+        {/* Non-prod headcount */}
         <div className="flex items-center gap-3 rounded-md bg-secondary/60 border border-border px-3 py-2.5">
           <Users size={14} className="text-muted-foreground shrink-0" />
           <div className="flex-1 min-w-0">

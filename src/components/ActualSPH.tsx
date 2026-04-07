@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback } from "react";
-import { Upload, X, TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
+import { useRef, useState, useCallback, useMemo } from "react";
+import { Upload, X, TrendingUp, TrendingDown, Minus, Info, Users } from "lucide-react";
 import { calculateFlowManagement } from "@/lib/warehouseProcessing";
 
 interface ActualSPHProps {
@@ -7,11 +7,12 @@ interface ActualSPHProps {
   packingRates: Record<string, number>;
 }
 
-interface MerchantRow {
+interface FlowRow {
   merchant_name: string;
   order_volume: number;
+  picking_hours: number;
+  packing_hours: number;
   ideal_sph: number;
-  weight_pct: number;
 }
 
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
@@ -35,7 +36,6 @@ function parseCSVRow(row: string): string[] {
   return result;
 }
 
-/** Case-insensitive column finder — normalises spaces, underscores, hyphens. */
 function findCol(headers: string[], ...candidates: string[]): number {
   const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]/g, "");
   return headers.findIndex((h) =>
@@ -49,23 +49,13 @@ interface ParseResult {
   headerRow: string[];
 }
 
-/**
- * Parses the shipments CSV.
- *
- * Primary format (total_orders_shipped_by_merchant):
- *   merchant  | count
- *   Inkster   | 593
- *
- * Fallback — aggregated status format (internal Metabase feed):
- *   merchant | status               | shipment_count | … | totals
- */
 function parseShipmentsCSV(text: string): ParseResult {
   const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim().split("\n");
   if (lines.length < 2) return { merchants: [], strategy: "empty", headerRow: [] };
 
   const headerRow = parseCSVRow(lines[0]);
 
-  // ── Primary: merchant + count/volume columns ──────────────────────────────
+  // ── Primary: merchant + count columns ─────────────────────────────────────
   const merchantCol = findCol(headerRow, "merchant_name", "merchant", "client", "seller", "store");
   const countCol    = findCol(headerRow, "count", "total_shipments", "order_volume", "shipment_count",
                                          "total_orders", "totals", "volume", "orders", "qty", "quantity");
@@ -84,12 +74,10 @@ function parseShipmentsCSV(text: string): ParseResult {
       order_volume: v,
       waiting_for_picking: v,
     }));
-    if (merchants.length > 0) {
-      return { merchants, strategy: "merchant-count", headerRow };
-    }
+    if (merchants.length > 0) return { merchants, strategy: "merchant-count", headerRow };
   }
 
-  // ── Fallback: aggregated status rows (col[1] contains status keywords) ────
+  // ── Fallback: aggregated status rows ──────────────────────────────────────
   const statusKeywords = ["waiting_for_picking", "needs_reshuffling", "picked", "packed", "shipped"];
   const sampleStatuses = lines.slice(1, Math.min(20, lines.length))
     .map((l) => parseCSVRow(l)[1]?.toLowerCase() ?? "");
@@ -105,13 +93,10 @@ function parseShipmentsCSV(text: string): ParseResult {
       const status = cols[1].trim();
       const shipmentCount = parseInt(cols[2], 10) || 0;
       const totals = cols[4] !== undefined ? parseInt(cols[4], 10) || 0 : 0;
-
       if (!merchantMap.has(merchant)) merchantMap.set(merchant, { totals: 0, waiting: 0 });
       const entry = merchantMap.get(merchant)!;
       if (totals > 0) entry.totals = totals;
-      if (status === "waiting_for_picking" || status === "needs_reshuffling") {
-        entry.waiting += shipmentCount;
-      }
+      if (status === "waiting_for_picking" || status === "needs_reshuffling") entry.waiting += shipmentCount;
     }
     merchantMap.forEach((v, k) => {
       if (v.totals === 0) {
@@ -130,9 +115,7 @@ function parseShipmentsCSV(text: string): ParseResult {
         waiting_for_picking: d.waiting || d.totals,
       }))
       .filter((m) => m.order_volume > 0);
-    if (merchants.length > 0) {
-      return { merchants, strategy: "aggregated-status", headerRow };
-    }
+    if (merchants.length > 0) return { merchants, strategy: "aggregated-status", headerRow };
   }
 
   return { merchants: [], strategy: merchantCol === -1 ? "no-merchant-column" : "failed", headerRow };
@@ -142,13 +125,42 @@ function parseShipmentsCSV(text: string): ParseResult {
 
 export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName]                 = useState<string | null>(null);
-  const [rows, setRows]                         = useState<MerchantRow[]>([]);
-  const [weightedIdealSph, setWeightedIdealSph] = useState<number | null>(null);
-  const [actualSph, setActualSph]               = useState<string>("");
-  const [parseError, setParseError]             = useState<string | null>(null);
-  const [debugStrategy, setDebugStrategy]       = useState<string | null>(null);
 
+  const [fileName, setFileName]           = useState<string | null>(null);
+  const [flowRows, setFlowRows]           = useState<FlowRow[]>([]);
+  const [actualSph, setActualSph]         = useState<string>("");
+  const [nonProdHC, setNonProdHC]         = useState<string>("12");
+  const [parseError, setParseError]       = useState<string | null>(null);
+  const [debugStrategy, setDebugStrategy] = useState<string | null>(null);
+
+  // ── Derived stats — recalculate live whenever nonProdHC changes ───────────
+  const { idealSph, totalVolume, totalPickHours, totalPackHours, nonProdHours, tableRows } =
+    useMemo(() => {
+      if (flowRows.length === 0) return {
+        idealSph: null, totalVolume: 0,
+        totalPickHours: 0, totalPackHours: 0, nonProdHours: 0, tableRows: [],
+      };
+
+      const hc             = Math.max(0, parseInt(nonProdHC, 10) || 0);
+      const totalVolume    = flowRows.reduce((s, r) => s + r.order_volume, 0);
+      const totalPickHours = flowRows.reduce((s, r) => s + r.picking_hours, 0);
+      const totalPackHours = flowRows.reduce((s, r) => s + r.packing_hours, 0);
+      const nonProdHours   = hc * 8;
+      const denom          = totalPickHours + totalPackHours + nonProdHours;
+      const idealSph       = denom > 0 ? Math.round((totalVolume / denom) * 100) / 100 : null;
+
+      const tableRows = flowRows
+        .slice()
+        .sort((a, b) => b.order_volume - a.order_volume)
+        .map((r) => ({
+          ...r,
+          weight_pct: totalVolume > 0 ? (r.order_volume / totalVolume) * 100 : 0,
+        }));
+
+      return { idealSph, totalVolume, totalPickHours, totalPackHours, nonProdHours, tableRows };
+    }, [flowRows, nonProdHC]);
+
+  // ── File handling ─────────────────────────────────────────────────────────
   const handleFile = useCallback(
     (file: File) => {
       setParseError(null);
@@ -162,50 +174,31 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
           setDebugStrategy(strategy);
 
           if (merchants.length === 0) {
-            const headerHint = headerRow.length
-              ? `Detected columns: ${headerRow.join(" | ")}`
-              : "No header row found.";
+            const hint = headerRow.length ? `Detected columns: ${headerRow.join(" | ")}` : "No header row found.";
             setParseError(
               strategy === "no-merchant-column"
-                ? `No merchant column found. ${headerHint}`
-                : `No rows could be parsed (strategy: ${strategy}). ${headerHint}`
+                ? `No merchant column found. ${hint}`
+                : `No rows could be parsed (strategy: ${strategy}). ${hint}`
             );
-            setRows([]);
-            setWeightedIdealSph(null);
+            setFlowRows([]);
             return;
           }
 
-          const flowRows = calculateFlowManagement(merchants, pickingRates, packingRates);
+          const calculated = calculateFlowManagement(merchants, pickingRates, packingRates);
 
-          if (flowRows.length === 0) {
+          if (calculated.length === 0) {
             setParseError(
-              `Parsed ${merchants.length} merchants from CSV but none matched the active benchmarks. ` +
+              `Parsed ${merchants.length} merchants but none matched the active benchmarks. ` +
               `Sample names: ${merchants.slice(0, 5).map((m) => m.merchant_name).join(", ")}`
             );
-            setRows([]);
-            setWeightedIdealSph(null);
+            setFlowRows([]);
             return;
           }
 
-          const totalVolume = flowRows.reduce((s, r) => s + r.order_volume, 0);
-          const weightedSum = flowRows.reduce((s, r) => s + r.order_volume * r.ideal_sph, 0);
-          const weightedAvg = totalVolume > 0 ? weightedSum / totalVolume : 0;
-
-          const merchantRows: MerchantRow[] = flowRows
-            .sort((a, b) => b.order_volume - a.order_volume)
-            .map((r) => ({
-              merchant_name: r.merchant_name,
-              order_volume:  r.order_volume,
-              ideal_sph:     r.ideal_sph,
-              weight_pct:    totalVolume > 0 ? (r.order_volume / totalVolume) * 100 : 0,
-            }));
-
-          setRows(merchantRows);
-          setWeightedIdealSph(Math.round(weightedAvg * 100) / 100);
+          setFlowRows(calculated);
         } catch (err) {
           setParseError(`Parse error: ${err instanceof Error ? err.message : String(err)}`);
-          setRows([]);
-          setWeightedIdealSph(null);
+          setFlowRows([]);
         }
       };
       reader.readAsText(file);
@@ -227,8 +220,7 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
 
   const handleClear = () => {
     setFileName(null);
-    setRows([]);
-    setWeightedIdealSph(null);
+    setFlowRows([]);
     setActualSph("");
     setParseError(null);
     setDebugStrategy(null);
@@ -236,32 +228,53 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
 
   const parsedActual = parseFloat(actualSph);
   const validActual  = !isNaN(parsedActual) && parsedActual > 0;
-  const diff         = validActual && weightedIdealSph !== null ? parsedActual - weightedIdealSph : null;
-  const diffPct      =
-    diff !== null && weightedIdealSph !== null && weightedIdealSph > 0
-      ? (diff / weightedIdealSph) * 100
-      : null;
+  const diff         = validActual && idealSph !== null ? parsedActual - idealSph : null;
+  const diffPct      = diff !== null && idealSph !== null && idealSph > 0
+    ? (diff / idealSph) * 100 : null;
 
   return (
     <div className="space-y-4">
 
-      {/* ── Upload card ───────────────────────────────────────────────────── */}
-      <div className="rounded-md border bg-card p-4 space-y-3">
-        <div className="flex items-center justify-between">
+      {/* ── Upload + config card ──────────────────────────────────────────── */}
+      <div className="rounded-md border bg-card p-4 space-y-4">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold">Actual SPH Comparison</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Upload the "total orders shipped by merchant" CSV to compute the weighted-average ideal SPH, then compare it to the actual SPH you observed.
+              Upload the "total orders shipped by merchant" CSV. Ideal SPH is calculated as
+              <code className="mx-1 font-mono text-[11px] bg-secondary px-1 py-0.5 rounded">
+                total volume ÷ (pick hours + pack hours + non-prod hours)
+              </code>
+              — identical to the Flow Management formula.
             </p>
           </div>
           {fileName && (
             <button
               onClick={handleClear}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-border bg-secondary text-muted-foreground hover:bg-accent transition-colors"
+              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded text-xs border border-border bg-secondary text-muted-foreground hover:bg-accent transition-colors"
             >
               <X size={11} /> Clear
             </button>
           )}
+        </div>
+
+        {/* Non-prod headcount — always visible, live-updates the SPH */}
+        <div className="flex items-center gap-3 rounded-md bg-secondary/60 border border-border px-3 py-2.5">
+          <Users size={14} className="text-muted-foreground shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium">Non-production headcount</p>
+            <p className="text-[11px] text-muted-foreground">
+              People not picking/packing · adds headcount × 8 h to the denominator
+            </p>
+          </div>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={nonProdHC}
+            onChange={(e) => setNonProdHC(e.target.value)}
+            className="w-16 text-right text-sm font-bold tabular-nums bg-transparent border-b border-border focus:outline-none focus:border-primary py-0.5"
+          />
         </div>
 
         {!fileName ? (
@@ -289,7 +302,7 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
           <div className="flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-xs text-muted-foreground border border-border">
             <Upload size={12} />
             <span className="font-medium text-foreground truncate max-w-xs">{fileName}</span>
-            {rows.length > 0 && <span>· {rows.length} merchants matched</span>}
+            {flowRows.length > 0 && <span>· {flowRows.length} merchants matched</span>}
             {debugStrategy && <span className="ml-auto opacity-50">{debugStrategy}</span>}
           </div>
         )}
@@ -305,20 +318,22 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
       </div>
 
       {/* ── Stats cards ───────────────────────────────────────────────────── */}
-      {weightedIdealSph !== null && (
+      {idealSph !== null && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-            {/* Weighted Ideal SPH */}
+            {/* Ideal SPH */}
             <div className="rounded-md border bg-card p-4 space-y-1">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Weighted Ideal SPH</p>
-              <p className="text-3xl font-bold tabular-nums">{weightedIdealSph.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Ideal SPH</p>
+              <p className="text-3xl font-bold tabular-nums">{idealSph.toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">
-                {rows.reduce((s, r) => s + r.order_volume, 0).toLocaleString()} shipments · {rows.length} merchants
+                {totalVolume.toLocaleString()} vol ÷ ({totalPickHours.toFixed(1)}h pick
+                + {totalPackHours.toFixed(1)}h pack
+                + {nonProdHours}h non-prod)
               </p>
             </div>
 
-            {/* Actual SPH input */}
+            {/* Actual SPH */}
             <div className="rounded-md border bg-card p-4 space-y-1">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Actual SPH</p>
               <input
@@ -366,10 +381,13 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
 
           {/* ── Breakdown table ─────────────────────────────────────────────── */}
           <div className="rounded-md border bg-card overflow-hidden">
-            <div className="px-4 py-3 border-b bg-secondary/50">
+            <div className="px-4 py-3 border-b bg-secondary/50 flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Merchant Breakdown — Ideal SPH weighted by Volume
+                Merchant Breakdown
               </h3>
+              <span className="text-xs text-muted-foreground">
+                Non-prod: {parseInt(nonProdHC, 10) || 0} pax · {nonProdHours}h in denominator
+              </span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -378,30 +396,31 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
                     <th className="px-4 py-2 text-left font-medium text-muted-foreground">Merchant</th>
                     <th className="px-4 py-2 text-right font-medium text-muted-foreground">Volume</th>
                     <th className="px-4 py-2 text-right font-medium text-muted-foreground">Weight</th>
-                    <th className="px-4 py-2 text-right font-medium text-muted-foreground">Ideal SPH</th>
-                    <th className="px-4 py-2 text-right font-medium text-muted-foreground">Weighted Contribution</th>
+                    <th className="px-4 py-2 text-right font-medium text-muted-foreground">Pick hrs</th>
+                    <th className="px-4 py-2 text-right font-medium text-muted-foreground">Pack hrs</th>
+                    <th className="px-4 py-2 text-right font-medium text-muted-foreground">Merchant Ideal SPH</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r, i) => (
+                  {tableRows.map((r, i) => (
                     <tr key={r.merchant_name} className={`border-b last:border-0 ${i % 2 === 0 ? "" : "bg-secondary/20"}`}>
                       <td className="px-4 py-2 font-medium text-foreground">{r.merchant_name}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{r.order_volume.toLocaleString()}</td>
                       <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{r.weight_pct.toFixed(1)}%</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{r.picking_hours.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{r.packing_hours.toFixed(2)}</td>
                       <td className="px-4 py-2 text-right tabular-nums font-medium">{r.ideal_sph.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
-                        {((r.weight_pct / 100) * r.ideal_sph).toFixed(2)}
-                      </td>
                     </tr>
                   ))}
                   <tr className="border-t-2 border-border bg-secondary/40 font-semibold">
-                    <td className="px-4 py-2 text-foreground">Total / Weighted Avg</td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {rows.reduce((s, r) => s + r.order_volume, 0).toLocaleString()}
-                    </td>
+                    <td className="px-4 py-2 text-foreground">Total</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{totalVolume.toLocaleString()}</td>
                     <td className="px-4 py-2 text-right tabular-nums">100%</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-primary">{weightedIdealSph.toFixed(2)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-primary">{weightedIdealSph.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{totalPickHours.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{totalPackHours.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-primary">
+                      {idealSph.toFixed(2)} <span className="font-normal text-muted-foreground">(incl. non-prod)</span>
+                    </td>
                   </tr>
                 </tbody>
               </table>

@@ -3,9 +3,10 @@ import { Upload, X, TrendingUp, TrendingDown, Minus, Info, Users } from "lucide-
 import { calculateFlowManagement } from "@/lib/warehouseProcessing";
 import { cloudGet, cloudSet, cloudRemove } from "@/lib/cloudStorage";
 
-const MERCHANTS_KEY = "actualSphMerchants";
-const FILENAME_KEY  = "actualSphFileName";
-const NON_PROD_KEY  = "actualSphNonProdHC";
+const MERCHANTS_KEY  = "actualSphMerchants";
+const FILENAME_KEY   = "actualSphFileName";
+const NON_PROD_KEY   = "actualSphNonProdHC";
+const ACTUAL_SPH_KEY = "actualSphValue";
 
 interface ActualSPHProps {
   pickingRates: Record<string, number>;
@@ -138,30 +139,37 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
   const [debugStrategy, setDebugStrategy] = useState<string | null>(null);
   const [isLoading, setIsLoading]         = useState(true);
 
-  // ── Load persisted data on mount ──────────────────────────────────────────
+  // ── Load all persisted values on mount ────────────────────────────────────
   useEffect(() => {
     (async () => {
-      const [savedMerchants, savedFileName, savedNonProd] = await Promise.all([
+      const [savedMerchants, savedFileName, savedNonProd, savedActualSph] = await Promise.all([
         cloudGet<MerchantData[]>(MERCHANTS_KEY),
         cloudGet<string>(FILENAME_KEY),
         cloudGet<string>(NON_PROD_KEY),
+        cloudGet<string>(ACTUAL_SPH_KEY),
       ]);
       if (savedMerchants && savedMerchants.length > 0) setMerchants(savedMerchants);
-      if (savedFileName) setFileName(savedFileName);
-      if (savedNonProd)  setNonProdHC(savedNonProd);
+      if (savedFileName)  setFileName(savedFileName);
+      if (savedNonProd)   setNonProdHC(savedNonProd);
+      if (savedActualSph) setActualSph(savedActualSph);
       setIsLoading(false);
     })();
   }, []);
 
-  // ── Persist nonProdHC whenever it changes (skip initial render) ───────────
+  // ── Persist each input on change (skip initial render) ───────────────────
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     void cloudSet(NON_PROD_KEY, nonProdHC);
   }, [nonProdHC]);
 
+  useEffect(() => {
+    if (isFirstRender.current) return;
+    void cloudSet(ACTUAL_SPH_KEY, actualSph);
+  }, [actualSph]);
+
   // ── flowRows: recomputed from raw merchants + current benchmarks ──────────
-  // Benchmark changes automatically refresh the SPH on every device.
+  // Benchmark changes automatically refresh SPH on every device.
   const flowRows = useMemo(
     () => (merchants.length > 0 ? calculateFlowManagement(merchants, pickingRates, packingRates) : []),
     [merchants, pickingRates, packingRates]
@@ -225,8 +233,7 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
             return;
           }
 
-          // Save raw merchants (not computed flowRows) so benchmark changes
-          // automatically refresh the SPH on reload without re-uploading.
+          // Save raw merchants so benchmark changes refresh SPH on reload.
           setMerchants(parsed);
           setFileName(file.name);
           await Promise.all([
@@ -263,6 +270,7 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
     await Promise.all([
       cloudRemove(MERCHANTS_KEY),
       cloudRemove(FILENAME_KEY),
+      cloudRemove(ACTUAL_SPH_KEY),
     ]);
   };
 
@@ -293,7 +301,7 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
               <code className="mx-1 font-mono text-[11px] bg-secondary px-1 py-0.5 rounded">
                 total volume ÷ (pick hours + pack hours + non-prod hours)
               </code>
-              — identical to the Flow Management formula. Data is saved across devices.
+              — identical to the Flow Management formula. All inputs are saved across devices.
             </p>
           </div>
           {fileName && (

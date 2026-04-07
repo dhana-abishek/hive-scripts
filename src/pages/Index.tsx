@@ -1,12 +1,13 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
 import { ZoneView } from "@/components/ZoneView";
 import { AgingOrders } from "@/components/AgingOrders";
 import { PerformanceTracker } from "@/components/PerformanceTracker";
+import { ActualSPH } from "@/components/ActualSPH";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
@@ -343,6 +344,9 @@ const Index = () => {
             <TabsTrigger value="performance" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Users size={14} /> Performance Tracker
             </TabsTrigger>
+            <TabsTrigger value="actualsph" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <TrendingUp size={14} /> Actual SPH
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="flow" className="space-y-4">
@@ -399,6 +403,10 @@ const Index = () => {
 
           <TabsContent value="performance">
             <PerformanceTracker />
+          </TabsContent>
+
+          <TabsContent value="actualsph">
+            <ActualSPH pickingRates={pickingRates} packingRates={packingRates} />
           </TabsContent>
         </Tabs>
       </main>

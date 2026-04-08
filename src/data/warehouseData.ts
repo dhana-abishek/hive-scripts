@@ -216,7 +216,6 @@ export const packingBenchmarks: BenchmarkEntry[] = [
   { merchant_name: "Glucose Goddess", benchmark: 88.77 },
   { merchant_name: "GROW WITH ANNA", benchmark: 56.11 },
   { merchant_name: "Gymondo-onlineshop", benchmark: 26.71 },
-  { merchant_name: "Haferlöwe", benchmark: 28.54 },
   { merchant_name: "HAFERLÖWE", benchmark: 29.99 },
   { merchant_name: "Hairoine", benchmark: 29.56 },
   { merchant_name: "Halm Straws", benchmark: 48.36 },

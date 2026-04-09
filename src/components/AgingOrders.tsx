@@ -13,11 +13,13 @@ const STORAGE_KEY_CSV = "agingOrdersCsv";
 const STORAGE_KEY_BACKLOG = "agingOrdersBacklog";
 const STORAGE_KEY_START_DATE = "agingStartDate";
 const STORAGE_KEY_END_DATE = "agingEndDate";
+const STORAGE_KEY_START_TIME = "agingStartTime";
+const STORAGE_KEY_END_TIME = "agingEndTime";
 
-interface AgingRow {
-  ready_for_fulfillment_at: string;
+interface ShipmentRow {
+  ready_for_fulfillment_at: string; // raw datetime string e.g. "April 8, 2026, 00:00"
+  ready_ts: number; // parsed timestamp
   merchant: string;
-  count_orders: number;
 }
 
 interface AgingOrdersProps {
@@ -27,34 +29,98 @@ interface AgingOrdersProps {
 
 type SortKey = "merchant" | "count_orders" | "planned_backlog" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-function parseCSV(text: string): AgingRow[] {
+/** Parse datetime strings like "April 8, 2026, 00:00" or "April 8, 2026, 14:30" */
+function parseDatetime(raw: string): number {
+  // Format: "Month Day, Year, HH:MM"
+  // Remove surrounding quotes if any
+  const s = raw.replace(/^"|"$/g, "").trim();
+  // Split on last comma to separate time
+  const lastComma = s.lastIndexOf(",");
+  if (lastComma === -1) return new Date(s).getTime();
+  const datePart = s.substring(0, lastComma).trim();
+  const timePart = s.substring(lastComma + 1).trim();
+  const [hours, minutes] = timePart.split(":").map(Number);
+  const d = new Date(datePart);
+  if (!isNaN(hours)) d.setHours(hours);
+  if (!isNaN(minutes)) d.setMinutes(minutes);
+  return d.getTime();
+}
+
+function parseCSV(text: string): ShipmentRow[] {
   const lines = text.trim().split("\n");
   if (lines.length < 2) return [];
-  const rows: AgingRow[] = [];
+
+  // Parse header to find column indices
+  const headerLine = lines[0];
+  const headers: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (const ch of headerLine) {
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === "," && !inQuotes) { headers.push(current.trim().toLowerCase()); current = ""; continue; }
+    current += ch;
+  }
+  headers.push(current.trim().toLowerCase());
+
+  const rffIdx = headers.indexOf("ready_for_fulfillment_at");
+  const merchantIdx = headers.indexOf("merchant");
+
+  if (rffIdx === -1 || merchantIdx === -1) return [];
+
+  const rows: ShipmentRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const parts: string[] = [];
-    let current = "";
-    let inQuotes = false;
+    let cur = "";
+    let inQ = false;
     for (const ch of lines[i]) {
-      if (ch === '"') { inQuotes = !inQuotes; continue; }
-      if (ch === "," && !inQuotes) { parts.push(current.trim()); current = ""; continue; }
-      current += ch;
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === "," && !inQ) { parts.push(cur.trim()); cur = ""; continue; }
+      cur += ch;
     }
-    parts.push(current.trim());
-    if (parts.length >= 3) {
-      rows.push({
-        ready_for_fulfillment_at: parts[0],
-        merchant: parts[1],
-        count_orders: parseInt(parts[2], 10) || 0,
-      });
-    }
+    parts.push(cur.trim());
+
+    const rawDate = parts[rffIdx] || "";
+    const merchant = parts[merchantIdx] || "";
+    if (!rawDate || !merchant) continue;
+
+    const ts = parseDatetime(rawDate);
+    if (isNaN(ts)) continue;
+
+    rows.push({
+      ready_for_fulfillment_at: rawDate,
+      ready_ts: ts,
+      merchant,
+    });
   }
   return rows;
 }
 
-function uniqueDates(data: AgingRow[]): string[] {
-  const set = new Set(data.map((r) => r.ready_for_fulfillment_at));
-  return Array.from(set).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+/** Extract unique dates (YYYY-MM-DD) sorted */
+function uniqueDates(data: ShipmentRow[]): string[] {
+  const set = new Set<string>();
+  for (const r of data) {
+    const d = new Date(r.ready_ts);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    set.add(key);
+  }
+  return Array.from(set).sort();
+}
+
+/** Extract unique times (HH:MM) sorted */
+function uniqueTimes(data: ShipmentRow[]): string[] {
+  const set = new Set<string>();
+  for (const r of data) {
+    const d = new Date(r.ready_ts);
+    const key = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    set.add(key);
+  }
+  return Array.from(set).sort();
+}
+
+function formatDateLabel(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[parseInt(m, 10) - 1]} ${parseInt(d, 10)}, ${y}`;
 }
 
 const zoneLookup = buildZoneLookup();
@@ -62,7 +128,7 @@ const zoneLookup = buildZoneLookup();
 // Zone A HC groups
 const zoneAHCGroups: string[][] = [
   ["Horl", "ela mo", "MagicHolz", "Hydraid"],
-  ["Dr. Emi", "Shyne"],
+  ["Dr. Emi", "SHYNE"],
   ["Multi Small", "Multi Big", "SIOP"],
   ["HAFERLÖWE", "Matchday Nutrition"],
 ];
@@ -70,7 +136,7 @@ const zoneAHCGroups: string[][] = [
 const zoneSerialOrder: Record<string, string[]> = {
   A: [
     "Horl", "ela mo", "MagicHolz", "Hydraid", "Beyond Drinks",
-    "Dr. Emi", "Shyne", "Dr. Massing", "Yummyeats -Smarter Choices GmbH",
+    "Dr. Emi", "SHYNE", "Dr. Massing", "Yummyeats -Smarter Choices GmbH",
     "Multi Small", "Multi Big", "SIOP", "HAFERLÖWE",
     "Matchday Nutrition", "Inkster", "Lotuscrafts GmbH",
   ],
@@ -130,7 +196,6 @@ function AgingZoneView({
   const zoneRows = useMemo(() => {
     const rows: AgingZoneRow[] = [];
 
-    // Named merchants (not in any group)
     for (const [merchant, orders] of Object.entries(merchantOrders)) {
       const assignment = zoneLookup[merchant];
       if (assignment && assignment.zone === zone && !assignment.group) {
@@ -153,7 +218,6 @@ function AgingZoneView({
       }
     }
 
-    // Grouped merchants
     for (const [groupName, members] of Object.entries(groups)) {
       let totalOrders = 0, totalBacklog = 0, totalPick = 0, totalPack = 0;
       for (const m of members) {
@@ -249,7 +313,6 @@ function AgingZoneView({
 
   return (
     <div className="space-y-4">
-      {/* Zone stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total Orders" value={totals.totalOrders.toLocaleString()} icon={<Package size={16} />} />
         <StatCard label="Effective Orders" value={totals.effectiveOrders.toLocaleString()} icon={<PackageMinus size={16} />} subtext={`After ${totals.totalBacklog} backlog`} variant="success" />
@@ -276,7 +339,6 @@ function AgingZoneView({
         </div>
       </div>
 
-      {/* Zone table */}
       <div className="rounded-md border bg-card">
         <div className="p-3 border-b flex items-center gap-2">
           <Search size={14} className="text-muted-foreground" />
@@ -369,10 +431,12 @@ function AgingZoneView({
 // ─── Main AgingOrders component ───
 export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   const TIME_LEFT = useTimeLeft();
-  const [rawData, setRawData] = useState<AgingRow[]>([]);
+  const [rawData, setRawData] = useState<ShipmentRow[]>([]);
   const [hasFile, setHasFile] = useState(false);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
   const [sortKey, setSortKey] = useState<SortKey>("count_orders");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
@@ -382,21 +446,23 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   const [nonProdHC, setNonProdHC] = useState(12);
   const idbLoaded = useRef(false);
 
-  // Load from IndexedDB on mount
   useEffect(() => {
     (async () => {
-      const [csv, bl, sd, ed, hc] = await Promise.all([
-        idbGet<string | AgingRow[]>(STORAGE_KEY_CSV),
+      const [csv, bl, sd, ed, st, et, hc] = await Promise.all([
+        idbGet<ShipmentRow[]>(STORAGE_KEY_CSV),
         idbGet<Record<string, number>>(STORAGE_KEY_BACKLOG),
         idbGet<string>(STORAGE_KEY_START_DATE),
         idbGet<string>(STORAGE_KEY_END_DATE),
+        idbGet<string>(STORAGE_KEY_START_TIME),
+        idbGet<string>(STORAGE_KEY_END_TIME),
         idbGet<number>("agingNonProdHC_main"),
       ]);
-      const parsedCsv = typeof csv === "string" ? parseCSV(csv) : csv;
-      if (parsedCsv && parsedCsv.length > 0) { setRawData(parsedCsv); setHasFile(true); }
+      if (csv && Array.isArray(csv) && csv.length > 0) { setRawData(csv); setHasFile(true); }
       if (bl) setBacklog(bl);
       if (sd) setStartDate(sd);
       if (ed) setEndDate(ed);
+      if (st) setStartTime(st);
+      if (et) setEndTime(et);
       if (hc !== null) setNonProdHC(hc);
       idbLoaded.current = true;
     })();
@@ -411,11 +477,18 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     if (!idbLoaded.current) return;
     if (rawData.length > 0 && !startDate && !endDate) {
       const d = uniqueDates(rawData);
+      const t = uniqueTimes(rawData);
       if (d.length > 0) {
         setStartDate(d[0]);
         setEndDate(d[d.length - 1]);
         idbSet(STORAGE_KEY_START_DATE, d[0]);
         idbSet(STORAGE_KEY_END_DATE, d[d.length - 1]);
+      }
+      if (t.length > 0) {
+        setStartTime(t[0]);
+        setEndTime(t[t.length - 1]);
+        idbSet(STORAGE_KEY_START_TIME, t[0]);
+        idbSet(STORAGE_KEY_END_TIME, t[t.length - 1]);
       }
     }
   }, [rawData, startDate, endDate]);
@@ -433,14 +506,19 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
       const text = ev.target?.result as string;
       const parsed = parseCSV(text);
       const dates = uniqueDates(parsed);
+      const times = uniqueTimes(parsed);
       const nextStartDate = dates[0] ?? "";
       const nextEndDate = dates[dates.length - 1] ?? "";
+      const nextStartTime = times[0] ?? "";
+      const nextEndTime = times[times.length - 1] ?? "";
 
       await Promise.all([
-        idbSet(STORAGE_KEY_CSV, text),
+        idbSet(STORAGE_KEY_CSV, parsed),
         idbRemove(STORAGE_KEY_BACKLOG),
         nextStartDate ? idbSet(STORAGE_KEY_START_DATE, nextStartDate) : idbRemove(STORAGE_KEY_START_DATE),
         nextEndDate ? idbSet(STORAGE_KEY_END_DATE, nextEndDate) : idbRemove(STORAGE_KEY_END_DATE),
+        nextStartTime ? idbSet(STORAGE_KEY_START_TIME, nextStartTime) : idbRemove(STORAGE_KEY_START_TIME),
+        nextEndTime ? idbSet(STORAGE_KEY_END_TIME, nextEndTime) : idbRemove(STORAGE_KEY_END_TIME),
       ]);
 
       setRawData(parsed);
@@ -448,10 +526,8 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
       setHasFile(true);
       setStartDate(nextStartDate);
       setEndDate(nextEndDate);
-      if (!nextStartDate || !nextEndDate) {
-        setStartDate("");
-        setEndDate("");
-      }
+      setStartTime(nextStartTime);
+      setEndTime(nextEndTime);
     };
     reader.readAsText(file);
     e.target.value = "";
@@ -463,12 +539,16 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
       idbRemove(STORAGE_KEY_BACKLOG),
       idbRemove(STORAGE_KEY_START_DATE),
       idbRemove(STORAGE_KEY_END_DATE),
+      idbRemove(STORAGE_KEY_START_TIME),
+      idbRemove(STORAGE_KEY_END_TIME),
     ]);
     setRawData([]);
     setBacklog({});
     setHasFile(false);
     setStartDate("");
     setEndDate("");
+    setStartTime("");
+    setEndTime("");
   }, []);
 
   const handleBacklogChange = useCallback((merchant: string, val: number) => {
@@ -488,22 +568,39 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   }, []);
 
   const dates = useMemo(() => uniqueDates(rawData), [rawData]);
+  const times = useMemo(() => uniqueTimes(rawData), [rawData]);
 
   const filteredByDate = useMemo(() => {
     if (!startDate && !endDate) return rawData;
-    return rawData.filter((r) => {
-      const d = new Date(r.ready_for_fulfillment_at).getTime();
-      const s = startDate ? new Date(startDate).getTime() : -Infinity;
-      const e = endDate ? new Date(endDate).getTime() : Infinity;
-      return d >= s && d <= e;
-    });
-  }, [rawData, startDate, endDate]);
 
-  // Aggregate by merchant (used by main view and zone views)
+    // Build start and end timestamps combining date + time
+    let startTs = -Infinity;
+    let endTs = Infinity;
+
+    if (startDate) {
+      const sTime = startTime || "00:00";
+      const [sh, sm] = sTime.split(":").map(Number);
+      const sd = new Date(startDate);
+      sd.setHours(sh, sm, 0, 0);
+      startTs = sd.getTime();
+    }
+
+    if (endDate) {
+      const eTime = endTime || "23:59";
+      const [eh, em] = eTime.split(":").map(Number);
+      const ed = new Date(endDate);
+      ed.setHours(eh, em, 59, 999);
+      endTs = ed.getTime();
+    }
+
+    return rawData.filter((r) => r.ready_ts >= startTs && r.ready_ts <= endTs);
+  }, [rawData, startDate, endDate, startTime, endTime]);
+
+  // Aggregate: count shipments per merchant
   const merchantOrdersMap = useMemo(() => {
     const map: Record<string, number> = {};
     for (const r of filteredByDate) {
-      map[r.merchant] = (map[r.merchant] || 0) + r.count_orders;
+      map[r.merchant] = (map[r.merchant] || 0) + 1;
     }
     return map;
   }, [filteredByDate]);
@@ -591,9 +688,29 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     { key: "ideal_sph", label: "Ideal SPH", align: "right" },
   ];
 
+  const handleDateChange = (type: "start" | "end", value: string) => {
+    if (type === "start") {
+      setStartDate(value);
+      idbSet(STORAGE_KEY_START_DATE, value);
+    } else {
+      setEndDate(value);
+      idbSet(STORAGE_KEY_END_DATE, value);
+    }
+  };
+
+  const handleTimeChange = (type: "start" | "end", value: string) => {
+    if (type === "start") {
+      setStartTime(value);
+      idbSet(STORAGE_KEY_START_TIME, value);
+    } else {
+      setEndTime(value);
+      idbSet(STORAGE_KEY_END_TIME, value);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Upload & Date Filter */}
+      {/* Upload & Date/Time Filter */}
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Upload CSV</label>
@@ -611,15 +728,27 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
         {dates.length > 0 && (
           <>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">From</label>
-              <select value={startDate} onChange={(e) => { setStartDate(e.target.value); idbSet(STORAGE_KEY_START_DATE, e.target.value); }} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
-                {dates.map((d) => <option key={d} value={d}>{d}</option>)}
+              <label className="text-xs text-muted-foreground block mb-1">From Date</label>
+              <select value={startDate} onChange={(e) => handleDateChange("start", e.target.value)} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
+                {dates.map((d) => <option key={d} value={d}>{formatDateLabel(d)}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">To</label>
-              <select value={endDate} onChange={(e) => { setEndDate(e.target.value); idbSet(STORAGE_KEY_END_DATE, e.target.value); }} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
-                {dates.map((d) => <option key={d} value={d}>{d}</option>)}
+              <label className="text-xs text-muted-foreground block mb-1">From Time</label>
+              <select value={startTime} onChange={(e) => handleTimeChange("start", e.target.value)} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
+                {times.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">To Date</label>
+              <select value={endDate} onChange={(e) => handleDateChange("end", e.target.value)} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
+                {dates.map((d) => <option key={d} value={d}>{formatDateLabel(d)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">To Time</label>
+              <select value={endTime} onChange={(e) => handleTimeChange("end", e.target.value)} className="h-9 rounded-md border border-border bg-secondary text-foreground text-xs px-2">
+                {times.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </>
@@ -646,7 +775,6 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            {/* Stat cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard label="Total Orders" value={totalOrders.toLocaleString()} icon={<Package size={16} />} subtext={`${merchantData.length} merchants`} />
               <StatCard label="Effective Orders" value={effectiveOrders.toLocaleString()} icon={<PackageMinus size={16} />} subtext={`After ${totalBacklog} backlog`} variant="success" />
@@ -692,7 +820,6 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
               </div>
             </div>
 
-            {/* Table */}
             <div className="rounded-md border bg-card">
               <div className="p-3 border-b flex items-center gap-2">
                 <Search size={14} className="text-muted-foreground" />
@@ -708,7 +835,6 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
                           <span className="inline-flex items-center gap-1">{col.label} <SortIcon col={col.key} /></span>
                         </th>
                       ))}
-                      
                     </tr>
                   </thead>
                   <tbody>

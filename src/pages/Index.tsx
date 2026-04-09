@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, type LucideIcon } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
@@ -236,6 +236,19 @@ const Index = () => {
     setPackUploads(next);
   }, [packUploads]);
 
+  const [activeTab, setActiveTab] = useState("flow");
+
+  const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
+    { value: "flow", label: "Flow Management", icon: Activity },
+    { value: "zoneA", label: "Zone A", icon: MapPin },
+    { value: "zoneB", label: "Zone B", icon: MapPin },
+    { value: "picking", label: "Pick Benchmark", icon: BarChart3 },
+    { value: "packing", label: "Pack Benchmark", icon: Gauge },
+    { value: "aging", label: "Aging Orders", icon: CalendarClock },
+    { value: "performance", label: "Performance Tracker", icon: Users },
+    { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
+  ];
+
   const [backlog, setBacklog] = useState<Record<string, number>>({});
 
   // Load backlog from IDB
@@ -332,33 +345,30 @@ const Index = () => {
           </div>
         )}
 
-        <Tabs defaultValue="flow" className="space-y-4">
-          <TabsList className="bg-secondary border border-border">
-            <TabsTrigger value="flow" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Activity size={14} /> Flow Management
-            </TabsTrigger>
-            <TabsTrigger value="zoneA" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <MapPin size={14} /> Zone A
-            </TabsTrigger>
-            <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <MapPin size={14} /> Zone B
-            </TabsTrigger>
-            <TabsTrigger value="picking" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <BarChart3 size={14} /> Pick Benchmark
-            </TabsTrigger>
-            <TabsTrigger value="packing" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Gauge size={14} /> Pack Benchmark
-            </TabsTrigger>
-            <TabsTrigger value="aging" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <CalendarClock size={14} /> Aging Orders
-            </TabsTrigger>
-            <TabsTrigger value="performance" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Users size={14} /> Performance Tracker
-            </TabsTrigger>
-            <TabsTrigger value="actualsph" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <TrendingUp size={14} /> Actual SPH
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          {/* Mobile navigation: select dropdown */}
+          <div className="sm:hidden">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground"
+            >
+              {tabItems.map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Tablet/Desktop navigation: scrollable tab list */}
+          <div className="hidden sm:block overflow-x-auto">
+            <TabsList className="bg-secondary border border-border w-max">
+              {tabItems.map(({ value, label, icon: Icon }) => (
+                <TabsTrigger key={value} value={value} className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  <Icon size={14} /> {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
           <TabsContent value="flow" className="space-y-4">
             <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />

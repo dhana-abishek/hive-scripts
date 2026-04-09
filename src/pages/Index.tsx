@@ -20,6 +20,8 @@ const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
 const PICK_ACTIVE_KEY = "pickBenchmarkActiveId";
 const PACK_UPLOADS_KEY = "packBenchmarkUploads";
 const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
+const INFLOW_ENABLED_KEY = "inflowEnabled";
+const OVERNIGHT_VOLUMES_KEY = "overnightVolumes";
 
 const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
@@ -34,7 +36,7 @@ const Index = () => {
   // Load all from IndexedDB on mount
   useEffect(() => {
     (async () => {
-      const [pu, pa, pku, pka, hc, em, ahc] = await Promise.all([
+      const [pu, pa, pku, pka, hc, em, ahc, ie, ov] = await Promise.all([
         idbGet<BenchmarkUpload[]>(PICK_UPLOADS_KEY),
         idbGet<string>(PICK_ACTIVE_KEY),
         idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
@@ -42,6 +44,8 @@ const Index = () => {
         idbGet<number>("nonProdHC_main"),
         idbGet<ExtraMerchant[]>("perfExtraMerchants"),
         idbGet<number>("availableHC_main"),
+        idbGet<boolean>(INFLOW_ENABLED_KEY),
+        idbGet<Record<string, number>>(OVERNIGHT_VOLUMES_KEY),
       ]);
       if (pu) setPickUploads(pu);
       if (pa) setPickActiveId(pa);
@@ -50,6 +54,8 @@ const Index = () => {
       if (hc !== null) setNonProdHeadcount(hc);
       if (em) setExtraMerchants(em);
       if (ahc !== null) setAvailableHeadcount(ahc);
+      if (ie !== null) setInflowEnabled(ie);
+      if (ov) setOvernightVolumes(ov);
     })();
   }, []);
 
@@ -165,6 +171,25 @@ const Index = () => {
     setAvailableHeadcount(val);
     idbSet("availableHC_main", val);
   };
+
+  const handleInflowToggle = useCallback((enabled: boolean) => {
+    setInflowEnabled(enabled);
+    if (enabled) {
+      void idbSet(INFLOW_ENABLED_KEY, true);
+    } else {
+      void idbRemove(INFLOW_ENABLED_KEY);
+      void idbRemove(OVERNIGHT_VOLUMES_KEY);
+    }
+  }, []);
+
+  const handleInflowCsvParsed = useCallback((volumes: Record<string, number>) => {
+    setOvernightVolumes(volumes);
+    if (Object.keys(volumes).length > 0) {
+      void idbSet(OVERNIGHT_VOLUMES_KEY, volumes);
+    } else {
+      void idbRemove(OVERNIGHT_VOLUMES_KEY);
+    }
+  }, []);
 
   // Pick handlers
   const handlePickNewUpload = useCallback(async (upload: BenchmarkUpload) => {
@@ -378,7 +403,7 @@ const Index = () => {
                 <span className="text-sm">Loading live data from Metabase...</span>
               </div>
             ) : (
-              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} availableHeadcount={availableHeadcount} />
+              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={handleInflowToggle} onInflowCsvParsed={handleInflowCsvParsed} availableHeadcount={availableHeadcount} />
             )}
           </TabsContent>
           <TabsContent value="zoneA">

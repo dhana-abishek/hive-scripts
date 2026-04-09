@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, type LucideIcon } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, type LucideIcon } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
@@ -8,6 +8,7 @@ import { ZoneView } from "@/components/ZoneView";
 import { AgingOrders } from "@/components/AgingOrders";
 import { PerformanceTracker } from "@/components/PerformanceTracker";
 import { ActualSPH } from "@/components/ActualSPH";
+import { Reports } from "@/components/Reports";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
@@ -270,6 +271,7 @@ const Index = () => {
     { value: "aging", label: "Aging Orders", icon: CalendarClock },
     { value: "performance", label: "Performance", icon: Users },
     { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
+    { value: "reports", label: "Reports", icon: FileText },
   ];
 
   const [backlog, setBacklog] = useState<Record<string, number>>({});
@@ -509,6 +511,20 @@ const Index = () => {
 
           <TabsContent value="actualsph">
             <ActualSPH pickingRates={pickingRates} packingRates={packingRates} />
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <Reports
+              mergedFlowData={mergedFlowData}
+              backlog={backlog}
+              pickingRates={pickingRates}
+              packingRates={packingRates}
+              overallTotalOrders={stats.totalOrders}
+              overallTotalBacklog={stats.totalPlannedBacklog}
+              overallAdjustedSph={stats.adjustedSph}
+              availableHeadcount={availableHeadcount}
+              nonProdHeadcount={nonProdHeadcount}
+            />
           </TabsContent>
         </Tabs>
       </main>

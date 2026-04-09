@@ -395,58 +395,117 @@ const Index = () => {
 
           <TabsContent value="flow" className="space-y-4">
             <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />
-            {isLoading && mergedFlowData.length === 0 ? (
-              <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
-                <Loader2 size={16} className="animate-spin" />
-                <span className="text-sm">Loading live data from Metabase...</span>
+
+            <Tabs value={flowSubTab} onValueChange={setFlowSubTab}>
+              <div className="sm:hidden">
+                <select
+                  value={flowSubTab}
+                  onChange={(e) => setFlowSubTab(e.target.value)}
+                  className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="all">All Merchants</option>
+                  <option value="zoneA">Zone A</option>
+                  <option value="zoneB">Zone B</option>
+                </select>
               </div>
-            ) : (
-              <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={handleInflowToggle} onInflowCsvParsed={handleInflowCsvParsed} availableHeadcount={availableHeadcount} />
-            )}
-          </TabsContent>
-          <TabsContent value="zoneA">
-            <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
-          </TabsContent>
-          <TabsContent value="zoneB">
-            <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
-          </TabsContent>
+              <div className="hidden sm:block">
+                <TabsList className="bg-secondary border border-border">
+                  <TabsTrigger value="all" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Activity size={14} /> All Merchants
+                  </TabsTrigger>
+                  <TabsTrigger value="zoneA" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <MapPin size={14} /> Zone A
+                  </TabsTrigger>
+                  <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <MapPin size={14} /> Zone B
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-          <TabsContent value="picking">
-            <BenchmarkTable
-              title="Picking Benchmark (SPH)"
-              data={pickingBenchmarks}
-              valueLabel="Pick SPH"
-              uploads={pickUploads}
-              activeUploadId={pickActiveId}
-              onNewUpload={handlePickNewUpload}
-              onSelectUpload={handlePickSelect}
-              onRenameUpload={handlePickRename}
-              onDeleteUpload={handlePickDelete}
-              liveFlowData={mergedFlowData}
-            />
-          </TabsContent>
-
-          <TabsContent value="packing">
-            <BenchmarkTable
-              title="Packing Benchmark (SPH)"
-              data={packingBenchmarks}
-              valueLabel="Pack SPH"
-              uploads={packUploads}
-              activeUploadId={packActiveId}
-              onNewUpload={handlePackNewUpload}
-              onSelectUpload={handlePackSelect}
-              onRenameUpload={handlePackRename}
-              onDeleteUpload={handlePackDelete}
-              liveFlowData={mergedFlowData}
-            />
+              <TabsContent value="all" className="space-y-4">
+                {isLoading && mergedFlowData.length === 0 ? (
+                  <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span className="text-sm">Loading live data from Metabase...</span>
+                  </div>
+                ) : (
+                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={handleInflowToggle} onInflowCsvParsed={handleInflowCsvParsed} availableHeadcount={availableHeadcount} />
+                )}
+              </TabsContent>
+              <TabsContent value="zoneA">
+                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
+              </TabsContent>
+              <TabsContent value="zoneB">
+                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="aging">
             <AgingOrders pickingRates={pickingRates} packingRates={packingRates} />
           </TabsContent>
 
-          <TabsContent value="performance">
-            <PerformanceTracker />
+          <TabsContent value="performance" className="space-y-4">
+            <Tabs value={perfSubTab} onValueChange={setPerfSubTab}>
+              <div className="sm:hidden">
+                <select
+                  value={perfSubTab}
+                  onChange={(e) => setPerfSubTab(e.target.value)}
+                  className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="picking">Picking Benchmark</option>
+                  <option value="packing">Packing Benchmark</option>
+                  <option value="tracker">Performance Tracker</option>
+                </select>
+              </div>
+              <div className="hidden sm:block">
+                <TabsList className="bg-secondary border border-border">
+                  <TabsTrigger value="picking" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <BarChart3 size={14} /> Picking Benchmark
+                  </TabsTrigger>
+                  <TabsTrigger value="packing" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Gauge size={14} /> Packing Benchmark
+                  </TabsTrigger>
+                  <TabsTrigger value="tracker" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <Users size={14} /> Performance Tracker
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="picking">
+                <BenchmarkTable
+                  title="Picking Benchmark (SPH)"
+                  data={pickingBenchmarks}
+                  valueLabel="Pick SPH"
+                  uploads={pickUploads}
+                  activeUploadId={pickActiveId}
+                  onNewUpload={handlePickNewUpload}
+                  onSelectUpload={handlePickSelect}
+                  onRenameUpload={handlePickRename}
+                  onDeleteUpload={handlePickDelete}
+                  liveFlowData={mergedFlowData}
+                />
+              </TabsContent>
+
+              <TabsContent value="packing">
+                <BenchmarkTable
+                  title="Packing Benchmark (SPH)"
+                  data={packingBenchmarks}
+                  valueLabel="Pack SPH"
+                  uploads={packUploads}
+                  activeUploadId={packActiveId}
+                  onNewUpload={handlePackNewUpload}
+                  onSelectUpload={handlePackSelect}
+                  onRenameUpload={handlePackRename}
+                  onDeleteUpload={handlePackDelete}
+                  liveFlowData={mergedFlowData}
+                />
+              </TabsContent>
+
+              <TabsContent value="tracker">
+                <PerformanceTracker />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="actualsph">

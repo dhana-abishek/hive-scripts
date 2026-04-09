@@ -154,8 +154,9 @@ function AgingZoneView({
       if (assignment && assignment.zone === zone && !assignment.group) {
         const bl = backlog[merchant] || 0;
         const effVol = Math.max(0, orders - bl);
-        const pickRate = pickingRates[merchant] || 30;
-        const packRate = packingRates[merchant] || 20;
+        const key = merchant.toLowerCase();
+        const pickRate = pickingRates[key] || 30;
+        const packRate = packingRates[key] || 20;
         const pickHrs = effVol / (pickRate * MULTIPLIER);
         const packHrs = effVol / (packRate * MULTIPLIER);
         const hc = TIME_LEFT > 0 ? (pickHrs + packHrs) / TIME_LEFT : 0;
@@ -178,8 +179,9 @@ function AgingZoneView({
         if (orders === 0) continue;
         const bl = backlog[m] || 0;
         const effVol = Math.max(0, orders - bl);
-        const pickRate = pickingRates[m] || 30;
-        const packRate = packingRates[m] || 20;
+        const mKey = m.toLowerCase();
+        const pickRate = pickingRates[mKey] || 30;
+        const packRate = packingRates[mKey] || 20;
         totalOrders += orders;
         totalBacklog += bl;
         totalPick += effVol / (pickRate * MULTIPLIER);
@@ -527,8 +529,9 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
     return Object.entries(merchantOrdersMap).map(([merchant, orders]) => {
       const bl = backlog[merchant] || 0;
       const effVol = Math.max(0, orders - bl);
-      const pickRate = pickingRates[merchant];
-      const packRate = packingRates[merchant];
+      const mKey = merchant.toLowerCase();
+      const pickRate = pickingRates[mKey];
+      const packRate = packingRates[mKey];
       let pickHrs = 0, packHrs = 0, idealSph = 0;
       if (pickRate && packRate && pickRate > 0 && packRate > 0) {
         pickHrs = effVol / (pickRate * MULTIPLIER);

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
-import { Upload, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Search, Package, Clock, Gauge, RotateCcw, Trash2, Timer, UserPlus, PackageMinus, ArrowDownToLine, TrendingUp, MapPin } from "lucide-react";
+import { Upload, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Search, Package, Clock, Gauge, RotateCcw, Trash2, Timer, UserPlus, PackageMinus, ArrowDownToLine, TrendingUp, MapPin, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +20,7 @@ interface ShipmentRow {
   ready_for_fulfillment_at: string; // raw datetime string e.g. "April 8, 2026, 00:00"
   ready_ts: number; // parsed timestamp
   merchant: string;
+  shipment_id?: string;
 }
 
 interface AgingOrdersProps {
@@ -64,6 +65,7 @@ function parseCSV(text: string): ShipmentRow[] {
 
   const rffIdx = headers.indexOf("ready_for_fulfillment_at");
   const merchantIdx = headers.indexOf("merchant");
+  const shipmentIdx = headers.indexOf("shipment_id");
 
   if (rffIdx === -1 || merchantIdx === -1) return [];
 
@@ -90,6 +92,7 @@ function parseCSV(text: string): ShipmentRow[] {
       ready_for_fulfillment_at: rawDate,
       ready_ts: ts,
       merchant,
+      shipment_id: shipmentIdx !== -1 ? (parts[shipmentIdx] || undefined) : undefined,
     });
   }
   return rows;
@@ -444,6 +447,7 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [nonProdHC, setNonProdHC] = useState(12);
+  const [copiedDate, setCopiedDate] = useState<string | null>(null);
   const idbLoaded = useRef(false);
 
   useEffect(() => {
@@ -569,6 +573,18 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
 
   const dates = useMemo(() => uniqueDates(rawData), [rawData]);
   const times = useMemo(() => uniqueTimes(rawData), [rawData]);
+
+  const shipmentIdsByDate = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const r of rawData) {
+      if (!r.shipment_id) continue;
+      const d = new Date(r.ready_ts);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(r.shipment_id);
+    }
+    return map;
+  }, [rawData]);
 
   const filteredByDate = useMemo(() => {
     if (!startDate && !endDate) return rawData;
@@ -772,6 +788,9 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
             <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <MapPin size={14} /> Zone B
             </TabsTrigger>
+            <TabsTrigger value="shipmentIds" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Package size={14} /> Shipment IDs
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
@@ -882,6 +901,40 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
               onBacklogChange={(m, v) => handleBacklogChange(m, v)}
               onResetZoneBacklog={() => handleResetZoneBacklog("B")}
             />
+          </TabsContent>
+
+          <TabsContent value="shipmentIds" className="space-y-3">
+            {Object.keys(shipmentIdsByDate).length === 0 ? (
+              <div className="rounded-md border bg-card p-12 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                <Package size={32} />
+                <span className="text-sm">No shipment_id column found in the uploaded CSV.</span>
+              </div>
+            ) : (
+              Object.entries(shipmentIdsByDate)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([date, ids]) => (
+                  <div key={date} className="rounded-md border bg-card p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold">{formatDateLabel(date)}</span>
+                      <span className="text-xs text-muted-foreground">{ids.length} shipments</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <p className="text-xs text-muted-foreground font-mono flex-1 break-all">{ids.join(", ")}</p>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(ids.join(", "));
+                          setCopiedDate(date);
+                          setTimeout(() => setCopiedDate(null), 2000);
+                        }}
+                        className="shrink-0 p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        title="Copy shipment IDs"
+                      >
+                        {copiedDate === date ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                ))
+            )}
           </TabsContent>
         </Tabs>
       )}

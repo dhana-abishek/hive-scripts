@@ -394,8 +394,6 @@ const Index = () => {
           </div>
 
           <TabsContent value="flow" className="space-y-4">
-            <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />
-
             <Tabs value={flowSubTab} onValueChange={setFlowSubTab}>
               <div className="sm:hidden">
                 <select
@@ -423,6 +421,7 @@ const Index = () => {
               </div>
 
               <TabsContent value="all" className="space-y-4">
+                <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />
                 {isLoading && mergedFlowData.length === 0 ? (
                   <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
                     <Loader2 size={16} className="animate-spin" />

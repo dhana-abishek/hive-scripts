@@ -449,6 +449,7 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   const [nonProdHC, setNonProdHC] = useState(12);
   const [copiedDate, setCopiedDate] = useState<string | null>(null);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [agingSubTab, setAgingSubTab] = useState("all");
   const idbLoaded = useRef(false);
 
   useEffect(() => {
@@ -778,21 +779,35 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
           <span className="text-sm">Upload a CSV file to view aging orders</span>
         </div>
       ) : (
-        <Tabs defaultValue="all" className="space-y-4">
-          <TabsList className="bg-secondary border border-border">
-            <TabsTrigger value="all" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              All Merchants
-            </TabsTrigger>
-            <TabsTrigger value="zoneA" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <MapPin size={14} /> Zone A
-            </TabsTrigger>
-            <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <MapPin size={14} /> Zone B
-            </TabsTrigger>
-            <TabsTrigger value="shipmentIds" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Package size={14} /> Shipment IDs
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={agingSubTab} onValueChange={setAgingSubTab} className="space-y-4">
+          <div className="sm:hidden">
+            <select
+              value={agingSubTab}
+              onChange={(e) => setAgingSubTab(e.target.value)}
+              className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground"
+            >
+              <option value="all">All Merchants</option>
+              <option value="zoneA">Zone A</option>
+              <option value="zoneB">Zone B</option>
+              <option value="shipmentIds">Shipment IDs</option>
+            </select>
+          </div>
+          <div className="hidden sm:block">
+            <TabsList className="bg-secondary border border-border">
+              <TabsTrigger value="all" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                All Merchants
+              </TabsTrigger>
+              <TabsTrigger value="zoneA" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <MapPin size={14} /> Zone A
+              </TabsTrigger>
+              <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <MapPin size={14} /> Zone B
+              </TabsTrigger>
+              <TabsTrigger value="shipmentIds" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Package size={14} /> Shipment IDs
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="all" className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

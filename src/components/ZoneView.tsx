@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
+import { useTimeLeft } from "@/hooks/useTimeLeft";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search, PackageMinus, ArrowDownToLine } from "lucide-react";
@@ -62,25 +63,6 @@ interface ZoneViewProps {
   onResetZoneBacklog?: (zone: "A" | "B") => void;
 }
 
-function calcTimeLeft(): number {
-  const now = new Date();
-  const day = now.getDay();
-  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-  const nowFrac = (h * 3600 + m * 60 + s) / 86400;
-  const t = (hh: number, mm: number, ss: number) => (hh * 3600 + mm * 60 + ss) / 86400;
-  const start = t(8, 10, 0), lunchStart = t(12, 0, 0), lunchEnd = t(12, 30, 0), lunchDur = t(0, 30, 0);
-  if (day === 0) return 8;
-  if (nowFrac < start) return 8;
-  const endTime = day === 6 ? t(15, 0, 0) : t(16, 40, 0);
-  if (nowFrac >= endTime) return 8;
-  const totalShift = (endTime - start - lunchDur) * 24;
-  let elapsed: number;
-  if (nowFrac < lunchStart) elapsed = (nowFrac - start) * 24;
-  else if (nowFrac < lunchEnd) elapsed = (lunchStart - start) * 24;
-  else elapsed = (lunchStart - start) * 24 + (nowFrac - lunchEnd) * 24;
-  return Math.max(0, totalShift - elapsed);
-}
-
 type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
 export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog }: ZoneViewProps) {
@@ -119,7 +101,7 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
     setEditingMerchant(null);
   };
 
-  const timeLeft = calcTimeLeft();
+  const timeLeft = useTimeLeft();
   const groups = zone === "A" ? zoneAGroups : zoneBGroups;
 
   // Collect zone merchants' backlog by resolving group members

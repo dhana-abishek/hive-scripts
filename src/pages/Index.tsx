@@ -262,15 +262,13 @@ const Index = () => {
   }, [packUploads]);
 
   const [activeTab, setActiveTab] = useState("flow");
+  const [flowSubTab, setFlowSubTab] = useState("all");
+  const [perfSubTab, setPerfSubTab] = useState("picking");
 
   const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
     { value: "flow", label: "Flow Management", icon: Activity },
-    { value: "zoneA", label: "Zone A", icon: MapPin },
-    { value: "zoneB", label: "Zone B", icon: MapPin },
-    { value: "picking", label: "Pick Benchmark", icon: BarChart3 },
-    { value: "packing", label: "Pack Benchmark", icon: Gauge },
     { value: "aging", label: "Aging Orders", icon: CalendarClock },
-    { value: "performance", label: "Performance Tracker", icon: Users },
+    { value: "performance", label: "Performance", icon: Users },
     { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
   ];
 

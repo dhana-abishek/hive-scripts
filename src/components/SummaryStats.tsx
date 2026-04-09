@@ -1,4 +1,4 @@
-import { Package, Clock, Timer, UserPlus, ArrowDownToLine, Gauge, PackageMinus, RotateCcw } from "lucide-react";
+import { Package, Clock, Timer, UserPlus, ArrowDownToLine, Gauge, PackageMinus, RotateCcw, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
@@ -48,6 +48,8 @@ interface SummaryStatsProps {
   totalPlannedBacklog?: number;
   adjustedSph?: number;
   onResetBacklog?: () => void;
+  availableHeadcount?: number;
+  onAvailableHeadcountChange?: (value: number) => void;
 }
 
 
@@ -61,10 +63,14 @@ export function SummaryStats({
   totalPlannedBacklog = 0,
   adjustedSph = 0,
   onResetBacklog,
+  availableHeadcount = 0,
+  onAvailableHeadcountChange,
 }: SummaryStatsProps) {
   const TIME_LEFT = useTimeLeft();
   const pickingHeadcount = Math.ceil(totalPickingHours / TIME_LEFT);
   const packingHeadcount = Math.ceil(totalPackingHours / TIME_LEFT);
+  const totalHCNeeded = pickingHeadcount + packingHeadcount;
+  const hcGap = availableHeadcount > 0 ? availableHeadcount - totalHCNeeded : null;
   const effectiveOrders = Math.max(0, totalOrders - totalPlannedBacklog);
 
   return (
@@ -104,7 +110,7 @@ export function SummaryStats({
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard
           label="Time Left"
           value={`${TIME_LEFT.toFixed(2)}h`}
@@ -153,6 +159,33 @@ export function SummaryStats({
             className="h-8 text-lg font-bold w-20 bg-secondary border-border"
           />
           <p className="text-xs text-muted-foreground mt-1">Enter headcount</p>
+        </div>
+        <div className={`rounded-md border bg-card p-4 ${hcGap === null ? "border-border" : hcGap >= 0 ? "border-success/30" : "border-destructive/30"}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="stat-label">Available HC</span>
+            <span className={hcGap === null ? "text-muted-foreground" : hcGap >= 0 ? "text-success" : "text-destructive"}>
+              <Users size={16} />
+            </span>
+          </div>
+          <Input
+            type="number"
+            min={0}
+            value={availableHeadcount || ""}
+            placeholder="0"
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              onAvailableHeadcountChange?.(isNaN(v) || v < 0 ? 0 : v);
+            }}
+            className="h-8 text-lg font-bold w-20 bg-secondary border-border"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {hcGap === null || availableHeadcount === 0
+              ? `${totalHCNeeded} HC needed`
+              : hcGap >= 0
+              ? <span className="text-success font-medium">+{hcGap} surplus vs {totalHCNeeded} needed</span>
+              : <span className="text-destructive font-medium">{Math.abs(hcGap)} short of {totalHCNeeded} needed</span>
+            }
+          </p>
         </div>
       </div>
     </div>

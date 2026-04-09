@@ -448,6 +448,7 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
   const [editValue, setEditValue] = useState("");
   const [nonProdHC, setNonProdHC] = useState(12);
   const [copiedDate, setCopiedDate] = useState<string | null>(null);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const idbLoaded = useRef(false);
 
   useEffect(() => {
@@ -912,28 +913,51 @@ export function AgingOrders({ pickingRates, packingRates }: AgingOrdersProps) {
             ) : (
               Object.entries(shipmentIdsByDate)
                 .sort(([a], [b]) => a.localeCompare(b))
-                .map(([date, ids]) => (
-                  <div key={date} className="rounded-md border bg-card p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold">{formatDateLabel(date)}</span>
-                      <span className="text-xs text-muted-foreground">{ids.length} shipments</span>
+                .map(([date, ids]) => {
+                  const PREVIEW_COUNT = 5;
+                  const isExpanded = expandedDates.has(date);
+                  const displayedIds = isExpanded ? ids : ids.slice(0, PREVIEW_COUNT);
+                  const hasMore = ids.length > PREVIEW_COUNT;
+                  return (
+                    <div key={date} className="rounded-md border bg-card p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold">{formatDateLabel(date)}</span>
+                        <span className="text-xs text-muted-foreground">{ids.length} shipments</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground font-mono break-all">
+                            {displayedIds.join(", ")}
+                            {!isExpanded && hasMore && <span className="text-muted-foreground">, …</span>}
+                          </p>
+                          {hasMore && (
+                            <button
+                              onClick={() => setExpandedDates(prev => {
+                                const next = new Set(prev);
+                                if (isExpanded) next.delete(date); else next.add(date);
+                                return next;
+                              })}
+                              className="mt-1 text-xs text-primary hover:underline"
+                            >
+                              {isExpanded ? "Show less" : `+${ids.length - PREVIEW_COUNT} more`}
+                            </button>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(ids.join(", "));
+                            setCopiedDate(date);
+                            setTimeout(() => setCopiedDate(null), 2000);
+                          }}
+                          className="shrink-0 p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                          title="Copy shipment IDs"
+                        >
+                          {copiedDate === date ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <p className="text-xs text-muted-foreground font-mono flex-1 break-all">{ids.join(", ")}</p>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(ids.join(", "));
-                          setCopiedDate(date);
-                          setTimeout(() => setCopiedDate(null), 2000);
-                        }}
-                        className="shrink-0 p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                        title="Copy shipment IDs"
-                      >
-                        {copiedDate === date ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
             )}
           </TabsContent>
         </Tabs>

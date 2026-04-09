@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp, Upload, FileText } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp, Upload, Wand2 } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getInflowFactor, parseOvernightVolumes } from "@/lib/inflowEstimation";
+import { useTimeLeft } from "@/hooks/useTimeLeft";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
 
 const MULTIPLIER = 1.125;
@@ -28,11 +29,13 @@ interface FlowManagementTableProps {
   inflowEnabled?: boolean;
   onInflowToggle?: (enabled: boolean) => void;
   onInflowCsvParsed?: (overnightVolumes: Record<string, number>) => void;
+  availableHeadcount?: number;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, availableHeadcount = 0 }: FlowManagementTableProps) {
+  const timeLeft = useTimeLeft();
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
@@ -122,6 +125,69 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
       };
     });
   }, [data, backlog, pickingRates, packingRates]);
+
+  // Backlog suggestions when available HC is set and insufficient
+  const suggestions = useMemo(() => {
+    if (!availableHeadcount || availableHeadcount <= 0 || timeLeft <= 0) return null;
+
+    const availableCapacity = availableHeadcount * timeLeft;
+    const totalRequired = adjustedData.reduce((s, r) => s + r.picking_hours + r.packing_hours, 0);
+
+    if (totalRequired <= availableCapacity) return null; // Enough HC, no suggestions needed
+
+    // Sort by ideal_sph ascending: defer low-SPH merchants first (maximises SPH of remaining work,
+    // and low-SPH merchants tend to have fewer orders so minimal merchant impact)
+    const sorted = [...adjustedData]
+      .filter((r) => r.order_volume > (backlog[r.merchant_name] || 0)) // only merchants with undeferred orders
+      .sort((a, b) => a.ideal_sph - b.ideal_sph);
+
+    const suggested: { merchant_name: string; suggestedBacklog: number; orders: number; hoursSaved: number }[] = [];
+    let toFree = totalRequired - availableCapacity;
+
+    for (const row of sorted) {
+      if (toFree <= 0) break;
+      const currentBacklog = backlog[row.merchant_name] || 0;
+      const remainingOrders = row.order_volume - currentBacklog;
+      const rowHours = row.picking_hours + row.packing_hours;
+
+      if (rowHours <= 0) continue;
+
+      if (rowHours <= toFree) {
+        // Defer entire remaining workload for this merchant
+        suggested.push({
+          merchant_name: row.merchant_name,
+          suggestedBacklog: row.order_volume, // full backlog
+          orders: remainingOrders,
+          hoursSaved: rowHours,
+        });
+        toFree -= rowHours;
+      } else {
+        // Partial deferral: defer just enough orders to free the required hours
+        // hours per order = rowHours / remainingOrders
+        const hoursPerOrder = rowHours / remainingOrders;
+        const ordersToDefer = Math.ceil(toFree / hoursPerOrder);
+        const actualDefer = Math.min(ordersToDefer, remainingOrders);
+        suggested.push({
+          merchant_name: row.merchant_name,
+          suggestedBacklog: currentBacklog + actualDefer,
+          orders: actualDefer,
+          hoursSaved: actualDefer * hoursPerOrder,
+        });
+        toFree = 0;
+      }
+    }
+
+    return suggested;
+  }, [adjustedData, availableHeadcount, timeLeft, backlog]);
+
+  const applySuggestions = useCallback(() => {
+    if (!suggestions) return;
+    const updated = { ...backlog };
+    for (const s of suggestions) {
+      updated[s.merchant_name] = s.suggestedBacklog;
+    }
+    saveBacklog(updated);
+  }, [suggestions, backlog, saveBacklog]);
 
   const filtered = useMemo(() => {
     let result = adjustedData;
@@ -250,6 +316,37 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
           })()}
         </div>
       </div>
+
+      {/* Headcount Optimizer */}
+      {availableHeadcount > 0 && suggestions && suggestions.length > 0 && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wand2 size={14} className="text-destructive" />
+              <h3 className="text-sm font-semibold text-destructive">Headcount Optimizer</h3>
+              <span className="text-xs text-muted-foreground">— Available HC insufficient. Suggested backlogs to fit within {availableHeadcount} HC:</span>
+            </div>
+            <Button size="sm" variant="destructive" onClick={applySuggestions} className="h-7 px-3 text-xs gap-1.5">
+              <Wand2 size={11} /> Apply Suggestions
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((s) => (
+              <div key={s.merchant_name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-card border border-destructive/20">
+                <span className="font-medium truncate max-w-[120px]">{s.merchant_name}</span>
+                <span className="text-muted-foreground">→ backlog</span>
+                <span className="font-semibold text-destructive">{s.orders.toLocaleString()} orders</span>
+                <span className="text-muted-foreground">({s.hoursSaved.toFixed(1)}h saved)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {availableHeadcount > 0 && !suggestions && (
+        <div className="rounded-lg border border-success/30 bg-success/5 px-4 py-2 flex items-center gap-2 text-xs text-success">
+          <Wand2 size={13} /> Available HC ({availableHeadcount}) is sufficient for all current work.
+        </div>
+      )}
 
       <div className="rounded-md border bg-card">
       <div className="p-3 border-b flex items-center gap-2">

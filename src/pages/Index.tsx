@@ -101,8 +101,9 @@ const Index = () => {
     const extraRows = extraMerchants
       .filter(m => !existing.has(m.name))
       .map(m => {
-        const pickRate = pickingRates[m.name];
-        const packRate = packingRates[m.name];
+        const key = m.name.toLowerCase();
+        const pickRate = pickingRates[key];
+        const packRate = packingRates[key];
         const MULT = 1.125;
         const pickHrs = pickRate && pickRate > 0 ? m.orderVolume / (pickRate * MULT) : 0;
         const packHrs = packRate && packRate > 0 ? m.orderVolume / (packRate * MULT) : 0;
@@ -128,8 +129,9 @@ const Index = () => {
       const newWaiting = r.waiting_for_picking + additionalInflow + extraVol;
 
       if (newVol !== r.order_volume || newWaiting !== r.waiting_for_picking) {
-        const pickRate = pickingRates[r.merchant_name];
-        const packRate = packingRates[r.merchant_name];
+        const key = r.merchant_name.toLowerCase();
+        const pickRate = pickingRates[key];
+        const packRate = packingRates[key];
         const MULT = 1.125;
         if (pickRate && packRate && pickRate > 0 && packRate > 0) {
           const pickHrs = newWaiting / (pickRate * MULT);
@@ -265,8 +267,9 @@ const Index = () => {
       const bl = backlog[r.merchant_name] || 0;
       const effVol = Math.max(0, r.order_volume - bl);
       const effWait = Math.max(0, r.waiting_for_picking - bl);
-      const pickRate = pickingRates[r.merchant_name];
-      const packRate = packingRates[r.merchant_name];
+      const key = r.merchant_name.toLowerCase();
+      const pickRate = pickingRates[key];
+      const packRate = packingRates[key];
       if (pickRate && packRate && pickRate > 0 && packRate > 0) {
         adjPickHrs += effWait / (pickRate * MULTIPLIER);
         adjPackHrs += effVol / (packRate * MULTIPLIER);

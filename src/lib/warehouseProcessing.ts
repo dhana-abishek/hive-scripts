@@ -48,8 +48,9 @@ export function calculateFlowManagement(
 ) {
   return merchants
     .map((m) => {
-      const pickRate = pickingRates[m.merchant_name];
-      const packRate = packingRates[m.merchant_name];
+      const key = m.merchant_name.toLowerCase();
+      const pickRate = pickingRates[key];
+      const packRate = packingRates[key];
 
       if (!pickRate || !packRate || pickRate <= 0 || packRate <= 0) return null;
 
@@ -78,12 +79,14 @@ export function calculateFlowManagement(
 }
 
 /**
- * Build a lookup map from benchmark entries
+ * Build a lookup map from benchmark entries.
+ * Keys are normalised to lowercase so that lookups are case-insensitive
+ * (e.g. "HAFERLÖWE" and "Haferlöwe" resolve to the same benchmark).
  */
 export function buildLookup(benchmarks: BenchmarkEntry[]): Record<string, number> {
   const lookup: Record<string, number> = {};
   for (const b of benchmarks) {
-    if (b.benchmark > 0) lookup[b.merchant_name] = b.benchmark;
+    if (b.benchmark > 0) lookup[b.merchant_name.toLowerCase()] = b.benchmark;
   }
   return lookup;
 }

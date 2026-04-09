@@ -95,8 +95,9 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
       const effectiveVolume = Math.max(0, row.order_volume - bl);
       const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
 
-      const pickRate = pickingRates[row.merchant_name];
-      const packRate = packingRates[row.merchant_name];
+      const key = row.merchant_name.toLowerCase();
+      const pickRate = pickingRates[key];
+      const packRate = packingRates[key];
 
       let pickHrs = row.picking_hours;
       let packHrs = row.packing_hours;

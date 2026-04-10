@@ -171,6 +171,13 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
     return rows;
   }, [flowData, zone, groups, timeLeft, backlog, pickingRates, packingRates]);
 
+  const merchantCount = useMemo(() => {
+    return flowData.filter(row => {
+      const assignment = zoneLookup[row.merchant_name];
+      return assignment && assignment.zone === zone;
+    }).length;
+  }, [flowData, zone]);
+
   const totals = useMemo(() => {
     const totalOrders = zoneRows.reduce((s, r) => s + r.order_volume, 0);
     const totalBacklog = zoneRows.reduce((s, r) => s + r.planned_backlog, 0);
@@ -318,6 +325,7 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
           label="Total Orders"
           value={totals.totalOrders.toLocaleString()}
           icon={<Package size={16} />}
+          subtext={`${merchantCount} merchants`}
         />
         <StatCard
           label="Effective Orders"

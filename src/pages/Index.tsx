@@ -102,7 +102,7 @@ const Index = () => {
   const pickingBenchmarks = activePick?.entries ?? defaultPickingBenchmarks;
   const packingBenchmarks = activePack?.entries ?? defaultPackingBenchmarks;
 
-  const { flowData, pickingRates, packingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
+  const { flowData, rawMerchants, pickingRates, packingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
     activePick?.entries ?? null,
     activePack?.entries ?? null
   );
@@ -493,7 +493,7 @@ const Index = () => {
                   onSelectUpload={handlePickSelect}
                   onRenameUpload={handlePickRename}
                   onDeleteUpload={handlePickDelete}
-                  liveFlowData={mergedFlowData}
+                  liveFlowData={rawMerchants}
                 />
               </TabsContent>
 
@@ -508,7 +508,7 @@ const Index = () => {
                   onSelectUpload={handlePackSelect}
                   onRenameUpload={handlePackRename}
                   onDeleteUpload={handlePackDelete}
-                  liveFlowData={mergedFlowData}
+                  liveFlowData={rawMerchants}
                 />
               </TabsContent>
 

@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search, PackageMinus, ArrowDownToLine } from "lucide-react";
 import { StatCard } from "@/components/SummaryStats";
@@ -61,11 +61,13 @@ interface ZoneViewProps {
   packingRates?: Record<string, number>;
   onBacklogChange?: (backlog: Record<string, number>) => void;
   onResetZoneBacklog?: (zone: "A" | "B") => void;
+  availableHeadcount?: number;
+  onAvailableHeadcountChange?: (val: number) => void;
 }
 
 type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
-export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog }: ZoneViewProps) {
+export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog, availableHeadcount = 0, onAvailableHeadcountChange }: ZoneViewProps) {
   const [nonProdHC, setNonProdHC] = useState(6);
   useEffect(() => {
     idbGet<number>(`nonProdHC_zone${zone}`).then((v) => { if (v !== null) setNonProdHC(v); });
@@ -183,6 +185,80 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
     return { totalOrders, totalBacklog, effectiveOrders, totalPick, totalPack, totalHC, pickHC, packHC, predictedSPH };
   }, [zoneRows, nonProdHC, timeLeft]);
 
+  const hcGap = availableHeadcount > 0 ? availableHeadcount - (totals.pickHC + totals.packHC) : null;
+
+  const suggestions = useMemo(() => {
+    if (!availableHeadcount || availableHeadcount <= 0 || timeLeft <= 0) return null;
+
+    const availableCapacity = availableHeadcount * timeLeft;
+    const totalRequired = totals.totalPick + totals.totalPack;
+
+    if (totalRequired <= availableCapacity) return null;
+
+    // Get all individual merchants in this zone
+    const zoneMerchants = flowData.filter(row => {
+      const assignment = zoneLookup[row.merchant_name];
+      return assignment && assignment.zone === zone;
+    });
+
+    const merchantData = zoneMerchants.map(row => {
+      const bl = backlog[row.merchant_name] || 0;
+      const effectiveVol = Math.max(0, row.order_volume - bl);
+      const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
+      const key = row.merchant_name.toLowerCase();
+      const pickRate = pickingRates[key] || 30;
+      const packRate = packingRates[key] || 20;
+      const pickHrs = effectiveWaiting / (pickRate * MULTIPLIER);
+      const packHrs = effectiveVol / (packRate * MULTIPLIER);
+      const totalHrs = pickHrs + packHrs;
+      const idealSph = totalHrs > 0 ? effectiveVol / totalHrs : 0;
+      return {
+        merchant_name: row.merchant_name,
+        order_volume: row.order_volume,
+        picking_hours: pickHrs,
+        packing_hours: packHrs,
+        ideal_sph: idealSph,
+      };
+    });
+
+    const sorted = [...merchantData]
+      .filter(r => r.order_volume > (backlog[r.merchant_name] || 0))
+      .sort((a, b) => a.ideal_sph - b.ideal_sph);
+
+    const suggested: { merchant_name: string; suggestedBacklog: number; orders: number; hoursSaved: number }[] = [];
+    let toFree = totalRequired - availableCapacity;
+
+    for (const row of sorted) {
+      if (toFree <= 0) break;
+      const currentBacklog = backlog[row.merchant_name] || 0;
+      const remainingOrders = row.order_volume - currentBacklog;
+      const rowHours = row.picking_hours + row.packing_hours;
+      if (rowHours <= 0) continue;
+
+      if (rowHours <= toFree) {
+        suggested.push({ merchant_name: row.merchant_name, suggestedBacklog: row.order_volume, orders: remainingOrders, hoursSaved: rowHours });
+        toFree -= rowHours;
+      } else {
+        const hoursPerOrder = rowHours / remainingOrders;
+        const ordersToDefer = Math.ceil(toFree / hoursPerOrder);
+        const actualDefer = Math.min(ordersToDefer, remainingOrders);
+        suggested.push({ merchant_name: row.merchant_name, suggestedBacklog: currentBacklog + actualDefer, orders: actualDefer, hoursSaved: actualDefer * hoursPerOrder });
+        toFree = 0;
+      }
+    }
+
+    return suggested.length > 0 ? suggested : null;
+  }, [flowData, zone, availableHeadcount, timeLeft, totals.totalPick, totals.totalPack, backlog, pickingRates, packingRates]);
+
+  const applySuggestions = useCallback(() => {
+    if (!suggestions) return;
+    const updated = { ...backlog };
+    for (const s of suggestions) {
+      updated[s.merchant_name] = s.suggestedBacklog;
+    }
+    saveBacklog(updated);
+  }, [suggestions, backlog, saveBacklog]);
+
   const filtered = useMemo(() => {
     const order = zoneSerialOrder[zone] || [];
     let result = zoneRows;
@@ -265,7 +341,7 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
           variant="warning"
         />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard
           label="Time Left"
           value={`${timeLeft.toFixed(1)}h`}
@@ -312,7 +388,65 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
             className="h-8 text-lg font-bold w-20 bg-secondary border-border"
           />
         </div>
+        <div className={`rounded-md border bg-card p-4 h-full ${hcGap === null ? "border-border" : hcGap >= 0 ? "border-success/30" : "border-destructive/30"}`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="stat-label">Available HC</span>
+            <span className={hcGap === null ? "text-muted-foreground" : hcGap >= 0 ? "text-success" : "text-destructive"}>
+              <Users size={16} />
+            </span>
+          </div>
+          <Input
+            type="number"
+            min={0}
+            value={availableHeadcount || ""}
+            placeholder="0"
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              onAvailableHeadcountChange?.(isNaN(v) || v < 0 ? 0 : v);
+            }}
+            className="h-8 text-lg font-bold w-20 bg-secondary border-border"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {hcGap === null || availableHeadcount === 0
+              ? `${totals.pickHC + totals.packHC} HC needed`
+              : hcGap >= 0
+              ? <span className="text-success font-medium">+{hcGap} surplus vs {totals.pickHC + totals.packHC} needed</span>
+              : <span className="text-destructive font-medium">{Math.abs(hcGap)} short of {totals.pickHC + totals.packHC} needed</span>
+            }
+          </p>
+        </div>
       </div>
+
+      {/* Headcount Optimizer */}
+      {availableHeadcount > 0 && suggestions && suggestions.length > 0 && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wand2 size={14} className="text-destructive" />
+              <h3 className="text-sm font-semibold text-destructive">Headcount Optimizer</h3>
+              <span className="text-xs text-muted-foreground">— Available HC insufficient. Suggested backlogs to fit within {availableHeadcount} HC:</span>
+            </div>
+            <Button size="sm" variant="destructive" onClick={applySuggestions} className="h-7 px-3 text-xs gap-1.5">
+              <Wand2 size={11} /> Apply Suggestions
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map((s) => (
+              <div key={s.merchant_name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-card border border-destructive/20">
+                <span className="font-medium truncate max-w-[120px]">{s.merchant_name}</span>
+                <span className="text-muted-foreground">→ backlog</span>
+                <span className="font-semibold text-destructive">{s.orders.toLocaleString()} orders</span>
+                <span className="text-muted-foreground">({s.hoursSaved.toFixed(1)}h saved)</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {availableHeadcount > 0 && !suggestions && (
+        <div className="rounded-lg border border-success/30 bg-success/5 px-4 py-2 flex items-center gap-2 text-xs text-success">
+          <Wand2 size={13} /> Available HC ({availableHeadcount}) is sufficient for all current work.
+        </div>
+      )}
 
       {/* Zone table */}
       <div className="rounded-md border bg-card">

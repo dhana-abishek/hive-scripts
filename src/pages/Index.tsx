@@ -434,10 +434,10 @@ const Index = () => {
                 )}
               </TabsContent>
               <TabsContent value="zoneA">
-                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
+                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />
               </TabsContent>
               <TabsContent value="zoneB">
-                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} />
+                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />
               </TabsContent>
             </Tabs>
           </TabsContent>

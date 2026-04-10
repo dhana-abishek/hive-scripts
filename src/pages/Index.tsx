@@ -533,6 +533,10 @@ const Index = () => {
               overallAdjustedSph={stats.adjustedSph}
               availableHeadcount={availableHeadcount}
               nonProdHeadcount={nonProdHeadcount}
+              zoneAHC={availableHC_A}
+              zoneBHC={availableHC_B}
+              onZoneAHCChange={handleHC_A_Change}
+              onZoneBHCChange={handleHC_B_Change}
             />
           </TabsContent>
         </Tabs>

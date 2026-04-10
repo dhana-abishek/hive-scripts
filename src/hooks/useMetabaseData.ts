@@ -6,7 +6,7 @@ import type { BenchmarkEntry } from "@/types/warehouse";
 import { supabase } from "@/integrations/supabase/client";
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
-interface MerchantAgg {
+export interface MerchantAgg {
   merchant_name: string;
   order_volume: number;
   waiting_for_picking: number;
@@ -71,6 +71,7 @@ function parseCSVRow(row: string): string[] {
 
 export interface MetabaseDataResult {
   flowData: ReturnType<typeof calculateFlowManagement>;
+  rawMerchants: MerchantAgg[];
   pickingRates: Record<string, number>;
   packingRates: Record<string, number>;
   isLoading: boolean;
@@ -124,5 +125,5 @@ export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customP
     return calculated;
   }, [rawMerchants, pickLookup, packLookup]);
 
-  return { flowData, pickingRates: pickLookup, packingRates: packLookup, isLoading, error, lastUpdated, refresh: fetchData };
+  return { flowData, rawMerchants, pickingRates: pickLookup, packingRates: packLookup, isLoading, error, lastUpdated, refresh: fetchData };
 }

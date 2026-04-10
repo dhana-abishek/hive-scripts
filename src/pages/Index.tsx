@@ -535,8 +535,8 @@ const Index = () => {
               nonProdHeadcount={nonProdHeadcount}
               zoneAHC={availableHC_A}
               zoneBHC={availableHC_B}
-              onZoneAHCChange={handleHC_A_Change}
-              onZoneBHCChange={handleHC_B_Change}
+              onZoneAHCChange={handleAvailableHC_A_Change}
+              onZoneBHCChange={handleAvailableHC_B_Change}
             />
           </TabsContent>
         </Tabs>

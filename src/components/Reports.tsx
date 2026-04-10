@@ -26,6 +26,10 @@ interface ReportsProps {
   overallAdjustedSph: number;
   availableHeadcount: number;
   nonProdHeadcount: number;
+  zoneAHC: number;
+  zoneBHC: number;
+  onZoneAHCChange: (val: number) => void;
+  onZoneBHCChange: (val: number) => void;
 }
 
 interface ReportData {
@@ -43,7 +47,6 @@ function useClipboard(timeout = 2000) {
       setCopied(true);
       setTimeout(() => setCopied(false), timeout);
     } catch {
-      // fallback
       const el = document.createElement("textarea");
       el.value = text;
       document.body.appendChild(el);
@@ -74,9 +77,10 @@ interface ReportCardProps {
   onHcChange: (val: number) => void;
   timeLeft: number;
   hcLabel?: string;
+  readOnly?: boolean;
 }
 
-function ReportCard({ title, data, hcAvailable, onHcChange, timeLeft, hcLabel }: ReportCardProps) {
+function ReportCard({ title, data, hcAvailable, onHcChange, timeLeft, hcLabel, readOnly }: ReportCardProps) {
   const { copied, copy } = useClipboard();
 
   const handleCopy = () => {
@@ -107,21 +111,26 @@ function ReportCard({ title, data, hcAvailable, onHcChange, timeLeft, hcLabel }:
       </div>
 
       <div className="px-4 py-4 space-y-3 flex-1">
-        {/* HC Available input */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-xs text-muted-foreground">{hcLabel ?? "HC Available"}</span>
-          <Input
-            type="number"
-            min={0}
-            step={1}
-            value={hcAvailable || ""}
-            placeholder="0"
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              onHcChange(isNaN(v) || v < 0 ? 0 : v);
-            }}
-            className="h-7 w-20 text-right text-sm font-bold bg-secondary border-border"
-          />
+          {readOnly ? (
+            <span className="h-7 w-20 text-right text-sm font-bold flex items-center justify-end tabular-nums">
+              {hcAvailable}
+            </span>
+          ) : (
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              value={hcAvailable || ""}
+              placeholder="0"
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                onHcChange(isNaN(v) || v < 0 ? 0 : v);
+              }}
+              className="h-7 w-20 text-right text-sm font-bold bg-secondary border-border"
+            />
+          )}
         </div>
 
         <div className="rounded-md border divide-y">
@@ -133,7 +142,6 @@ function ReportCard({ title, data, hcAvailable, onHcChange, timeLeft, hcLabel }:
           ))}
         </div>
 
-        {/* Preview of copied text */}
         <pre className="text-[11px] text-muted-foreground font-mono bg-secondary/60 rounded-md px-3 py-2 whitespace-pre leading-5 select-all">
           {formatReport(title, data)}
         </pre>
@@ -151,50 +159,25 @@ export function Reports({
   overallTotalBacklog,
   overallAdjustedSph,
   availableHeadcount,
+  zoneAHC,
+  zoneBHC,
+  onZoneAHCChange,
+  onZoneBHCChange,
 }: ReportsProps) {
   const timeLeft = useTimeLeft();
 
-  const [allHC, setAllHC] = useState(0);
-  const [zoneAHC, setZoneAHC] = useState(0);
-  const [zoneBHC, setZoneBHC] = useState(0);
   const [zoneANonProdHC, setZoneANonProdHC] = useState(6);
   const [zoneBNonProdHC, setZoneBNonProdHC] = useState(6);
 
-  // Initialise from cloud storage
   useEffect(() => {
     Promise.all([
-      cloudGet<number>("availableHC_main"),
-      cloudGet<number>("availableHC_zoneA"),
-      cloudGet<number>("availableHC_zoneB"),
       cloudGet<number>("nonProdHC_zoneA"),
       cloudGet<number>("nonProdHC_zoneB"),
-    ]).then(([aMain, aA, aB, npA, npB]) => {
-      setAllHC(aMain ?? availableHeadcount);
-      if (aA !== null) setZoneAHC(aA);
-      if (aB !== null) setZoneBHC(aB);
+    ]).then(([npA, npB]) => {
       if (npA !== null) setZoneANonProdHC(npA);
       if (npB !== null) setZoneBNonProdHC(npB);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Keep allHC in sync with the prop when it changes from the main tab
-  useEffect(() => {
-    setAllHC(availableHeadcount);
-  }, [availableHeadcount]);
-
-  const handleAllHCChange = (val: number) => {
-    setAllHC(val);
-    void cloudSet("availableHC_main", val);
-  };
-  const handleZoneAHCChange = (val: number) => {
-    setZoneAHC(val);
-    void cloudSet("availableHC_zoneA", val);
-  };
-  const handleZoneBHCChange = (val: number) => {
-    setZoneBHC(val);
-    void cloudSet("availableHC_zoneB", val);
-  };
 
   const zoneLookup = useMemo(() => buildZoneLookup(), []);
 
@@ -240,11 +223,11 @@ export function Reports({
   const allData = useMemo<ReportData>(
     () => ({
       planToShip: overallTotalOrders,
-      hcHours: allHC * timeLeft,
+      hcHours: availableHeadcount * timeLeft,
       plannedSph: overallAdjustedSph,
       plannedBacklog: overallTotalBacklog,
     }),
-    [overallTotalOrders, overallTotalBacklog, overallAdjustedSph, allHC, timeLeft]
+    [overallTotalOrders, overallTotalBacklog, overallAdjustedSph, availableHeadcount, timeLeft]
   );
 
   const zoneAData = useMemo(
@@ -268,15 +251,16 @@ export function Reports({
         <ReportCard
           title="All Merchants"
           data={allData}
-          hcAvailable={allHC}
-          onHcChange={handleAllHCChange}
+          hcAvailable={availableHeadcount}
+          onHcChange={() => {}}
           timeLeft={timeLeft}
+          readOnly
         />
         <ReportCard
           title="Zone A"
           data={zoneAData}
           hcAvailable={zoneAHC}
-          onHcChange={handleZoneAHCChange}
+          onHcChange={onZoneAHCChange}
           timeLeft={timeLeft}
           hcLabel={`HC Available (non-prod: ${zoneANonProdHC})`}
         />
@@ -284,7 +268,7 @@ export function Reports({
           title="Zone B"
           data={zoneBData}
           hcAvailable={zoneBHC}
-          onHcChange={handleZoneBHCChange}
+          onHcChange={onZoneBHCChange}
           timeLeft={timeLeft}
           hcLabel={`HC Available (non-prod: ${zoneBNonProdHC})`}
         />

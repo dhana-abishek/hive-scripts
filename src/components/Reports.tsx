@@ -253,6 +253,7 @@ export function Reports({
           title="All Merchants"
           data={allData}
           hcAvailable={availableHeadcount}
+          nonProdHC={zoneANonProdHC + zoneBNonProdHC}
           onHcChange={() => {}}
           timeLeft={timeLeft}
           readOnly
@@ -261,6 +262,7 @@ export function Reports({
           title="Zone A"
           data={zoneAData}
           hcAvailable={zoneAHC}
+          nonProdHC={zoneANonProdHC}
           onHcChange={onZoneAHCChange}
           timeLeft={timeLeft}
           hcLabel={`HC Available (non-prod: ${zoneANonProdHC})`}
@@ -269,6 +271,7 @@ export function Reports({
           title="Zone B"
           data={zoneBData}
           hcAvailable={zoneBHC}
+          nonProdHC={zoneBNonProdHC}
           onHcChange={onZoneBHCChange}
           timeLeft={timeLeft}
           hcLabel={`HC Available (non-prod: ${zoneBNonProdHC})`}

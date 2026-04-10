@@ -547,8 +547,8 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
                 <td className="px-3 py-2 text-sm text-center"></td>
                 <td className="px-3 py-2 text-sm">Total</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalOrders}</td>
-                <td className="table-cell px-3 py-2 text-right">{zoneRows.reduce((s, r) => s + r.waiting_for_picking, 0)}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalBacklog}</td>
+                <td className="table-cell px-3 py-2 text-right">{zoneRows.reduce((s, r) => s + r.waiting_for_picking, 0)}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalPick.toFixed(2)}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalPack.toFixed(2)}</td>
                 <td className="table-cell px-3 py-2 text-right">{totals.totalHC.toFixed(2)}</td>

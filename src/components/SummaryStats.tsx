@@ -49,7 +49,6 @@ interface SummaryStatsProps {
   adjustedSph?: number;
   onResetBacklog?: () => void;
   availableHeadcount?: number;
-  onAvailableHeadcountChange?: (value: number) => void;
 }
 
 
@@ -64,7 +63,6 @@ export function SummaryStats({
   adjustedSph = 0,
   onResetBacklog,
   availableHeadcount = 0,
-  onAvailableHeadcountChange,
 }: SummaryStatsProps) {
   const TIME_LEFT = useTimeLeft();
   const pickingHeadcount = Math.ceil(totalPickingHours / TIME_LEFT);
@@ -167,17 +165,7 @@ export function SummaryStats({
               <Users size={16} />
             </span>
           </div>
-          <Input
-            type="number"
-            min={0}
-            value={availableHeadcount || ""}
-            placeholder="0"
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              onAvailableHeadcountChange?.(isNaN(v) || v < 0 ? 0 : v);
-            }}
-            className="h-8 text-lg font-bold w-20 bg-secondary border-border"
-          />
+          <div className="stat-value text-foreground">{availableHeadcount}</div>
           <p className="text-xs text-muted-foreground mt-1">
             {hcGap === null || availableHeadcount === 0
               ? `${totalHCNeeded} HC needed`
@@ -186,6 +174,7 @@ export function SummaryStats({
               : <span className="text-destructive font-medium">{Math.abs(hcGap)} short of {totalHCNeeded} needed</span>
             }
           </p>
+          <p className="text-xs text-muted-foreground mt-0.5">Sum of Zone A + Zone B</p>
         </div>
       </div>
     </div>

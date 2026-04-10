@@ -26,7 +26,9 @@ const OVERNIGHT_VOLUMES_KEY = "overnightVolumes";
 
 const Index = () => {
   const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
-  const [availableHeadcount, setAvailableHeadcount] = useState(0);
+  const [availableHC_A, setAvailableHC_A] = useState(0);
+  const [availableHC_B, setAvailableHC_B] = useState(0);
+  const availableHeadcount = availableHC_A + availableHC_B;
   const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
   const [inflowEnabled, setInflowEnabled] = useState(false);
   const [overnightVolumes, setOvernightVolumes] = useState<Record<string, number>>({});
@@ -37,14 +39,15 @@ const Index = () => {
   // Load all from IndexedDB on mount
   useEffect(() => {
     (async () => {
-      const [pu, pa, pku, pka, hc, em, ahc, ie, ov] = await Promise.all([
+      const [pu, pa, pku, pka, hc, em, ahcA, ahcB, ie, ov] = await Promise.all([
         idbGet<BenchmarkUpload[]>(PICK_UPLOADS_KEY),
         idbGet<string>(PICK_ACTIVE_KEY),
         idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
         idbGet<string>(PACK_ACTIVE_KEY),
         idbGet<number>("nonProdHC_main"),
         idbGet<ExtraMerchant[]>("perfExtraMerchants"),
-        idbGet<number>("availableHC_main"),
+        idbGet<number>("availableHC_zoneA"),
+        idbGet<number>("availableHC_zoneB"),
         idbGet<boolean>(INFLOW_ENABLED_KEY),
         idbGet<Record<string, number>>(OVERNIGHT_VOLUMES_KEY),
       ]);
@@ -54,7 +57,8 @@ const Index = () => {
       if (pka) setPackActiveId(pka);
       if (hc !== null) setNonProdHeadcount(hc);
       if (em) setExtraMerchants(em);
-      if (ahc !== null) setAvailableHeadcount(ahc);
+      if (ahcA !== null) setAvailableHC_A(ahcA);
+      if (ahcB !== null) setAvailableHC_B(ahcB);
       if (ie !== null) setInflowEnabled(ie);
       if (ov) setOvernightVolumes(ov);
     })();
@@ -168,9 +172,14 @@ const Index = () => {
     idbSet("nonProdHC_main", val);
   };
 
-  const handleAvailableHCChange = (val: number) => {
-    setAvailableHeadcount(val);
-    idbSet("availableHC_main", val);
+  const handleAvailableHC_A_Change = (val: number) => {
+    setAvailableHC_A(val);
+    idbSet("availableHC_zoneA", val);
+  };
+
+  const handleAvailableHC_B_Change = (val: number) => {
+    setAvailableHC_B(val);
+    idbSet("availableHC_zoneB", val);
   };
 
   const handleInflowToggle = useCallback((enabled: boolean) => {
@@ -423,7 +432,7 @@ const Index = () => {
               </div>
 
               <TabsContent value="all" className="space-y-4">
-                <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />
+                <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} />
                 {isLoading && mergedFlowData.length === 0 ? (
                   <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
                     <Loader2 size={16} className="animate-spin" />
@@ -434,10 +443,10 @@ const Index = () => {
                 )}
               </TabsContent>
               <TabsContent value="zoneA">
-                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />
+                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_A} onAvailableHeadcountChange={handleAvailableHC_A_Change} />
               </TabsContent>
               <TabsContent value="zoneB">
-                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHeadcount} onAvailableHeadcountChange={handleAvailableHCChange} />
+                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_B} onAvailableHeadcountChange={handleAvailableHC_B_Change} />
               </TabsContent>
             </Tabs>
           </TabsContent>

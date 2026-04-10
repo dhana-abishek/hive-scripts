@@ -93,7 +93,11 @@ export function BenchmarkTable({ title, data, valueLabel, uploads, activeUploadI
     if (!liveFlowData || liveFlowData.length === 0) return null;
     const benchmarkNames = new Set(data.map((d) => d.merchant_name.toLowerCase()));
     const missing = liveFlowData.filter((m) => !benchmarkNames.has(m.merchant_name.toLowerCase()));
-    return { count: missing.length, volume: missing.reduce((s, m) => s + m.order_volume, 0) };
+    return {
+      count: missing.length,
+      volume: missing.reduce((s, m) => s + m.order_volume, 0),
+      merchants: missing.map((m) => ({ name: m.merchant_name, volume: m.order_volume })).sort((a, b) => b.volume - a.volume),
+    };
   }, [liveFlowData, data]);
 
   const startRename = (id: string, currentName: string) => {
@@ -111,15 +115,30 @@ export function BenchmarkTable({ title, data, valueLabel, uploads, activeUploadI
   return (
     <div className="space-y-3">
       {unbenchmarkedStats && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-md border bg-card p-3">
-            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Merchants Without Benchmark</p>
-            <p className="text-xl font-bold text-destructive">{unbenchmarkedStats.count}</p>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md border bg-card p-3">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Merchants Without Benchmark</p>
+              <p className="text-xl font-bold text-destructive">{unbenchmarkedStats.count}</p>
+            </div>
+            <div className="rounded-md border bg-card p-3">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Unbenchmarked Order Volume</p>
+              <p className="text-xl font-bold text-destructive">{unbenchmarkedStats.volume.toLocaleString()}</p>
+            </div>
           </div>
-          <div className="rounded-md border bg-card p-3">
-            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Unbenchmarked Order Volume</p>
-            <p className="text-xl font-bold text-destructive">{unbenchmarkedStats.volume.toLocaleString()}</p>
-          </div>
+          {unbenchmarkedStats.merchants.length > 0 && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2">Unbenchmarked Merchants</p>
+              <div className="flex flex-wrap gap-1.5">
+                {unbenchmarkedStats.merchants.map((m) => (
+                  <span key={m.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-card border border-destructive/20">
+                    <span className="font-medium">{m.name}</span>
+                    <span className="text-muted-foreground">({m.volume.toLocaleString()})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
       <div className="rounded-md border bg-card">

@@ -81,7 +81,7 @@ interface ReportCardProps {
   readOnly?: boolean;
 }
 
-function ReportCard({ title, data, hcAvailable, onHcChange, timeLeft, hcLabel, readOnly }: ReportCardProps) {
+function ReportCard({ title, data, hcAvailable, nonProdHC, onHcChange, timeLeft, hcLabel, readOnly }: ReportCardProps) {
   const { copied, copy } = useClipboard();
 
   const handleCopy = () => {

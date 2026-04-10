@@ -120,8 +120,9 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
         const effectiveVol = Math.max(0, row.order_volume - bl);
         const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
         const key = row.merchant_name.toLowerCase();
-        const pickRate = pickingRates[key] || 30;
-        const packRate = packingRates[key] || 20;
+        const pickRate = pickingRates[key];
+        const packRate = packingRates[key];
+        if (!pickRate || !packRate || pickRate <= 0 || packRate <= 0) continue;
         const pickHrs = effectiveWaiting / (pickRate * MULTIPLIER);
         const packHrs = effectiveVol / (packRate * MULTIPLIER);
         const hc = timeLeft > 0 ? (pickHrs + packHrs) / timeLeft : 0;
@@ -144,8 +145,9 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
         if (members.includes(row.merchant_name)) {
           const bl = getBacklogForMerchant(row.merchant_name);
           const key = row.merchant_name.toLowerCase();
-          const pickRate = pickingRates[key] || 30;
-          const packRate = packingRates[key] || 20;
+          const pickRate = pickingRates[key];
+          const packRate = packingRates[key];
+          if (!pickRate || !packRate || pickRate <= 0 || packRate <= 0) continue;
           const effectiveVol = Math.max(0, row.order_volume - bl);
           const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
           totalOrders += row.order_volume;

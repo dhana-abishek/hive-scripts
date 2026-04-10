@@ -311,13 +311,12 @@ const Index = () => {
     idbSet("plannedBacklog", updated);
   }, [backlog]);
   const stats = useMemo(() => {
-    const totalOrders = mergedFlowData.reduce((s, r) => s + r.order_volume, 0);
-    const totalPlannedBacklog = mergedFlowData.reduce((s, r) => s + (backlog[r.merchant_name] || 0), 0);
-
     const MULTIPLIER = 1.125;
     let adjPickHrs = 0;
     let adjPackHrs = 0;
     let adjVolume = 0;
+    let benchmarkedOrders = 0;
+    let benchmarkedBacklog = 0;
     for (const r of mergedFlowData) {
       const bl = backlog[r.merchant_name] || 0;
       const effVol = Math.max(0, r.order_volume - bl);
@@ -329,12 +328,14 @@ const Index = () => {
         adjPickHrs += effWait / (pickRate * MULTIPLIER);
         adjPackHrs += effVol / (packRate * MULTIPLIER);
         adjVolume += effVol;
+        benchmarkedOrders += r.order_volume;
+        benchmarkedBacklog += bl;
       }
     }
     const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8);
     const adjustedSph = adjDenom > 0 ? adjVolume / adjDenom : 0;
 
-    return { totalOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: mergedFlowData.length, totalPlannedBacklog, adjustedSph };
+    return { totalOrders: benchmarkedOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: mergedFlowData.length, totalPlannedBacklog: benchmarkedBacklog, adjustedSph };
   }, [mergedFlowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
 
   return (

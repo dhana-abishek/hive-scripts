@@ -74,13 +74,14 @@ interface ReportCardProps {
   title: string;
   data: ReportData;
   hcAvailable: number;
+  nonProdHC: number;
   onHcChange: (val: number) => void;
   timeLeft: number;
   hcLabel?: string;
   readOnly?: boolean;
 }
 
-function ReportCard({ title, data, hcAvailable, onHcChange, timeLeft, hcLabel, readOnly }: ReportCardProps) {
+function ReportCard({ title, data, hcAvailable, nonProdHC, onHcChange, timeLeft, hcLabel, readOnly }: ReportCardProps) {
   const { copied, copy } = useClipboard();
 
   const handleCopy = () => {
@@ -89,7 +90,7 @@ function ReportCard({ title, data, hcAvailable, onHcChange, timeLeft, hcLabel, r
 
   const rows: { label: string; value: string }[] = [
     { label: "Plan to ship", value: data.planToShip.toLocaleString() },
-    { label: "HC Hours", value: `${data.hcHours.toFixed(1)} (${hcAvailable} HC × ${timeLeft.toFixed(1)}h)` },
+    { label: "HC Hours", value: `${data.hcHours.toFixed(1)} ((${hcAvailable} + ${nonProdHC}) × ${timeLeft.toFixed(1)}h)` },
     { label: "Planned SPH", value: data.plannedSph.toFixed(1) },
     { label: "Planned Backlog", value: data.plannedBacklog.toLocaleString() },
   ];
@@ -212,7 +213,7 @@ export function Reports({
 
       return {
         planToShip: totalOrders,
-        hcHours: hcAvailable * timeLeft,
+        hcHours: (hcAvailable + nonProdHC) * timeLeft,
         plannedSph,
         plannedBacklog: totalBacklog,
       };
@@ -223,7 +224,7 @@ export function Reports({
   const allData = useMemo<ReportData>(
     () => ({
       planToShip: overallTotalOrders,
-      hcHours: availableHeadcount * timeLeft,
+      hcHours: (availableHeadcount + zoneANonProdHC + zoneBNonProdHC) * timeLeft,
       plannedSph: overallAdjustedSph,
       plannedBacklog: overallTotalBacklog,
     }),
@@ -252,6 +253,7 @@ export function Reports({
           title="All Merchants"
           data={allData}
           hcAvailable={availableHeadcount}
+          nonProdHC={zoneANonProdHC + zoneBNonProdHC}
           onHcChange={() => {}}
           timeLeft={timeLeft}
           readOnly
@@ -260,6 +262,7 @@ export function Reports({
           title="Zone A"
           data={zoneAData}
           hcAvailable={zoneAHC}
+          nonProdHC={zoneANonProdHC}
           onHcChange={onZoneAHCChange}
           timeLeft={timeLeft}
           hcLabel={`HC Available (non-prod: ${zoneANonProdHC})`}
@@ -268,6 +271,7 @@ export function Reports({
           title="Zone B"
           data={zoneBData}
           hcAvailable={zoneBHC}
+          nonProdHC={zoneBNonProdHC}
           onHcChange={onZoneBHCChange}
           timeLeft={timeLeft}
           hcLabel={`HC Available (non-prod: ${zoneBNonProdHC})`}

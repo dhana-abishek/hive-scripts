@@ -74,6 +74,7 @@ interface ReportCardProps {
   title: string;
   data: ReportData;
   hcAvailable: number;
+  nonProdHC: number;
   onHcChange: (val: number) => void;
   timeLeft: number;
   hcLabel?: string;
@@ -89,7 +90,7 @@ function ReportCard({ title, data, hcAvailable, onHcChange, timeLeft, hcLabel, r
 
   const rows: { label: string; value: string }[] = [
     { label: "Plan to ship", value: data.planToShip.toLocaleString() },
-    { label: "HC Hours", value: `${data.hcHours.toFixed(1)} (${hcAvailable} HC × ${timeLeft.toFixed(1)}h)` },
+    { label: "HC Hours", value: `${data.hcHours.toFixed(1)} ((${hcAvailable} + ${nonProdHC}) × ${timeLeft.toFixed(1)}h)` },
     { label: "Planned SPH", value: data.plannedSph.toFixed(1) },
     { label: "Planned Backlog", value: data.plannedBacklog.toLocaleString() },
   ];
@@ -212,7 +213,7 @@ export function Reports({
 
       return {
         planToShip: totalOrders,
-        hcHours: hcAvailable * timeLeft,
+        hcHours: (hcAvailable + nonProdHC) * timeLeft,
         plannedSph,
         plannedBacklog: totalBacklog,
       };
@@ -223,7 +224,7 @@ export function Reports({
   const allData = useMemo<ReportData>(
     () => ({
       planToShip: overallTotalOrders,
-      hcHours: availableHeadcount * timeLeft,
+      hcHours: (availableHeadcount + zoneANonProdHC + zoneBNonProdHC) * timeLeft,
       plannedSph: overallAdjustedSph,
       plannedBacklog: overallTotalBacklog,
     }),

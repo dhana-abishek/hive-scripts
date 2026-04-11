@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, type LucideIcon } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, type LucideIcon } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
@@ -9,6 +9,7 @@ import { AgingOrders } from "@/components/AgingOrders";
 import { PerformanceTracker } from "@/components/PerformanceTracker";
 import { ActualSPH } from "@/components/ActualSPH";
 import { Reports } from "@/components/Reports";
+import { ForecastManagement } from "@/components/ForecastManagement";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
@@ -281,6 +282,7 @@ const Index = () => {
     { value: "performance", label: "Performance", icon: Users },
     { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
     { value: "reports", label: "Reports", icon: FileText },
+    { value: "forecast", label: "Forecast Management", icon: CalendarRange },
   ];
 
   const [backlog, setBacklog] = useState<Record<string, number>>({});
@@ -539,6 +541,10 @@ const Index = () => {
               onZoneAHCChange={handleAvailableHC_A_Change}
               onZoneBHCChange={handleAvailableHC_B_Change}
             />
+          </TabsContent>
+
+          <TabsContent value="forecast">
+            <ForecastManagement />
           </TabsContent>
         </Tabs>
       </main>

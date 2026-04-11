@@ -48,7 +48,8 @@ export function getInflowFactor(now?: Date): { factor: number; baseFactor: numbe
 /**
  * Parse the shipments CSV and count orders per merchant that arrived
  * between 1 PM the previous day and 7 AM today (overnight orders).
- * These are the orders whose inflow pattern we can project forward.
+ * Uses the "created_at" column for date/time filtering to ensure
+ * consistent inflow accuracy.
  */
 export function parseOvernightVolumes(csvText: string, now?: Date): Record<string, number> {
   const d = now ?? new Date();
@@ -67,9 +68,9 @@ export function parseOvernightVolumes(csvText: string, now?: Date): Record<strin
 
   // Find column indices from header
   const header = lines[0].split(",").map(h => h.trim().toLowerCase());
-  const readyIdx = header.findIndex(h => h.includes("ready_for_fulfillment"));
+  const createdIdx = header.findIndex(h => h.includes("created_at"));
   const merchantIdx = header.indexOf("merchant");
-  if (readyIdx === -1 || merchantIdx === -1) return {};
+  if (createdIdx === -1 || merchantIdx === -1) return {};
 
   const counts: Record<string, number> = {};
 
@@ -79,16 +80,16 @@ export function parseOvernightVolumes(csvText: string, now?: Date): Record<strin
 
     // Parse CSV respecting quoted fields
     const fields = parseCSVLine(line);
-    if (fields.length <= Math.max(readyIdx, merchantIdx)) continue;
+    if (fields.length <= Math.max(createdIdx, merchantIdx)) continue;
 
     const merchant = fields[merchantIdx].trim();
-    const readyRaw = fields[readyIdx].trim();
-    if (!merchant || !readyRaw) continue;
+    const createdRaw = fields[createdIdx].trim();
+    if (!merchant || !createdRaw) continue;
 
-    const readyDate = parseMetabaseDate(readyRaw);
-    if (!readyDate) continue;
+    const createdDate = parseMetabaseDate(createdRaw);
+    if (!createdDate) continue;
 
-    if (readyDate >= yesterday1PM && readyDate < today7AM) {
+    if (createdDate >= yesterday1PM && createdDate < today7AM) {
       counts[merchant] = (counts[merchant] || 0) + 1;
     }
   }

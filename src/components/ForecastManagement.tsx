@@ -1,14 +1,15 @@
 import { useState, useMemo, useCallback } from "react";
-import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, MapPin, Activity } from "lucide-react";
+import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, MapPin, Activity, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parse, isWithinInterval, isSameDay } from "date-fns";
-import { buildZoneLookup, type ZoneAssignment } from "@/data/zoneMappings";
+import { buildZoneLookup } from "@/data/zoneMappings";
 import { StatCard } from "@/components/SummaryStats";
+
+const MULTIPLIER = 1.125;
 
 interface ForecastRow {
   date: Date;
@@ -16,7 +17,15 @@ interface ForecastRow {
   total_forecast: number;
 }
 
-type SortKey = "merchant_name" | "total_forecast";
+interface AggregatedRow {
+  merchant_name: string;
+  total_forecast: number;
+  picking_hours: number;
+  packing_hours: number;
+  hc_needed: number;
+}
+
+type SortKey = "merchant_name" | "total_forecast" | "picking_hours" | "packing_hours" | "hc_needed";
 
 const zoneLookup = buildZoneLookup();
 
@@ -73,7 +82,7 @@ function ForecastTable({
   data,
   title,
 }: {
-  data: { merchant_name: string; total_forecast: number }[];
+  data: AggregatedRow[];
   title: string;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("total_forecast");
@@ -81,6 +90,9 @@ function ForecastTable({
   const [search, setSearch] = useState("");
 
   const totalOrders = useMemo(() => data.reduce((s, r) => s + r.total_forecast, 0), [data]);
+  const totalPickHrs = useMemo(() => data.reduce((s, r) => s + r.picking_hours, 0), [data]);
+  const totalPackHrs = useMemo(() => data.reduce((s, r) => s + r.packing_hours, 0), [data]);
+  const totalHC = useMemo(() => data.reduce((s, r) => s + r.hc_needed, 0), [data]);
 
   const filtered = useMemo(() => {
     let result = data;
@@ -106,12 +118,22 @@ function ForecastTable({
     return sortDir === "asc" ? <ArrowUp size={12} className="text-primary" /> : <ArrowDown size={12} className="text-primary" />;
   };
 
+  const columns: { key: SortKey; label: string; align?: string }[] = [
+    { key: "merchant_name", label: "Merchant" },
+    { key: "total_forecast", label: "Forecast", align: "right" },
+    { key: "picking_hours", label: "Pick Hrs", align: "right" },
+    { key: "packing_hours", label: "Pack Hrs", align: "right" },
+    { key: "hc_needed", label: "HC Needed", align: "right" },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard label="Total Forecast" value={totalOrders.toLocaleString()} icon={<Package size={16} />} subtext={`${data.length} merchants`} />
         <StatCard label="Merchants" value={data.length.toString()} icon={<MapPin size={16} />} />
-        <StatCard label="Avg per Merchant" value={data.length > 0 ? Math.round(totalOrders / data.length).toLocaleString() : "0"} icon={<Activity size={16} />} />
+        <StatCard label="Pick Hours" value={totalPickHrs.toFixed(1)} icon={<Clock size={16} />} />
+        <StatCard label="Pack Hours" value={totalPackHrs.toFixed(1)} icon={<Clock size={16} />} />
+        <StatCard label="Total HC Needed" value={totalHC.toFixed(1)} icon={<Users size={16} />} />
       </div>
       <div className="rounded-md border bg-card">
         <div className="p-3 border-b flex items-center gap-2">
@@ -123,12 +145,15 @@ function ForecastTable({
           <table className="w-full">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="border-b">
-                <th className="table-header px-3 py-2 cursor-pointer hover:text-foreground transition-colors text-left" onClick={() => toggleSort("merchant_name")}>
-                  <span className="inline-flex items-center gap-1">Merchant <SortIcon col="merchant_name" /></span>
-                </th>
-                <th className="table-header px-3 py-2 cursor-pointer hover:text-foreground transition-colors text-right" onClick={() => toggleSort("total_forecast")}>
-                  <span className="inline-flex items-center gap-1">Forecast <SortIcon col="total_forecast" /></span>
-                </th>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`table-header px-3 py-2 cursor-pointer hover:text-foreground transition-colors ${col.align === "right" ? "text-right" : "text-left"}`}
+                    onClick={() => toggleSort(col.key)}
+                  >
+                    <span className="inline-flex items-center gap-1">{col.label} <SortIcon col={col.key} /></span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -136,10 +161,13 @@ function ForecastTable({
                 <tr key={row.merchant_name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
                   <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">{row.merchant_name}</td>
                   <td className="table-cell px-3 py-2 text-right">{row.total_forecast.toLocaleString()}</td>
+                  <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
+                  <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
+                  <td className="table-cell px-3 py-2 text-right font-semibold">{row.hc_needed.toFixed(2)}</td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={2} className="px-3 py-8 text-center text-sm text-muted-foreground">No merchants found</td></tr>
+                <tr><td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">No merchants found</td></tr>
               )}
             </tbody>
             {filtered.length > 0 && (
@@ -147,6 +175,9 @@ function ForecastTable({
                 <tr>
                   <td className="px-3 py-2 text-sm font-bold">Total</td>
                   <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.total_forecast, 0).toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.picking_hours, 0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.packing_hours, 0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.hc_needed, 0).toFixed(2)}</td>
                 </tr>
               </tfoot>
             )}
@@ -157,7 +188,12 @@ function ForecastTable({
   );
 }
 
-export function ForecastManagement() {
+interface ForecastManagementProps {
+  pickingRates?: Record<string, number>;
+  packingRates?: Record<string, number>;
+}
+
+export function ForecastManagement({ pickingRates = {}, packingRates = {} }: ForecastManagementProps) {
   const [rawData, setRawData] = useState<ForecastRow[]>([]);
   const [subTab, setSubTab] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
@@ -172,7 +208,6 @@ export function ForecastManagement() {
       if (!text) return;
       const rows = parseForecastCsv(text);
       setRawData(rows);
-      // Auto-set date range from data
       if (rows.length > 0) {
         const dates = rows.map((r) => r.date.getTime()).filter((t) => !isNaN(t));
         if (dates.length > 0) {
@@ -206,26 +241,42 @@ export function ForecastManagement() {
     });
   }, [rawData, dateFrom, dateTo]);
 
-  // Aggregate by merchant_name (sum total_forecast)
-  const aggregated = useMemo(() => {
+  // Aggregate by merchant_name, compute picking/packing hours and HC needed
+  const aggregated = useMemo<AggregatedRow[]>(() => {
     const map: Record<string, number> = {};
     for (const r of filteredData) {
       map[r.merchant_name] = (map[r.merchant_name] || 0) + r.total_forecast;
     }
-    return Object.entries(map).map(([merchant_name, total_forecast]) => ({ merchant_name, total_forecast }));
-  }, [filteredData]);
+    return Object.entries(map).map(([merchant_name, total_forecast]) => {
+      const key = merchant_name.toLowerCase();
+      const pickRate = pickingRates[key];
+      const packRate = packingRates[key];
+
+      // picking_hours = forecast / (pickRate * MULTIPLIER), same for packing
+      const picking_hours = pickRate && pickRate > 0 ? total_forecast / (pickRate * MULTIPLIER) : 0;
+      const packing_hours = packRate && packRate > 0 ? total_forecast / (packRate * MULTIPLIER) : 0;
+      // HC needed = picking_hours + packing_hours (total person-hours needed)
+      const hc_needed = picking_hours + packing_hours;
+
+      return {
+        merchant_name,
+        total_forecast,
+        picking_hours: Math.round(picking_hours * 100) / 100,
+        packing_hours: Math.round(packing_hours * 100) / 100,
+        hc_needed: Math.round(hc_needed * 100) / 100,
+      };
+    });
+  }, [filteredData, pickingRates, packingRates]);
 
   const zoneData = useMemo(() => {
-    const a: typeof aggregated = [];
-    const b: typeof aggregated = [];
-    const unassigned: typeof aggregated = [];
+    const a: AggregatedRow[] = [];
+    const b: AggregatedRow[] = [];
     for (const row of aggregated) {
       const assignment = zoneLookup[row.merchant_name];
       if (assignment?.zone === "A") a.push(row);
       else if (assignment?.zone === "B") b.push(row);
-      else unassigned.push(row);
     }
-    return { a, b, unassigned };
+    return { a, b };
   }, [aggregated]);
 
   return (

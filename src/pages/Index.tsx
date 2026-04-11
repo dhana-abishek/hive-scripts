@@ -544,7 +544,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="forecast">
-            <ForecastManagement />
+            <ForecastManagement pickingRates={pickingRates} packingRates={packingRates} />
           </TabsContent>
         </Tabs>
       </main>

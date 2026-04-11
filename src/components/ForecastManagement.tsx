@@ -44,6 +44,13 @@ type SortKey = "merchant_name" | "total_forecast" | "picking_hours" | "packing_h
 
 const zoneLookup = buildZoneLookup();
 
+function getShiftHours(date: Date): number {
+  const day = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  if (day === 6) return 6.5; // Saturday
+  if (day === 0) return 0;   // Sunday
+  return 8; // Monday - Friday
+}
+
 function parseCsvLine(line: string): string[] {
   const result: string[] = [];
   let current = "";
@@ -289,11 +296,20 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
 
   // Aggregate by merchant_name, compute picking/packing hours and HC needed
   const aggregated = useMemo<AggregatedRow[]>(() => {
-    const map: Record<string, number> = {};
+    const map: Record<string, { total_forecast: number; dates: Map<string, Date> }> = {};
     for (const r of filteredData) {
-      map[r.merchant_name] = (map[r.merchant_name] || 0) + r.total_forecast;
+      if (!map[r.merchant_name]) {
+        map[r.merchant_name] = { total_forecast: 0, dates: new Map() };
+      }
+      map[r.merchant_name].total_forecast += r.total_forecast;
+      if (!isNaN(r.date.getTime())) {
+        const dateStr = format(r.date, "yyyy-MM-dd");
+        if (!map[r.merchant_name].dates.has(dateStr)) {
+          map[r.merchant_name].dates.set(dateStr, r.date);
+        }
+      }
     }
-    return Object.entries(map).map(([merchant_name, total_forecast]) => {
+    return Object.entries(map).map(([merchant_name, { total_forecast, dates }]) => {
       const key = merchant_name.toLowerCase();
       const pickRate = pickingRates[key];
       const packRate = packingRates[key];
@@ -301,8 +317,15 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
       // picking_hours = forecast / (pickRate * MULTIPLIER), same for packing
       const picking_hours = pickRate && pickRate > 0 ? total_forecast / (pickRate * MULTIPLIER) : 0;
       const packing_hours = packRate && packRate > 0 ? total_forecast / (packRate * MULTIPLIER) : 0;
-      // HC needed = picking_hours + packing_hours (total person-hours needed)
-      const hc_needed = picking_hours + packing_hours;
+
+      // Total shift hours from the dates in the CSV: Mon-Fri = 8h, Saturday = 6.5h
+      const totalShiftHours = Array.from(dates.values()).reduce(
+        (sum, date) => sum + getShiftHours(date),
+        0
+      );
+
+      // HC needed = (Pick Hours + Pack Hours) / Total Shift Hours
+      const hc_needed = totalShiftHours > 0 ? (picking_hours + packing_hours) / totalShiftHours : 0;
 
       return {
         merchant_name,

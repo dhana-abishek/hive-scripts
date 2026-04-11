@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, MapPin, Activity, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +8,21 @@ import { cn } from "@/lib/utils";
 import { format, parse, isWithinInterval, isSameDay } from "date-fns";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { StatCard } from "@/components/SummaryStats";
+import { cloudGet, cloudSet } from "@/lib/cloudStorage";
+
+const FORECAST_DATA_KEY = "forecastData";
+
+interface StoredForecastRow {
+  date: string;
+  merchant_name: string;
+  total_forecast: number;
+}
+
+interface StoredForecastData {
+  rows: StoredForecastRow[];
+  dateFrom?: string;
+  dateTo?: string;
+}
 
 const MULTIPLIER = 1.125;
 
@@ -198,6 +213,37 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
   const [subTab, setSubTab] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+
+  // Load persisted forecast data from cloud storage on mount
+  useEffect(() => {
+    (async () => {
+      const stored = await cloudGet<StoredForecastData>(FORECAST_DATA_KEY);
+      if (stored?.rows?.length) {
+        const rows: ForecastRow[] = stored.rows.map((r) => ({
+          date: new Date(r.date),
+          merchant_name: r.merchant_name,
+          total_forecast: r.total_forecast,
+        }));
+        setRawData(rows);
+        if (stored.dateFrom) setDateFrom(new Date(stored.dateFrom));
+        if (stored.dateTo) setDateTo(new Date(stored.dateTo));
+      }
+    })();
+  }, []);
+
+  // Persist forecast data to cloud storage whenever it changes
+  useEffect(() => {
+    const stored: StoredForecastData = {
+      rows: rawData.map((r) => ({
+        date: r.date.toISOString(),
+        merchant_name: r.merchant_name,
+        total_forecast: r.total_forecast,
+      })),
+      dateFrom: dateFrom?.toISOString(),
+      dateTo: dateTo?.toISOString(),
+    };
+    void cloudSet(FORECAST_DATA_KEY, stored);
+  }, [rawData, dateFrom, dateTo]);
 
   const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

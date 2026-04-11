@@ -20,10 +20,28 @@ type SortKey = "merchant_name" | "total_forecast";
 
 const zoneLookup = buildZoneLookup();
 
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') { inQuotes = false; } else { current += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { result.push(current.trim()); current = ""; }
+      else { current += ch; }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 function parseForecastCsv(text: string): ForecastRow[] {
-  const lines = text.trim().split("\n");
+  const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
-  const header = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+  const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
   const dateIdx = header.indexOf("date");
   const merchantIdx = header.indexOf("merchant_name");
   const forecastIdx = header.indexOf("total_forecast");
@@ -31,7 +49,8 @@ function parseForecastCsv(text: string): ForecastRow[] {
 
   const rows: ForecastRow[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].match(/(".*?"|[^,]*)/g)?.map((c) => c.trim().replace(/^"|"$/g, "")) || [];
+    if (!lines[i].trim()) continue;
+    const cols = parseCsvLine(lines[i]);
     const merchant = cols[merchantIdx]?.trim();
     const forecast = parseInt(cols[forecastIdx], 10);
     if (!merchant || isNaN(forecast)) continue;

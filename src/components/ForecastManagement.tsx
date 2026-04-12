@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, MapPin, Activity, Clock, Users } from "lucide-react";
+import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, MapPin, Activity, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -38,9 +38,10 @@ interface AggregatedRow {
   picking_hours: number;
   packing_hours: number;
   hc_needed: number;
+  ideal_sph: number;
 }
 
-type SortKey = "merchant_name" | "total_forecast" | "picking_hours" | "packing_hours" | "hc_needed";
+type SortKey = "merchant_name" | "total_forecast" | "ideal_sph" | "hc_needed";
 
 const zoneLookup = buildZoneLookup();
 
@@ -112,9 +113,11 @@ function ForecastTable({
   const [search, setSearch] = useState("");
 
   const totalOrders = useMemo(() => data.reduce((s, r) => s + r.total_forecast, 0), [data]);
-  const totalPickHrs = useMemo(() => data.reduce((s, r) => s + r.picking_hours, 0), [data]);
-  const totalPackHrs = useMemo(() => data.reduce((s, r) => s + r.packing_hours, 0), [data]);
   const totalHC = useMemo(() => data.reduce((s, r) => s + r.hc_needed, 0), [data]);
+  const weightedAvgIdealSph = useMemo(() => {
+    const totalHrs = data.reduce((s, r) => s + r.picking_hours + r.packing_hours, 0);
+    return totalHrs > 0 ? totalOrders / totalHrs : 0;
+  }, [data, totalOrders]);
 
   const filtered = useMemo(() => {
     let result = data;
@@ -143,18 +146,16 @@ function ForecastTable({
   const columns: { key: SortKey; label: string; align?: string }[] = [
     { key: "merchant_name", label: "Merchant" },
     { key: "total_forecast", label: "Forecast", align: "right" },
-    { key: "picking_hours", label: "Pick Hrs", align: "right" },
-    { key: "packing_hours", label: "Pack Hrs", align: "right" },
+    { key: "ideal_sph", label: "Ideal SPH", align: "right" },
     { key: "hc_needed", label: "HC Needed", align: "right" },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total Forecast" value={totalOrders.toLocaleString()} icon={<Package size={16} />} subtext={`${data.length} merchants`} />
         <StatCard label="Merchants" value={data.length.toString()} icon={<MapPin size={16} />} />
-        <StatCard label="Pick Hours" value={totalPickHrs.toFixed(1)} icon={<Clock size={16} />} />
-        <StatCard label="Pack Hours" value={totalPackHrs.toFixed(1)} icon={<Clock size={16} />} />
+        <StatCard label="Ideal SPH" value={weightedAvgIdealSph.toFixed(2)} icon={<Activity size={16} />} />
         <StatCard label="Total HC Needed" value={totalHC.toFixed(1)} icon={<Users size={16} />} />
       </div>
       <div className="rounded-md border bg-card">
@@ -183,13 +184,12 @@ function ForecastTable({
                 <tr key={row.merchant_name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
                   <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">{row.merchant_name}</td>
                   <td className="table-cell px-3 py-2 text-right">{row.total_forecast.toLocaleString()}</td>
-                  <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
-                  <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
+                  <td className="table-cell px-3 py-2 text-right">{row.ideal_sph.toFixed(2)}</td>
                   <td className="table-cell px-3 py-2 text-right font-semibold">{row.hc_needed.toFixed(2)}</td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">No merchants found</td></tr>
+                <tr><td colSpan={4} className="px-3 py-8 text-center text-sm text-muted-foreground">No merchants found</td></tr>
               )}
             </tbody>
             {filtered.length > 0 && (
@@ -197,8 +197,7 @@ function ForecastTable({
                 <tr>
                   <td className="px-3 py-2 text-sm font-bold">Total</td>
                   <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.total_forecast, 0).toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.picking_hours, 0).toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.packing_hours, 0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right text-sm font-bold">{(() => { const totalHrs = filtered.reduce((s, r) => s + r.picking_hours + r.packing_hours, 0); const totalForecast = filtered.reduce((s, r) => s + r.total_forecast, 0); return totalHrs > 0 ? (totalForecast / totalHrs).toFixed(2) : "—"; })()}</td>
                   <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.hc_needed, 0).toFixed(2)}</td>
                 </tr>
               </tfoot>
@@ -331,12 +330,14 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
         if (shiftHrs > 0) hc_needed += (pick_hrs + pack_hrs) / shiftHrs;
       }
 
+      const total_hours = picking_hours + packing_hours;
       return {
         merchant_name,
         total_forecast,
         picking_hours: Math.round(picking_hours * 100) / 100,
         packing_hours: Math.round(packing_hours * 100) / 100,
         hc_needed: Math.round(hc_needed * 100) / 100,
+        ideal_sph: total_hours > 0 ? Math.round((total_forecast / total_hours) * 100) / 100 : 0,
       };
     });
   }, [filteredData, pickingRates, packingRates]);

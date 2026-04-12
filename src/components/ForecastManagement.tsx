@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, MapPin, Activity, Users } from "lucide-react";
+import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

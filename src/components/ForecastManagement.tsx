@@ -39,6 +39,7 @@ interface AggregatedRow {
   packing_hours: number;
   hc_needed: number;
   ideal_sph: number;
+  is_unbenchmarked?: boolean;
 }
 
 type SortKey = "merchant_name" | "total_forecast" | "ideal_sph" | "hc_needed";

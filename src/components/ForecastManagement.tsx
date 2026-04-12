@@ -114,6 +114,10 @@ function ForecastTable({
 
   const totalOrders = useMemo(() => data.reduce((s, r) => s + r.total_forecast, 0), [data]);
   const totalHC = useMemo(() => data.reduce((s, r) => s + r.hc_needed, 0), [data]);
+  const unbenchmarked = useMemo(() => {
+    const rows = data.filter((r) => r.ideal_sph === 0);
+    return { count: rows.length, volume: rows.reduce((s, r) => s + r.total_forecast, 0) };
+  }, [data]);
   const weightedAvgIdealSph = useMemo(() => {
     const totalHrs = data.reduce((s, r) => s + r.picking_hours + r.packing_hours, 0);
     return totalHrs > 0 ? totalOrders / totalHrs : 0;
@@ -154,7 +158,7 @@ function ForecastTable({
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total Forecast" value={totalOrders.toLocaleString()} icon={<Package size={16} />} subtext={`${data.length} merchants`} />
-        <StatCard label="Merchants" value={data.length.toString()} icon={<MapPin size={16} />} />
+        <StatCard label="Unbenchmarked Orders" value={unbenchmarked.volume.toLocaleString()} icon={<MapPin size={16} />} subtext={`${unbenchmarked.count} unbenchmarked merchants`} />
         <StatCard label="Ideal SPH" value={weightedAvgIdealSph.toFixed(2)} icon={<Activity size={16} />} />
         <StatCard label="Total HC Needed" value={totalHC.toFixed(1)} icon={<Users size={16} />} />
       </div>

@@ -303,7 +303,7 @@ function ForecastAccuracyTable({ data }: { data: AggregatedAccuracyRow[] }) {
     };
   }, [data]);
 
-  const sphDifference = idealSphBase - idealSphPreCut;
+  const sphDifference = idealSphPreCut - idealSphBase;
 
   const unbenchmarkedVolume = useMemo(() => {
     return data.filter((r) => r.is_unbenchmarked).reduce((s, r) => s + r.base_forecast_total, 0);
@@ -337,7 +337,7 @@ function ForecastAccuracyTable({ data }: { data: AggregatedAccuracyRow[] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatCard label="Ideal SPH Difference" value={(sphDifference > 0 ? "+" : "") + sphDifference.toFixed(2)} icon={<TrendingUp size={16} />} subtext={`Base: ${idealSphBase.toFixed(2)} | Pre-cut: ${idealSphPreCut.toFixed(2)}`} />
-        <StatCard label="Total HC Difference" value={totalDiff.toFixed(1)} icon={<TrendingUp size={16} />} subtext={totalDiff > 0 ? "Base forecast higher" : totalDiff < 0 ? "Pre-cutoff higher" : "No difference"} />
+        <StatCard label="Total HC Difference" value={totalDiff.toFixed(1)} icon={<TrendingUp size={16} />} subtext={totalDiff > 0 ? "Pre-cutoff higher" : totalDiff < 0 ? "Base forecast higher" : "No difference"} />
         <StatCard label="Unbenchmarked Order Volume" value={unbenchmarkedVolume.toLocaleString()} icon={<Package size={16} />} subtext={`${data.filter((r) => r.is_unbenchmarked).length} unbenchmarked merchants`} />
       </div>
       <div className="rounded-md border bg-card">
@@ -559,7 +559,7 @@ export function ForecastAccuracy({ pickingRates = {}, packingRates = {} }: Forec
         pre_cut_off_total,
         hc_base_forecast: Math.round(hc_base_forecast * 100) / 100,
         hc_pre_cut_off: Math.round(hc_pre_cut_off * 100) / 100,
-        hc_difference: Math.round((hc_base_forecast - hc_pre_cut_off) * 100) / 100,
+        hc_difference: Math.round((hc_pre_cut_off - hc_base_forecast) * 100) / 100,
         base_hours,
         pre_cut_hours,
         is_unbenchmarked: !isBenchmarked,

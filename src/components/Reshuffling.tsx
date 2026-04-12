@@ -1,6 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
+import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, GripVertical, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { cloudGet, cloudSet } from "@/lib/cloudStorage";
 
 const RESHUFFLING_DATA_KEY = "reshufflingData";
@@ -15,6 +22,15 @@ interface ReshufflingRow {
 }
 
 type SortKey = keyof ReshufflingRow;
+
+const EMPTY_FORM: ReshufflingRow = {
+  sku_name: "",
+  merchant_name: "",
+  shipments_affected: 0,
+  min_ready_for_fulfillment_at: "",
+  reshuffle_from: "",
+  max_reshuffling_amount_suggested: 0,
+};
 
 function parseCsvLine(line: string): string[] {
   const result: string[] = [];
@@ -80,6 +96,8 @@ export function Reshuffling() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [manualOrder, setManualOrder] = useState(false);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [form, setForm] = useState<ReshufflingRow>(EMPTY_FORM);
   const dragSrcIdx = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasLoadedRef = useRef(false);
@@ -183,6 +201,15 @@ export function Reshuffling() {
     setDragOverIdx(null);
   };
 
+  const handleAddRow = () => {
+    setRows((prev) => [...prev, { ...form }]);
+    setForm(EMPTY_FORM);
+    setAddDialogOpen(false);
+  };
+
+  const setField = <K extends keyof ReshufflingRow>(key: K, value: ReshufflingRow[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
+
   const colSpanCount = manualOrder ? 7 : 6;
   const thClass = "px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide select-none";
   const thSortClass = `${thClass} cursor-pointer hover:text-foreground`;
@@ -206,6 +233,15 @@ export function Reshuffling() {
             className="hidden"
             onChange={handleUpload}
           />
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs"
+            onClick={() => { setForm(EMPTY_FORM); setAddDialogOpen(true); }}
+          >
+            <Plus size={13} />
+            Add Row
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -388,6 +424,53 @@ export function Reshuffling() {
           </>
         )}
       </div>
+      {/* Add Row dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) setForm(EMPTY_FORM); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Add Row</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-3 py-2">
+            {(
+              [
+                { key: "sku_name", label: "SKU Name", type: "text" },
+                { key: "merchant_name", label: "Merchant Name", type: "text" },
+                { key: "shipments_affected", label: "Shipments Affected", type: "number" },
+                { key: "min_ready_for_fulfillment_at", label: "Min Ready for Fulfillment At", type: "text" },
+                { key: "reshuffle_from", label: "Reshuffle From", type: "text" },
+                { key: "max_reshuffling_amount_suggested", label: "Max Reshuffling Amount Suggested", type: "number" },
+              ] as { key: keyof ReshufflingRow; label: string; type: string }[]
+            ).map(({ key, label, type }) => (
+              <div key={key} className="grid gap-1">
+                <label className="text-xs font-medium text-muted-foreground">{label}</label>
+                <input
+                  type={type}
+                  value={form[key]}
+                  onChange={(e) =>
+                    setField(
+                      key,
+                      type === "number"
+                        ? (parseFloat(e.target.value) || 0) as ReshufflingRow[typeof key]
+                        : e.target.value as ReshufflingRow[typeof key]
+                    )
+                  }
+                  className="w-full px-3 py-1.5 text-xs rounded-md border border-border bg-secondary text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button size="sm" variant="outline" className="text-xs" onClick={() => setAddDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="text-xs" onClick={handleAddRow}>
+              Add Row
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

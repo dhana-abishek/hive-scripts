@@ -1,8 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Upload, Trash2, TrendingUp, TrendingDown, BarChart3, Gauge, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import { Upload, Trash2, TrendingUp, BarChart3, Gauge, Search } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
+import { parseCSVRows } from "@/lib/csvParser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PerfTable, type SortKey, type SortDir, type MerchantPerf } from "@/components/PerfTable";
+import { WorkerTable } from "@/components/WorkerTable";
 
 const PICK_CSV_KEY = "perfPickingCsv";
 const PACK_CSV_KEY = "perfPackingCsv";
@@ -43,24 +46,8 @@ function parsePercent(s: string): number {
   return parseFloat(s.replace("%", "")) || 0;
 }
 
-function parseCsv(text: string): string[][] {
-  const lines = text.trim().split("\n");
-  return lines.map((line) => {
-    const parts: string[] = [];
-    let current = "";
-    let inQuotes = false;
-    for (const ch of line) {
-      if (ch === '"') { inQuotes = !inQuotes; continue; }
-      if (ch === "," && !inQuotes) { parts.push(current.trim()); current = ""; continue; }
-      current += ch;
-    }
-    parts.push(current.trim());
-    return parts;
-  });
-}
-
 function parsePickingCsv(text: string): PickingRow[] {
-  const rows = parseCsv(text);
+  const rows = parseCSVRows(text);
   if (rows.length < 2) return [];
   return rows.slice(1).map((p) => ({
     day_of_transaction: p[0] || "",
@@ -78,7 +65,7 @@ function parsePickingCsv(text: string): PickingRow[] {
 }
 
 function parsePackingCsv(text: string): PackingRow[] {
-  const rows = parseCsv(text);
+  const rows = parseCSVRows(text);
   if (rows.length < 2) return [];
   return rows.slice(1).map((p) => ({
     day_of_transaction: p[0] || "",
@@ -91,18 +78,6 @@ function parsePackingCsv(text: string): PackingRow[] {
     according_to_packing_benchmark: p[7] || "",
     total_performance: p[8] || "",
   }));
-}
-
-type SortKey = "merchant" | "benchmark" | "sph" | "shipments" | "performance";
-type SortDir = "asc" | "desc";
-
-interface MerchantPerf {
-  merchant: string;
-  avgBenchmark: number;
-  avgSph: number;
-  totalShipments: number;
-  avgPerformance: number;
-  workerCount: number;
 }
 
 function computeMerchantPerf(
@@ -152,7 +127,7 @@ function computeMerchantPerf(
   return { picking, packing };
 }
 
-function StatCard({ title, value, subtitle, icon: Icon, color }: { title: string; value: string; subtitle?: string; icon: any; color: string }) {
+function PerfStatCard({ title, value, subtitle, icon: Icon, color }: { title: string; value: string; subtitle?: string; icon: any; color: string }) {
   return (
     <div className="rounded-lg border bg-card p-4 space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -161,189 +136,6 @@ function StatCard({ title, value, subtitle, icon: Icon, color }: { title: string
       </div>
       <p className="text-2xl font-bold tracking-tight">{value}</p>
       {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-    </div>
-  );
-}
-
-function PerfTable({ data, search, sortKey, sortDir, onSort, type }: {
-  data: MerchantPerf[];
-  search: string;
-  sortKey: SortKey;
-  sortDir: SortDir;
-  onSort: (key: SortKey) => void;
-  type: "picking" | "packing";
-}) {
-  const filtered = useMemo(() => {
-    let d = data;
-    if (search) d = d.filter((r) => r.merchant.toLowerCase().includes(search.toLowerCase()));
-    d = [...d].sort((a, b) => {
-      const map: Record<SortKey, (r: MerchantPerf) => number | string> = {
-        merchant: (r) => r.merchant.toLowerCase(),
-        benchmark: (r) => r.avgBenchmark,
-        sph: (r) => r.avgSph,
-        shipments: (r) => r.totalShipments,
-        performance: (r) => r.avgPerformance,
-      };
-      const va = map[sortKey](a);
-      const vb = map[sortKey](b);
-      if (va < vb) return sortDir === "asc" ? -1 : 1;
-      if (va > vb) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-    return d;
-  }, [data, search, sortKey, sortDir]);
-
-  const SortIcon = ({ k }: { k: SortKey }) => {
-    if (sortKey !== k) return <ArrowUpDown size={12} className="text-muted-foreground" />;
-    return sortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
-  };
-
-  const perfColor = (v: number) => v >= 100 ? "text-emerald-600" : v >= 85 ? "text-amber-600" : "text-red-600";
-
-  return (
-    <div className="rounded-md border bg-card overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b bg-muted/50 text-xs text-muted-foreground">
-            <th className="px-3 py-2 text-left cursor-pointer select-none" onClick={() => onSort("merchant")}>
-              <span className="inline-flex items-center gap-1">Merchant <SortIcon k="merchant" /></span>
-            </th>
-            <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => onSort("shipments")}>
-              <span className="inline-flex items-center gap-1 justify-end">Shipments <SortIcon k="shipments" /></span>
-            </th>
-            <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => onSort("benchmark")}>
-              <span className="inline-flex items-center gap-1 justify-end">Benchmark <SortIcon k="benchmark" /></span>
-            </th>
-            <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => onSort("sph")}>
-              <span className="inline-flex items-center gap-1 justify-end">Avg SPH <SortIcon k="sph" /></span>
-            </th>
-            <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => onSort("performance")}>
-              <span className="inline-flex items-center gap-1 justify-end">Avg Performance <SortIcon k="performance" /></span>
-            </th>
-            <th className="px-3 py-2 text-right">Associates</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((r) => (
-            <tr key={r.merchant} className="border-b last:border-0 hover:bg-muted/30">
-              <td className="px-3 py-2 font-medium">{r.merchant}</td>
-              <td className="px-3 py-2 text-right">{r.totalShipments.toLocaleString()}</td>
-              <td className="px-3 py-2 text-right">{r.avgBenchmark.toFixed(1)}</td>
-              <td className="px-3 py-2 text-right">{r.avgSph.toFixed(1)}</td>
-              <td className={`px-3 py-2 text-right font-semibold ${perfColor(r.avgPerformance)}`}>{r.avgPerformance.toFixed(0)}%</td>
-              <td className="px-3 py-2 text-right">{r.workerCount}</td>
-            </tr>
-          ))}
-          {filtered.length === 0 && (
-            <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No data</td></tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function WorkerTable({ pickData, packData }: { pickData: PickingRow[]; packData: PackingRow[] }) {
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<"name" | "pickPerf" | "packPerf" | "avgPerf">("avgPerf");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-
-  const workers = useMemo(() => {
-    const map = new Map<string, { pickPerfs: number[]; packPerfs: number[]; pickShipments: number; packShipments: number }>();
-    for (const r of pickData) {
-      if (!map.has(r.full_name)) map.set(r.full_name, { pickPerfs: [], packPerfs: [], pickShipments: 0, packShipments: 0 });
-      const w = map.get(r.full_name)!;
-      w.pickPerfs.push(parsePercent(r.according_to_picking_benchmark));
-      w.pickShipments += r.total_shipments_picked;
-    }
-    for (const r of packData) {
-      if (!map.has(r.full_name)) map.set(r.full_name, { pickPerfs: [], packPerfs: [], pickShipments: 0, packShipments: 0 });
-      const w = map.get(r.full_name)!;
-      w.packPerfs.push(parsePercent(r.according_to_packing_benchmark));
-      w.packShipments += r.total_shipments_packed;
-    }
-    return Array.from(map.entries()).map(([name, d]) => {
-      const pickAvg = d.pickPerfs.length ? d.pickPerfs.reduce((a, b) => a + b, 0) / d.pickPerfs.length : null;
-      const packAvg = d.packPerfs.length ? d.packPerfs.reduce((a, b) => a + b, 0) / d.packPerfs.length : null;
-      const allPerfs = [...d.pickPerfs, ...d.packPerfs];
-      const avg = allPerfs.length ? allPerfs.reduce((a, b) => a + b, 0) / allPerfs.length : 0;
-      return { name, pickPerf: pickAvg, packPerf: packAvg, avgPerf: avg, pickShipments: d.pickShipments, packShipments: d.packShipments };
-    });
-  }, [pickData, packData]);
-
-  const filtered = useMemo(() => {
-    let d = workers;
-    if (search) d = d.filter((r) => r.name.toLowerCase().includes(search.toLowerCase()));
-    return [...d].sort((a, b) => {
-      const map: Record<string, (r: typeof d[0]) => number | string> = {
-        name: (r) => r.name.toLowerCase(),
-        pickPerf: (r) => r.pickPerf ?? -1,
-        packPerf: (r) => r.packPerf ?? -1,
-        avgPerf: (r) => r.avgPerf,
-      };
-      const va = map[sortKey](a);
-      const vb = map[sortKey](b);
-      if (va < vb) return sortDir === "asc" ? -1 : 1;
-      if (va > vb) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [workers, search, sortKey, sortDir]);
-
-  const handleSort = (k: typeof sortKey) => {
-    if (sortKey === k) setSortDir((d) => d === "asc" ? "desc" : "asc");
-    else { setSortKey(k); setSortDir("desc"); }
-  };
-
-  const SortIcon = ({ k }: { k: string }) => {
-    if (sortKey !== k) return <ArrowUpDown size={12} className="text-muted-foreground" />;
-    return sortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />;
-  };
-
-  const perfColor = (v: number | null) => v === null ? "" : v >= 100 ? "text-emerald-600" : v >= 85 ? "text-amber-600" : "text-red-600";
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Search size={14} className="text-muted-foreground" />
-        <Input placeholder="Search associate..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 text-xs max-w-xs" />
-      </div>
-      <div className="rounded-md border bg-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50 text-xs text-muted-foreground">
-              <th className="px-3 py-2 text-left cursor-pointer select-none" onClick={() => handleSort("name")}>
-                <span className="inline-flex items-center gap-1">Associate <SortIcon k="name" /></span>
-              </th>
-              <th className="px-3 py-2 text-right">Pick Ships</th>
-              <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => handleSort("pickPerf")}>
-                <span className="inline-flex items-center gap-1 justify-end">Pick Perf <SortIcon k="pickPerf" /></span>
-              </th>
-              <th className="px-3 py-2 text-right">Pack Ships</th>
-              <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => handleSort("packPerf")}>
-                <span className="inline-flex items-center gap-1 justify-end">Pack Perf <SortIcon k="packPerf" /></span>
-              </th>
-              <th className="px-3 py-2 text-right cursor-pointer select-none" onClick={() => handleSort("avgPerf")}>
-                <span className="inline-flex items-center gap-1 justify-end">Overall <SortIcon k="avgPerf" /></span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => (
-              <tr key={r.name} className="border-b last:border-0 hover:bg-muted/30">
-                <td className="px-3 py-2 font-medium">{r.name}</td>
-                <td className="px-3 py-2 text-right">{r.pickShipments || "—"}</td>
-                <td className={`px-3 py-2 text-right font-semibold ${perfColor(r.pickPerf)}`}>{r.pickPerf !== null ? `${r.pickPerf.toFixed(0)}%` : "—"}</td>
-                <td className="px-3 py-2 text-right">{r.packShipments || "—"}</td>
-                <td className={`px-3 py-2 text-right font-semibold ${perfColor(r.packPerf)}`}>{r.packPerf !== null ? `${r.packPerf.toFixed(0)}%` : "—"}</td>
-                <td className={`px-3 py-2 text-right font-semibold ${perfColor(r.avgPerf)}`}>{r.avgPerf.toFixed(0)}%</td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No data</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
@@ -517,9 +309,9 @@ export function PerformanceTracker() {
         <>
           {/* Summary Stats */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <StatCard title="Avg Pick Performance" value={`${stats.avgPickPerf.toFixed(0)}%`} subtitle={`${stats.totalPickShipments.toLocaleString()} shipments • ${stats.pickWorkers} associates`} icon={BarChart3} color="text-primary" />
-            <StatCard title="Avg Pack Performance" value={`${stats.avgPackPerf.toFixed(0)}%`} subtitle={`${stats.totalPackShipments.toLocaleString()} shipments • ${stats.packWorkers} associates`} icon={Gauge} color="text-primary" />
-            <StatCard title="Real SPH" value={stats.realSph.toFixed(1)} subtitle={`${stats.totalPackShipments.toLocaleString()} packed shipments`} icon={TrendingUp} color="text-emerald-600" />
+            <PerfStatCard title="Avg Pick Performance" value={`${stats.avgPickPerf.toFixed(0)}%`} subtitle={`${stats.totalPickShipments.toLocaleString()} shipments • ${stats.pickWorkers} associates`} icon={BarChart3} color="text-primary" />
+            <PerfStatCard title="Avg Pack Performance" value={`${stats.avgPackPerf.toFixed(0)}%`} subtitle={`${stats.totalPackShipments.toLocaleString()} shipments • ${stats.packWorkers} associates`} icon={Gauge} color="text-primary" />
+            <PerfStatCard title="Real SPH" value={stats.realSph.toFixed(1)} subtitle={`${stats.totalPackShipments.toLocaleString()} packed shipments`} icon={TrendingUp} color="text-emerald-600" />
           </div>
 
           {/* Merchant tables */}

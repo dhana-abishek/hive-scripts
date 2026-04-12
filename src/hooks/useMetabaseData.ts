@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { calculateFlowManagement, buildLookup } from "@/lib/warehouseProcessing";
 import type { BenchmarkEntry } from "@/types/warehouse";
+import { parseCSVLine } from "@/lib/csvParser";
 
 import { supabase } from "@/integrations/supabase/client";
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -22,7 +23,7 @@ function parseCSV(text: string): MerchantAgg[] {
   for (let i = 1; i < lines.length; i++) {
     // Parse CSV handling potential commas in quoted fields
     const row = lines[i];
-    const cols = parseCSVRow(row);
+    const cols = parseCSVLine(row);
     if (cols.length < 5) continue;
 
     const merchant = cols[0].trim();
@@ -49,25 +50,6 @@ function parseCSV(text: string): MerchantAgg[] {
   }));
 }
 
-function parseCSVRow(row: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < row.length; i++) {
-    const char = row[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      result.push(current);
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  result.push(current);
-  return result;
-}
 
 export interface MetabaseDataResult {
   flowData: ReturnType<typeof calculateFlowManagement>;

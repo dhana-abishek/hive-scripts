@@ -1,3 +1,5 @@
+import { parseCSVLine, parseCSVHeaders } from "@/lib/csvParser";
+
 /**
  * Calculates the inflow factor based on current day and time.
  *
@@ -67,7 +69,7 @@ export function parseOvernightVolumes(csvText: string, now?: Date): Record<strin
   if (lines.length < 2) return {};
 
   // Find column indices from header
-  const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+  const header = parseCSVHeaders(lines[0]);
   const createdIdx = header.findIndex(h => h.includes("created_at"));
   const merchantIdx = header.indexOf("merchant");
   if (createdIdx === -1 || merchantIdx === -1) return {};
@@ -78,7 +80,6 @@ export function parseOvernightVolumes(csvText: string, now?: Date): Record<strin
     const line = lines[i].trim();
     if (!line) continue;
 
-    // Parse CSV respecting quoted fields
     const fields = parseCSVLine(line);
     if (fields.length <= Math.max(createdIdx, merchantIdx)) continue;
 
@@ -95,25 +96,6 @@ export function parseOvernightVolumes(csvText: string, now?: Date): Record<strin
   }
 
   return counts;
-}
-
-function parseCSVLine(line: string): string[] {
-  const fields: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      inQuotes = !inQuotes;
-    } else if (ch === ',' && !inQuotes) {
-      fields.push(current);
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  fields.push(current);
-  return fields;
 }
 
 /** Parse dates like "April 2, 2026, 10:30" */

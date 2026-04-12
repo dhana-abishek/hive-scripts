@@ -1,9 +1,9 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, type LucideIcon } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
-import { BenchmarkTable, type BenchmarkUpload } from "@/components/BenchmarkTable";
+import { BenchmarkTable } from "@/components/BenchmarkTable";
 import { ZoneView } from "@/components/ZoneView";
 import { AgingOrders } from "@/components/AgingOrders";
 import { PerformanceTracker } from "@/components/PerformanceTracker";
@@ -11,91 +11,34 @@ import { ActualSPH } from "@/components/ActualSPH";
 import { Reports } from "@/components/Reports";
 import { ForecastManagement } from "@/components/ForecastManagement";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
-import { buildZoneLookup } from "@/data/zoneMappings";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
-import type { BenchmarkEntry } from "@/types/warehouse";
-import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
 import { getInflowFactor } from "@/lib/inflowEstimation";
-import type { ExtraMerchant } from "@/components/PerformanceTracker";
+import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
 
-const PICK_UPLOADS_KEY = "pickBenchmarkUploads";
-const PICK_ACTIVE_KEY = "pickBenchmarkActiveId";
-const PACK_UPLOADS_KEY = "packBenchmarkUploads";
-const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
-const INFLOW_ENABLED_KEY = "inflowEnabled";
-const OVERNIGHT_VOLUMES_KEY = "overnightVolumes";
+const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
+  { value: "flow", label: "Flow Management", icon: Activity },
+  { value: "aging", label: "Aging Orders", icon: CalendarClock },
+  { value: "performance", label: "Performance", icon: Users },
+  { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
+  { value: "reports", label: "Reports", icon: FileText },
+  { value: "forecast", label: "Forecast Management", icon: CalendarRange },
+];
 
-const Index = () => {
-  const [nonProdHeadcount, setNonProdHeadcount] = useState(12);
-  const [availableHC_A, setAvailableHC_A] = useState(0);
-  const [availableHC_B, setAvailableHC_B] = useState(0);
-  const availableHeadcount = availableHC_A + availableHC_B;
-  const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
-  const [inflowEnabled, setInflowEnabled] = useState(false);
-  const [overnightVolumes, setOvernightVolumes] = useState<Record<string, number>>({});
-  const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
-  const [pickActiveId, setPickActiveId] = useState<string | null>(null);
-  const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);
-  const [packActiveId, setPackActiveId] = useState<string | null>(null);
-  // Load all from IndexedDB on mount
-  useEffect(() => {
-    (async () => {
-      const [pu, pa, pku, pka, hc, em, ahcA, ahcB, ie, ov] = await Promise.all([
-        idbGet<BenchmarkUpload[]>(PICK_UPLOADS_KEY),
-        idbGet<string>(PICK_ACTIVE_KEY),
-        idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
-        idbGet<string>(PACK_ACTIVE_KEY),
-        idbGet<number>("nonProdHC_main"),
-        idbGet<ExtraMerchant[]>("perfExtraMerchants"),
-        idbGet<number>("availableHC_zoneA"),
-        idbGet<number>("availableHC_zoneB"),
-        idbGet<boolean>(INFLOW_ENABLED_KEY),
-        idbGet<Record<string, number>>(OVERNIGHT_VOLUMES_KEY),
-      ]);
-      if (pu) setPickUploads(pu);
-      if (pa) setPickActiveId(pa);
-      if (pku) setPackUploads(pku);
-      if (pka) setPackActiveId(pka);
-      if (hc !== null) setNonProdHeadcount(hc);
-      if (em) setExtraMerchants(em);
-      if (ahcA !== null) setAvailableHC_A(ahcA);
-      if (ahcB !== null) setAvailableHC_B(ahcB);
-      if (ie !== null) setInflowEnabled(ie);
-      if (ov) setOvernightVolumes(ov);
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (pickUploads.length === 0) {
-      if (pickActiveId !== null) {
-        setPickActiveId(null);
-        void idbRemove(PICK_ACTIVE_KEY);
-      }
-      return;
-    }
-
-    if (!pickActiveId || !pickUploads.some((upload) => upload.id === pickActiveId)) {
-      const fallbackId = pickUploads[pickUploads.length - 1].id;
-      setPickActiveId(fallbackId);
-      void idbSet(PICK_ACTIVE_KEY, fallbackId);
-    }
-  }, [pickUploads, pickActiveId]);
-
-  useEffect(() => {
-    if (packUploads.length === 0) {
-      if (packActiveId !== null) {
-        setPackActiveId(null);
-        void idbRemove(PACK_ACTIVE_KEY);
-      }
-      return;
-    }
-
-    if (!packActiveId || !packUploads.some((upload) => upload.id === packActiveId)) {
-      const fallbackId = packUploads[packUploads.length - 1].id;
-      setPackActiveId(fallbackId);
-      void idbSet(PACK_ACTIVE_KEY, fallbackId);
-    }
-  }, [packUploads, packActiveId]);
+function Dashboard() {
+  const {
+    nonProdHeadcount, setNonProdHeadcount,
+    availableHC_A, setAvailableHC_A,
+    availableHC_B, setAvailableHC_B,
+    availableHeadcount,
+    extraMerchants, setExtraMerchants,
+    inflowEnabled, setInflowEnabled,
+    overnightVolumes, setOvernightVolumes,
+    pickUploads, pickActiveId,
+    handlePickNewUpload, handlePickSelect, handlePickRename, handlePickDelete,
+    packUploads, packActiveId,
+    handlePackNewUpload, handlePackSelect, handlePackRename, handlePackDelete,
+    backlog, handleBacklogChange, handleResetBacklog, handleResetZoneBacklog,
+  } = useDashboard();
 
   const activePick = pickUploads.find((u) => u.id === pickActiveId);
   const activePack = packUploads.find((u) => u.id === packActiveId);
@@ -168,150 +111,10 @@ const Index = () => {
     return [...adjusted, ...extraRows];
   }, [flowData, extraMerchants, pickingRates, packingRates, inflowEnabled, overnightVolumes]);
 
-  const handleNonProdChange = (val: number) => {
-    setNonProdHeadcount(val);
-    idbSet("nonProdHC_main", val);
-  };
-
-  const handleAvailableHC_A_Change = (val: number) => {
-    setAvailableHC_A(val);
-    idbSet("availableHC_zoneA", val);
-  };
-
-  const handleAvailableHC_B_Change = (val: number) => {
-    setAvailableHC_B(val);
-    idbSet("availableHC_zoneB", val);
-  };
-
-  const handleInflowToggle = useCallback((enabled: boolean) => {
-    setInflowEnabled(enabled);
-    if (enabled) {
-      void idbSet(INFLOW_ENABLED_KEY, true);
-    } else {
-      void idbRemove(INFLOW_ENABLED_KEY);
-      void idbRemove(OVERNIGHT_VOLUMES_KEY);
-    }
-  }, []);
-
-  const handleInflowCsvParsed = useCallback((volumes: Record<string, number>) => {
-    setOvernightVolumes(volumes);
-    if (Object.keys(volumes).length > 0) {
-      void idbSet(OVERNIGHT_VOLUMES_KEY, volumes);
-    } else {
-      void idbRemove(OVERNIGHT_VOLUMES_KEY);
-    }
-  }, []);
-
-  // Pick handlers
-  const handlePickNewUpload = useCallback(async (upload: BenchmarkUpload) => {
-    const next = [...pickUploads, upload];
-    await Promise.all([
-      idbSet(PICK_UPLOADS_KEY, next),
-      idbSet(PICK_ACTIVE_KEY, upload.id),
-    ]);
-    setPickUploads(next);
-    setPickActiveId(upload.id);
-  }, [pickUploads]);
-
-  const handlePickSelect = useCallback(async (id: string) => {
-    await idbSet(PICK_ACTIVE_KEY, id);
-    setPickActiveId(id);
-  }, []);
-
-  const handlePickRename = useCallback(async (id: string, newName: string) => {
-    const next = pickUploads.map((u) => u.id === id ? { ...u, name: newName } : u);
-    await idbSet(PICK_UPLOADS_KEY, next);
-    setPickUploads(next);
-  }, [pickUploads]);
-
-  const handlePickDelete = useCallback(async (id: string) => {
-    const next = pickUploads.filter((u) => u.id !== id);
-    const newActiveId = pickActiveId === id ? (next.length > 0 ? next[next.length - 1].id : null) : pickActiveId;
-
-    await Promise.all([
-      idbSet(PICK_UPLOADS_KEY, next),
-      newActiveId ? idbSet(PICK_ACTIVE_KEY, newActiveId) : idbRemove(PICK_ACTIVE_KEY),
-    ]);
-
-    setPickUploads(next);
-    setPickActiveId(newActiveId);
-  }, [pickUploads, pickActiveId]);
-
-  // Pack handlers
-  const handlePackNewUpload = useCallback(async (upload: BenchmarkUpload) => {
-    const next = [...packUploads, upload];
-    await Promise.all([
-      idbSet(PACK_UPLOADS_KEY, next),
-      idbSet(PACK_ACTIVE_KEY, upload.id),
-    ]);
-    setPackUploads(next);
-    setPackActiveId(upload.id);
-  }, [packUploads]);
-
-  const handlePackDelete = useCallback(async (id: string) => {
-    const next = packUploads.filter((u) => u.id !== id);
-    const newActiveId = packActiveId === id ? (next.length > 0 ? next[next.length - 1].id : null) : packActiveId;
-
-    await Promise.all([
-      idbSet(PACK_UPLOADS_KEY, next),
-      newActiveId ? idbSet(PACK_ACTIVE_KEY, newActiveId) : idbRemove(PACK_ACTIVE_KEY),
-    ]);
-
-    setPackUploads(next);
-    setPackActiveId(newActiveId);
-  }, [packUploads, packActiveId]);
-
-  const handlePackSelect = useCallback(async (id: string) => {
-    await idbSet(PACK_ACTIVE_KEY, id);
-    setPackActiveId(id);
-  }, []);
-
-  const handlePackRename = useCallback(async (id: string, newName: string) => {
-    const next = packUploads.map((u) => u.id === id ? { ...u, name: newName } : u);
-    await idbSet(PACK_UPLOADS_KEY, next);
-    setPackUploads(next);
-  }, [packUploads]);
-
   const [activeTab, setActiveTab] = useState("flow");
   const [flowSubTab, setFlowSubTab] = useState("all");
   const [perfSubTab, setPerfSubTab] = useState("picking");
 
-  const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
-    { value: "flow", label: "Flow Management", icon: Activity },
-    { value: "aging", label: "Aging Orders", icon: CalendarClock },
-    { value: "performance", label: "Performance", icon: Users },
-    { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
-    { value: "reports", label: "Reports", icon: FileText },
-    { value: "forecast", label: "Forecast Management", icon: CalendarRange },
-  ];
-
-  const [backlog, setBacklog] = useState<Record<string, number>>({});
-
-  // Load backlog from IDB
-  useEffect(() => {
-    idbGet<Record<string, number>>("plannedBacklog").then((v) => { if (v) setBacklog(v); });
-  }, []);
-
-  const handleBacklogChange = useCallback((updated: Record<string, number>) => {
-    setBacklog(updated);
-  }, []);
-
-  const handleResetBacklog = useCallback(() => {
-    setBacklog({});
-    idbSet("plannedBacklog", {});
-  }, []);
-
-  const handleResetZoneBacklog = useCallback((zone: "A" | "B") => {
-    const lookup = buildZoneLookup();
-    const updated = { ...backlog };
-    for (const merchant of Object.keys(updated)) {
-      if (lookup[merchant]?.zone === zone) {
-        updated[merchant] = 0;
-      }
-    }
-    setBacklog(updated);
-    idbSet("plannedBacklog", updated);
-  }, [backlog]);
   const stats = useMemo(() => {
     const MULTIPLIER = 1.125;
     let adjPickHrs = 0;
@@ -435,21 +238,21 @@ const Index = () => {
               </div>
 
               <TabsContent value="all" className="space-y-4">
-                <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={handleNonProdChange} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} />
+                <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={setNonProdHeadcount} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} />
                 {isLoading && mergedFlowData.length === 0 ? (
                   <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
                     <Loader2 size={16} className="animate-spin" />
                     <span className="text-sm">Loading live data from Metabase...</span>
                   </div>
                 ) : (
-                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={handleInflowToggle} onInflowCsvParsed={handleInflowCsvParsed} availableHeadcount={availableHeadcount} />
+                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} availableHeadcount={availableHeadcount} />
                 )}
               </TabsContent>
               <TabsContent value="zoneA">
-                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_A} onAvailableHeadcountChange={handleAvailableHC_A_Change} />
+                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_A} onAvailableHeadcountChange={setAvailableHC_A} />
               </TabsContent>
               <TabsContent value="zoneB">
-                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_B} onAvailableHeadcountChange={handleAvailableHC_B_Change} />
+                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_B} onAvailableHeadcountChange={setAvailableHC_B} />
               </TabsContent>
             </Tabs>
           </TabsContent>
@@ -538,8 +341,8 @@ const Index = () => {
               nonProdHeadcount={nonProdHeadcount}
               zoneAHC={availableHC_A}
               zoneBHC={availableHC_B}
-              onZoneAHCChange={handleAvailableHC_A_Change}
-              onZoneBHCChange={handleAvailableHC_B_Change}
+              onZoneAHCChange={setAvailableHC_A}
+              onZoneBHCChange={setAvailableHC_B}
             />
           </TabsContent>
 
@@ -550,6 +353,12 @@ const Index = () => {
       </main>
     </div>
   );
-};
+}
+
+const Index = () => (
+  <DashboardProvider>
+    <Dashboard />
+  </DashboardProvider>
+);
 
 export default Index;

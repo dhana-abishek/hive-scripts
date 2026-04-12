@@ -71,7 +71,8 @@ export async function idbGet<T>(key: string): Promise<T | null> {
       req.onsuccess = () => resolveValue((req.result as T | undefined) ?? null);
       req.onerror = () => rejectValue(req.error);
     });
-  } catch {
+  } catch (err) {
+    console.warn(`[idbStorage] Failed to get key "${key}":`, err);
     return null;
   }
 }

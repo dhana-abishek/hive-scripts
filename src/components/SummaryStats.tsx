@@ -1,4 +1,4 @@
-import { Package, Clock, Timer, UserPlus, ArrowDownToLine, Gauge, PackageMinus, RotateCcw, Users } from "lucide-react";
+import { Package, Clock, Timer, UserPlus, ArrowDownToLine, Gauge, PackageMinus, RotateCcw, Users, UserCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
@@ -73,7 +73,7 @@ export function SummaryStats({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard
           label="Total Orders"
           value={totalOrders.toLocaleString()}
@@ -105,6 +105,16 @@ export function SummaryStats({
           <div className="stat-value text-foreground">{totalPackingHours.toFixed(1)}h</div>
           <p className="text-xs text-muted-foreground mt-1">
             <span className="font-semibold text-foreground">{packingHeadcount} HC</span> needed ({totalPackingHours.toFixed(1)}h ÷ {TIME_LEFT.toFixed(2)}h)
+          </p>
+        </div>
+        <div className="rounded-md border bg-card p-4 border-primary/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="stat-label">OB Headcount</span>
+            <span className="text-primary"><UserCheck size={16} /></span>
+          </div>
+          <div className="stat-value text-foreground">{nonProdHeadcount + availableHeadcount}</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="font-semibold text-foreground">{nonProdHeadcount}</span> non-prod + <span className="font-semibold text-foreground">{availableHeadcount}</span> available
           </p>
         </div>
       </div>

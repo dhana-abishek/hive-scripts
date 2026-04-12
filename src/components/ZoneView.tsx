@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
 import { RotateCcw, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search, PackageMinus, ArrowDownToLine } from "lucide-react";
+import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search, PackageMinus, ArrowDownToLine, UserCheck } from "lucide-react";
 import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
 import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
@@ -322,7 +322,7 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
   return (
     <div className="space-y-4">
       {/* Zone summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard
           label="Total Orders"
           value={totals.totalOrders.toLocaleString()}
@@ -350,6 +350,16 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
           subtext={`HC needed: ${totals.packHC}`}
           variant="warning"
         />
+        <div className="rounded-md border bg-card p-4 h-full border-primary/30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="stat-label">OB Headcount</span>
+            <span className="text-primary"><UserCheck size={16} /></span>
+          </div>
+          <div className="stat-value text-foreground">{nonProdHC + availableHeadcount}</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="font-semibold text-foreground">{nonProdHC}</span> non-prod + <span className="font-semibold text-foreground">{availableHeadcount}</span> available
+          </p>
+        </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard

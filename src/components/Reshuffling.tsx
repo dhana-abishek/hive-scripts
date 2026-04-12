@@ -19,9 +19,10 @@ interface ReshufflingRow {
   min_ready_for_fulfillment_at: string;
   reshuffle_from: string;
   max_reshuffling_amount_suggested: number;
+  _manual?: boolean;
 }
 
-type SortKey = keyof ReshufflingRow;
+type SortKey = Exclude<keyof ReshufflingRow, "_manual">;
 
 const EMPTY_FORM: ReshufflingRow = {
   sku_name: "",
@@ -212,7 +213,7 @@ export function Reshuffling() {
 
   const handleSubmitDialog = () => {
     if (editIdx === null) {
-      setRows((prev) => [{ ...form }, ...prev]);
+      setRows((prev) => [{ ...form, _manual: true }, ...prev]);
     } else {
       setRows((prev) => prev.map((r, i) => (i === editIdx ? { ...form } : r)));
     }
@@ -414,23 +415,25 @@ export function Reshuffling() {
                               maximumFractionDigits: 2,
                             })}
                           </td>
-                          <td className="px-2 py-1.5 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => openEdit(row)}
-                                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                                title="Edit row"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(row)}
-                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                title="Delete row"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
+                          <td className="px-2 py-1.5 text-right w-16">
+                            {row._manual && (
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => openEdit(row)}
+                                  className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Edit row"
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(row)}
+                                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                  title="Delete row"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

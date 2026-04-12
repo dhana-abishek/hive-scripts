@@ -313,10 +313,14 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
         }
       }
     }
-    return Object.entries(map).map(([merchant_name, dateMap]) => {
+
+    // First pass: compute benchmarked merchants
+    const rows: AggregatedRow[] = [];
+    for (const [merchant_name, dateMap] of Object.entries(map)) {
       const key = merchant_name.toLowerCase();
       const pickRate = pickingRates[key];
       const packRate = packingRates[key];
+      const isBenchmarked = pickRate && pickRate > 0 && packRate && packRate > 0;
 
       let total_forecast = 0;
       let picking_hours = 0;
@@ -325,25 +329,53 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
 
       for (const { forecast, date } of dateMap.values()) {
         total_forecast += forecast;
-        const pick_hrs = pickRate && pickRate > 0 ? forecast / (pickRate * MULTIPLIER) : 0;
-        const pack_hrs = packRate && packRate > 0 ? forecast / (packRate * MULTIPLIER) : 0;
-        picking_hours += pick_hrs;
-        packing_hours += pack_hrs;
-        // HC needed per day = (Pick Hours + Pack Hours) / Shift Hours for that day
-        const shiftHrs = getShiftHours(date);
-        if (shiftHrs > 0) hc_needed += (pick_hrs + pack_hrs) / shiftHrs;
+        if (isBenchmarked) {
+          const pick_hrs = forecast / (pickRate * MULTIPLIER);
+          const pack_hrs = forecast / (packRate * MULTIPLIER);
+          picking_hours += pick_hrs;
+          packing_hours += pack_hrs;
+          const shiftHrs = getShiftHours(date);
+          if (shiftHrs > 0) hc_needed += (pick_hrs + pack_hrs) / shiftHrs;
+        }
       }
 
       const total_hours = picking_hours + packing_hours;
-      return {
+      rows.push({
         merchant_name,
         total_forecast,
         picking_hours: Math.round(picking_hours * 100) / 100,
         packing_hours: Math.round(packing_hours * 100) / 100,
         hc_needed: Math.round(hc_needed * 100) / 100,
         ideal_sph: total_hours > 0 ? Math.round((total_forecast / total_hours) * 100) / 100 : 0,
-      };
-    });
+      });
+    }
+
+    // Calculate weighted average ideal SPH from benchmarked merchants
+    const benchmarkedRows = rows.filter((r) => r.ideal_sph > 0);
+    const totalBenchmarkedForecast = benchmarkedRows.reduce((s, r) => s + r.total_forecast, 0);
+    const totalBenchmarkedHours = benchmarkedRows.reduce((s, r) => s + r.picking_hours + r.packing_hours, 0);
+    const weightedAvgSph = totalBenchmarkedHours > 0 ? totalBenchmarkedForecast / totalBenchmarkedHours : 0;
+
+    // Second pass: apply weighted avg SPH to unbenchmarked merchants with forecast > 0
+    for (const row of rows) {
+      if (row.ideal_sph === 0 && row.total_forecast > 0 && weightedAvgSph > 0) {
+        row.ideal_sph = Math.round(weightedAvgSph * 100) / 100;
+        // Derive total hours from forecast / weightedAvgSph, then HC per day
+        const dateMap = map[row.merchant_name];
+        let hc = 0;
+        for (const { forecast, date } of dateMap.values()) {
+          const totalHrsForDay = forecast / weightedAvgSph;
+          const shiftHrs = getShiftHours(date);
+          if (shiftHrs > 0) hc += totalHrsForDay / shiftHrs;
+        }
+        const totalHrs = row.total_forecast / weightedAvgSph;
+        row.picking_hours = Math.round(totalHrs * 0.5 * 100) / 100;
+        row.packing_hours = Math.round(totalHrs * 0.5 * 100) / 100;
+        row.hc_needed = Math.round(hc * 100) / 100;
+      }
+    }
+
+    return rows;
   }, [filteredData, pickingRates, packingRates]);
 
   const zoneData = useMemo(() => {

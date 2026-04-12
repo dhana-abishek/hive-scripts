@@ -138,6 +138,7 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
   const [parseError, setParseError]       = useState<string | null>(null);
   const [debugStrategy, setDebugStrategy] = useState<string | null>(null);
   const [isLoading, setIsLoading]         = useState(true);
+  const hasLoadedRef                      = useRef(false);
 
   // ── Load all persisted values on mount ────────────────────────────────────
   useEffect(() => {
@@ -152,19 +153,19 @@ export function ActualSPH({ pickingRates, packingRates }: ActualSPHProps) {
       if (savedFileName)  setFileName(savedFileName);
       if (savedNonProd)   setNonProdHC(savedNonProd);
       if (savedActualSph) setActualSph(savedActualSph);
+      hasLoadedRef.current = true;
       setIsLoading(false);
     })();
   }, []);
 
-  // ── Persist each input on change (skip initial render) ───────────────────
-  const isFirstRender = useRef(true);
+  // ── Persist each input on change (only after initial cloud load) ─────────
   useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (!hasLoadedRef.current) return;
     void cloudSet(NON_PROD_KEY, nonProdHC);
   }, [nonProdHC]);
 
   useEffect(() => {
-    if (isFirstRender.current) return;
+    if (!hasLoadedRef.current) return;
     void cloudSet(ACTUAL_SPH_KEY, actualSph);
   }, [actualSph]);
 

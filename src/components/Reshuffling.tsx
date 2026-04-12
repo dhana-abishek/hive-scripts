@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, GripVertical, Plus } from "lucide-react";
+import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, GripVertical, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -97,6 +97,7 @@ export function Reshuffling() {
   const [manualOrder, setManualOrder] = useState(false);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null); // index in `rows`
   const [form, setForm] = useState<ReshufflingRow>(EMPTY_FORM);
   const dragSrcIdx = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -201,16 +202,33 @@ export function Reshuffling() {
     setDragOverIdx(null);
   };
 
-  const handleAddRow = () => {
-    setRows((prev) => [{ ...form }, ...prev]);
+  const openAdd = () => { setEditIdx(null); setForm(EMPTY_FORM); setAddDialogOpen(true); };
+
+  const openEdit = (row: ReshufflingRow) => {
+    setEditIdx(rows.indexOf(row));
+    setForm({ ...row });
+    setAddDialogOpen(true);
+  };
+
+  const handleSubmitDialog = () => {
+    if (editIdx === null) {
+      setRows((prev) => [{ ...form }, ...prev]);
+    } else {
+      setRows((prev) => prev.map((r, i) => (i === editIdx ? { ...form } : r)));
+    }
     setForm(EMPTY_FORM);
+    setEditIdx(null);
     setAddDialogOpen(false);
+  };
+
+  const handleDelete = (row: ReshufflingRow) => {
+    setRows((prev) => prev.filter((r) => r !== row));
   };
 
   const setField = <K extends keyof ReshufflingRow>(key: K, value: ReshufflingRow[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const colSpanCount = manualOrder ? 7 : 6;
+  const colSpanCount = manualOrder ? 8 : 7;
   const thClass = "px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide select-none";
   const thSortClass = `${thClass} cursor-pointer hover:text-foreground`;
   const tdClass = "px-3 py-2 text-xs text-foreground";
@@ -237,7 +255,7 @@ export function Reshuffling() {
             size="sm"
             variant="outline"
             className="gap-1.5 text-xs"
-            onClick={() => { setForm(EMPTY_FORM); setAddDialogOpen(true); }}
+            onClick={openAdd}
           >
             <Plus size={13} />
             Add Row
@@ -352,6 +370,7 @@ export function Reshuffling() {
                         {!manualOrder && <SortIcon col="max_reshuffling_amount_suggested" sortKey={sortKey} sortDir={sortDir} />}
                       </span>
                     </th>
+                    <th className={`${thClass} w-16`} />
                   </tr>
                 </thead>
                 <tbody>
@@ -395,6 +414,24 @@ export function Reshuffling() {
                               maximumFractionDigits: 2,
                             })}
                           </td>
+                          <td className="px-2 py-1.5 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => openEdit(row)}
+                                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                                title="Edit row"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(row)}
+                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="Delete row"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })
@@ -416,6 +453,7 @@ export function Reshuffling() {
                           .reduce((s, r) => s + r.max_reshuffling_amount_suggested, 0)
                           .toLocaleString(undefined, { maximumFractionDigits: 2 })}
                       </td>
+                      <td className={tdClass} />
                     </tr>
                   </tfoot>
                 )}
@@ -425,10 +463,10 @@ export function Reshuffling() {
         )}
       </div>
       {/* Add Row dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) setForm(EMPTY_FORM); }}>
+      <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) { setForm(EMPTY_FORM); setEditIdx(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm">Add Row</DialogTitle>
+            <DialogTitle className="text-sm">{editIdx === null ? "Add Row" : "Edit Row"}</DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-3 py-2">
@@ -465,8 +503,8 @@ export function Reshuffling() {
             <Button size="sm" variant="outline" className="text-xs" onClick={() => setAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button size="sm" className="text-xs" onClick={handleAddRow}>
-              Add Row
+            <Button size="sm" className="text-xs" onClick={handleSubmitDialog}>
+              {editIdx === null ? "Add Row" : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

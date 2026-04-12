@@ -400,16 +400,10 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
               <label className="text-xs text-muted-foreground block mb-1">From</label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "inline-flex items-center gap-1.5 w-[160px] h-10 px-3 rounded-md border border-input bg-background text-xs font-normal hover:bg-accent hover:text-accent-foreground transition-colors",
-                      !dateFrom && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar size={14} />
+                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs font-normal", !dateFrom && "text-muted-foreground")}>
+                    <Calendar size={14} className="mr-1" />
                     {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Start date"}
-                  </button>
+                  </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <CalendarPicker mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
@@ -420,16 +414,10 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
               <label className="text-xs text-muted-foreground block mb-1">To</label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "inline-flex items-center gap-1.5 w-[160px] h-10 px-3 rounded-md border border-input bg-background text-xs font-normal hover:bg-accent hover:text-accent-foreground transition-colors",
-                      !dateTo && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar size={14} />
+                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs font-normal", !dateTo && "text-muted-foreground")}>
+                    <Calendar size={14} className="mr-1" />
                     {dateTo ? format(dateTo, "MMM d, yyyy") : "End date"}
-                  </button>
+                  </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <CalendarPicker mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />

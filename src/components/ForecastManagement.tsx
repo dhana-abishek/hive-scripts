@@ -451,7 +451,6 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
           <p className="text-xs">Expected columns: merchant_name, total_forecast, date</p>
         </div>
       ) : (
-        <Tabs value={subTab} onValueChange={setSubTab}>
           <ForecastTable data={aggregated} title="All Merchants" />
       )}
     </div>

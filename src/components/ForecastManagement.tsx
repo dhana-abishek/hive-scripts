@@ -400,7 +400,7 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
               <label className="text-xs text-muted-foreground block mb-1">From</label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs font-normal", !dateFrom && "text-muted-foreground")}>
+                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs font-normal data-[state=open]:bg-secondary", !dateFrom && "text-muted-foreground")}>
                     <Calendar size={14} className="mr-1" />
                     {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Start date"}
                   </Button>
@@ -414,7 +414,7 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
               <label className="text-xs text-muted-foreground block mb-1">To</label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs font-normal", !dateTo && "text-muted-foreground")}>
+                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs font-normal data-[state=open]:bg-secondary", !dateTo && "text-muted-foreground")}>
                     <Calendar size={14} className="mr-1" />
                     {dateTo ? format(dateTo, "MMM d, yyyy") : "End date"}
                   </Button>

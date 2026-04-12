@@ -348,6 +348,7 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
         packing_hours: Math.round(packing_hours * 100) / 100,
         hc_needed: Math.round(hc_needed * 100) / 100,
         ideal_sph: total_hours > 0 ? Math.round((total_forecast / total_hours) * 100) / 100 : 0,
+        is_unbenchmarked: !isBenchmarked,
       });
     }
 

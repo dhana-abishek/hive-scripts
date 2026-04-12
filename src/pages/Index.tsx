@@ -9,7 +9,7 @@ import { AgingOrders } from "@/components/AgingOrders";
 import { PerformanceTracker } from "@/components/PerformanceTracker";
 import { ActualSPH } from "@/components/ActualSPH";
 import { Reports } from "@/components/Reports";
-import { ForecastManagement } from "@/components/ForecastManagement";
+import { ForecastManagement, ForecastAccuracy } from "@/components/ForecastManagement";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import { getInflowFactor } from "@/lib/inflowEstimation";
@@ -21,7 +21,7 @@ const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
   { value: "performance", label: "Performance", icon: Users },
   { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
   { value: "reports", label: "Reports", icon: FileText },
-  { value: "forecast", label: "Forecast Management", icon: CalendarRange },
+  { value: "forecast", label: "Forecast Overview", icon: CalendarRange },
 ];
 
 function Dashboard() {
@@ -114,6 +114,7 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState("flow");
   const [flowSubTab, setFlowSubTab] = useState("all");
   const [perfSubTab, setPerfSubTab] = useState("picking");
+  const [forecastSubTab, setForecastSubTab] = useState("forecast");
 
   const stats = useMemo(() => {
     const MULTIPLIER = 1.125;
@@ -346,8 +347,35 @@ function Dashboard() {
             />
           </TabsContent>
 
-          <TabsContent value="forecast">
-            <ForecastManagement pickingRates={pickingRates} packingRates={packingRates} />
+          <TabsContent value="forecast" className="space-y-4">
+            <Tabs value={forecastSubTab} onValueChange={setForecastSubTab}>
+              <div className="sm:hidden">
+                <select
+                  value={forecastSubTab}
+                  onChange={(e) => setForecastSubTab(e.target.value)}
+                  className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="forecast">Forecast</option>
+                  <option value="accuracy">Forecast Accuracy</option>
+                </select>
+              </div>
+              <div className="hidden sm:block">
+                <TabsList className="bg-secondary border border-border">
+                  <TabsTrigger value="forecast" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <CalendarRange size={14} /> Forecast
+                  </TabsTrigger>
+                  <TabsTrigger value="accuracy" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                    <TrendingUp size={14} /> Forecast Accuracy
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="forecast">
+                <ForecastManagement pickingRates={pickingRates} packingRates={packingRates} />
+              </TabsContent>
+              <TabsContent value="accuracy">
+                <ForecastAccuracy pickingRates={pickingRates} packingRates={packingRates} />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </main>

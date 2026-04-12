@@ -116,7 +116,7 @@ function ForecastTable({
   const totalOrders = useMemo(() => data.reduce((s, r) => s + r.total_forecast, 0), [data]);
   const totalHC = useMemo(() => data.reduce((s, r) => s + r.hc_needed, 0), [data]);
   const unbenchmarked = useMemo(() => {
-    const rows = data.filter((r) => r.ideal_sph === 0);
+    const rows = data.filter((r) => r.is_unbenchmarked && r.total_forecast > 0);
     return { count: rows.length, volume: rows.reduce((s, r) => s + r.total_forecast, 0) };
   }, [data]);
   const weightedAvgIdealSph = useMemo(() => {

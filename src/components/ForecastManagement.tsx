@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, MapPin, Activity, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -221,7 +221,7 @@ interface ForecastManagementProps {
 
 export function ForecastManagement({ pickingRates = {}, packingRates = {} }: ForecastManagementProps) {
   const [rawData, setRawData] = useState<ForecastRow[]>([]);
-  const [subTab, setSubTab] = useState("all");
+  
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
@@ -380,16 +380,6 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
     return rows;
   }, [filteredData, pickingRates, packingRates]);
 
-  const zoneData = useMemo(() => {
-    const a: AggregatedRow[] = [];
-    const b: AggregatedRow[] = [];
-    for (const row of aggregated) {
-      const assignment = zoneLookup[row.merchant_name];
-      if (assignment?.zone === "A") a.push(row);
-      else if (assignment?.zone === "B") b.push(row);
-    }
-    return { a, b };
-  }, [aggregated]);
 
   return (
     <div className="space-y-4">

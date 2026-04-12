@@ -10,27 +10,34 @@ export async function cloudGet<T>(key: string): Promise<T | null> {
       .select("value")
       .eq("key", key)
       .maybeSingle();
-    if (error || !data) return null;
+    if (error) {
+      console.warn(`[cloudStorage] Failed to get key "${key}":`, error.message);
+      return null;
+    }
+    if (!data) return null;
     return data.value as T;
-  } catch {
+  } catch (err) {
+    console.warn(`[cloudStorage] Unexpected error getting key "${key}":`, err);
     return null;
   }
 }
 
 export async function cloudSet(key: string, value: unknown): Promise<void> {
   try {
-    await supabase
+    const { error } = await supabase
       .from("app_storage")
       .upsert({ key, value: value as any, updated_at: new Date().toISOString() }, { onConflict: "key" });
-  } catch {
-    // silent fail
+    if (error) console.warn(`[cloudStorage] Failed to set key "${key}":`, error.message);
+  } catch (err) {
+    console.warn(`[cloudStorage] Unexpected error setting key "${key}":`, err);
   }
 }
 
 export async function cloudRemove(key: string): Promise<void> {
   try {
-    await supabase.from("app_storage").delete().eq("key", key);
-  } catch {
-    // silent fail
+    const { error } = await supabase.from("app_storage").delete().eq("key", key);
+    if (error) console.warn(`[cloudStorage] Failed to remove key "${key}":`, error.message);
+  } catch (err) {
+    console.warn(`[cloudStorage] Unexpected error removing key "${key}":`, err);
   }
 }

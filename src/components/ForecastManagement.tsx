@@ -452,37 +452,7 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
         </div>
       ) : (
         <Tabs value={subTab} onValueChange={setSubTab}>
-          <div className="sm:hidden">
-            <select value={subTab} onChange={(e) => setSubTab(e.target.value)} className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground">
-              <option value="all">All Merchants</option>
-              <option value="zoneA">Zone A</option>
-              <option value="zoneB">Zone B</option>
-            </select>
-          </div>
-          <div className="hidden sm:block">
-            <TabsList className="bg-secondary border border-border">
-              <TabsTrigger value="all" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Activity size={14} /> All Merchants
-              </TabsTrigger>
-              <TabsTrigger value="zoneA" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <MapPin size={14} /> Zone A
-              </TabsTrigger>
-              <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <MapPin size={14} /> Zone B
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="all">
-            <ForecastTable data={aggregated} title="All Merchants" />
-          </TabsContent>
-          <TabsContent value="zoneA">
-            <ForecastTable data={zoneData.a} title="Zone A" />
-          </TabsContent>
-          <TabsContent value="zoneB">
-            <ForecastTable data={zoneData.b} title="Zone B" />
-          </TabsContent>
-        </Tabs>
+          <ForecastTable data={aggregated} title="All Merchants" />
       )}
     </div>
   );

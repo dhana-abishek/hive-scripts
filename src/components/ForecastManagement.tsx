@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, MapPin, Activity, Users } from "lucide-react";
+import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -159,8 +159,8 @@ function ForecastTable({
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total Forecast" value={totalOrders.toLocaleString()} icon={<Package size={16} />} subtext={`${data.length} merchants`} />
-        <StatCard label="Unbenchmarked Orders" value={unbenchmarked.volume.toLocaleString()} icon={<MapPin size={16} />} subtext={`${unbenchmarked.count} unbenchmarked merchants`} />
-        <StatCard label="Ideal SPH" value={weightedAvgIdealSph.toFixed(2)} icon={<Activity size={16} />} />
+        <StatCard label="Unbenchmarked Orders" value={unbenchmarked.volume.toLocaleString()} icon={<Package size={16} />} subtext={`${unbenchmarked.count} unbenchmarked merchants`} />
+        <StatCard label="Ideal SPH" value={weightedAvgIdealSph.toFixed(2)} icon={<Users size={16} />} />
         <StatCard label="Total HC Needed" value={totalHC.toFixed(1)} icon={<Users size={16} />} />
       </div>
       <div className="rounded-md border bg-card">
@@ -221,7 +221,7 @@ interface ForecastManagementProps {
 
 export function ForecastManagement({ pickingRates = {}, packingRates = {} }: ForecastManagementProps) {
   const [rawData, setRawData] = useState<ForecastRow[]>([]);
-  const [subTab, setSubTab] = useState("all");
+  
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
@@ -380,16 +380,6 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
     return rows;
   }, [filteredData, pickingRates, packingRates]);
 
-  const zoneData = useMemo(() => {
-    const a: AggregatedRow[] = [];
-    const b: AggregatedRow[] = [];
-    for (const row of aggregated) {
-      const assignment = zoneLookup[row.merchant_name];
-      if (assignment?.zone === "A") a.push(row);
-      else if (assignment?.zone === "B") b.push(row);
-    }
-    return { a, b };
-  }, [aggregated]);
 
   return (
     <div className="space-y-4">
@@ -451,38 +441,7 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
           <p className="text-xs">Expected columns: merchant_name, total_forecast, date</p>
         </div>
       ) : (
-        <Tabs value={subTab} onValueChange={setSubTab}>
-          <div className="sm:hidden">
-            <select value={subTab} onChange={(e) => setSubTab(e.target.value)} className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground">
-              <option value="all">All Merchants</option>
-              <option value="zoneA">Zone A</option>
-              <option value="zoneB">Zone B</option>
-            </select>
-          </div>
-          <div className="hidden sm:block">
-            <TabsList className="bg-secondary border border-border">
-              <TabsTrigger value="all" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Activity size={14} /> All Merchants
-              </TabsTrigger>
-              <TabsTrigger value="zoneA" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <MapPin size={14} /> Zone A
-              </TabsTrigger>
-              <TabsTrigger value="zoneB" className="text-xs gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <MapPin size={14} /> Zone B
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="all">
-            <ForecastTable data={aggregated} title="All Merchants" />
-          </TabsContent>
-          <TabsContent value="zoneA">
-            <ForecastTable data={zoneData.a} title="Zone A" />
-          </TabsContent>
-          <TabsContent value="zoneB">
-            <ForecastTable data={zoneData.b} title="Zone B" />
-          </TabsContent>
-        </Tabs>
+          <ForecastTable data={aggregated} title="All Merchants" />
       )}
     </div>
   );

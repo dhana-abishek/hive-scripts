@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, Shuffle, type LucideIcon } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
@@ -113,10 +114,22 @@ function Dashboard() {
     return [...adjusted, ...extraRows];
   }, [flowData, extraMerchants, pickingRates, packingRates, inflowEnabled, overnightVolumes]);
 
-  const [activeTab, setActiveTab] = useState("flow");
-  const [flowSubTab, setFlowSubTab] = useState("all");
-  const [perfSubTab, setPerfSubTab] = useState("picking");
-  const [forecastSubTab, setForecastSubTab] = useState("forecast");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const activeTab     = searchParams.get("tab")         ?? "flow";
+  const flowSubTab    = searchParams.get("flowSub")     ?? "all";
+  const perfSubTab    = searchParams.get("perfSub")     ?? "picking";
+  const forecastSubTab = searchParams.get("forecastSub") ?? "forecast";
+
+  const setParam = useCallback((key: string, value: string) => {
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.set(key, value); return next; },
+      { replace: true });
+  }, [setSearchParams]);
+
+  const setActiveTab      = (v: string) => setParam("tab", v);
+  const setFlowSubTab     = (v: string) => setParam("flowSub", v);
+  const setPerfSubTab     = (v: string) => setParam("perfSub", v);
+  const setForecastSubTab = (v: string) => setParam("forecastSub", v);
 
   const stats = useMemo(() => {
     const MULTIPLIER = 1.125;

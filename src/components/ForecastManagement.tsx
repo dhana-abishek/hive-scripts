@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, Users } from "lucide-react";
+import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, Users, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -213,6 +213,380 @@ function ForecastTable({
     </div>
   );
 }
+
+// ─── Forecast Accuracy ────────────────────────────────────────────────────────
+
+const FORECAST_ACCURACY_DATA_KEY = "forecastAccuracyData";
+
+interface StoredForecastAccuracyRow {
+  date: string;
+  merchant_name: string;
+  base_forecast: number;
+  pre_cut_off_orders: number;
+}
+
+interface StoredForecastAccuracyData {
+  rows: StoredForecastAccuracyRow[];
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+interface ForecastAccuracyRow {
+  date: Date;
+  merchant_name: string;
+  base_forecast: number;
+  pre_cut_off_orders: number;
+}
+
+interface AggregatedAccuracyRow {
+  merchant_name: string;
+  base_forecast_total: number;
+  pre_cut_off_total: number;
+  hc_base_forecast: number;
+  hc_pre_cut_off: number;
+  hc_difference: number;
+  is_unbenchmarked?: boolean;
+}
+
+type AccuracySortKey = "merchant_name" | "hc_base_forecast" | "hc_pre_cut_off" | "hc_difference";
+
+function parseForecastAccuracyCsv(text: string): ForecastAccuracyRow[] {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase().trim());
+  const dateIdx = header.indexOf("date");
+  const merchantIdx = header.indexOf("merchant_name");
+  const baseIdx = header.indexOf("base_forecast");
+  const preCutIdx = header.indexOf("pre_cut_off_orders");
+  if (merchantIdx === -1 || (baseIdx === -1 && preCutIdx === -1)) return [];
+
+  const rows: ForecastAccuracyRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const cols = parseCsvLine(lines[i]);
+    const merchant = cols[merchantIdx]?.trim();
+    if (!merchant) continue;
+    const base_forecast = baseIdx !== -1 ? parseInt(cols[baseIdx], 10) || 0 : 0;
+    const pre_cut_off_orders = preCutIdx !== -1 ? parseInt(cols[preCutIdx], 10) || 0 : 0;
+    let date = new Date();
+    if (dateIdx !== -1 && cols[dateIdx]) {
+      try {
+        date = parse(cols[dateIdx], "MMMM d, yyyy", new Date());
+        if (isNaN(date.getTime())) date = new Date(cols[dateIdx]);
+      } catch {
+        date = new Date();
+      }
+    }
+    rows.push({ date, merchant_name: merchant, base_forecast, pre_cut_off_orders });
+  }
+  return rows;
+}
+
+function ForecastAccuracyTable({ data }: { data: AggregatedAccuracyRow[] }) {
+  const [sortKey, setSortKey] = useState<AccuracySortKey>("hc_base_forecast");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [search, setSearch] = useState("");
+
+  const totalHcBase = useMemo(() => data.reduce((s, r) => s + r.hc_base_forecast, 0), [data]);
+  const totalHcPreCut = useMemo(() => data.reduce((s, r) => s + r.hc_pre_cut_off, 0), [data]);
+  const totalDiff = totalHcBase - totalHcPreCut;
+
+  const filtered = useMemo(() => {
+    let result = data;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((r) => r.merchant_name.toLowerCase().includes(q));
+    }
+    return [...result].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+      return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+  }, [data, sortKey, sortDir, search]);
+
+  const toggleSort = (key: AccuracySortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("desc"); }
+  };
+
+  const SortIcon = ({ col }: { col: AccuracySortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown size={12} className="text-muted-foreground/50" />;
+    return sortDir === "asc" ? <ArrowUp size={12} className="text-primary" /> : <ArrowDown size={12} className="text-primary" />;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Total HC (Base Forecast)" value={totalHcBase.toFixed(1)} icon={<Users size={16} />} subtext={`${data.length} merchants`} />
+        <StatCard label="Total HC (Pre-Cutoff Orders)" value={totalHcPreCut.toFixed(1)} icon={<Users size={16} />} />
+        <StatCard label="Total HC Difference" value={totalDiff.toFixed(1)} icon={<TrendingUp size={16} />} subtext={totalDiff > 0 ? "Base forecast higher" : totalDiff < 0 ? "Pre-cutoff higher" : "No difference"} />
+        <StatCard label="Merchants" value={data.length.toString()} icon={<Package size={16} />} subtext={data.filter((r) => r.is_unbenchmarked).length > 0 ? `${data.filter((r) => r.is_unbenchmarked).length} unbenchmarked` : "All benchmarked"} />
+      </div>
+      <div className="rounded-md border bg-card">
+        <div className="p-3 border-b flex items-center gap-2">
+          <Search size={14} className="text-muted-foreground" />
+          <input type="text" placeholder="Search merchants..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1" />
+          <span className="text-xs text-muted-foreground">{filtered.length} merchants</span>
+        </div>
+        <div className="overflow-auto max-h-[600px]">
+          <table className="w-full">
+            <thead className="sticky top-0 bg-card z-10">
+              <tr className="border-b">
+                <th className="table-header px-3 py-2 text-left cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("merchant_name")}>
+                  <span className="inline-flex items-center gap-1">Merchant <SortIcon col="merchant_name" /></span>
+                </th>
+                <th className="table-header px-3 py-2 text-right cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("hc_base_forecast")}>
+                  <span className="inline-flex items-center gap-1 justify-end">HC (Base Forecast) <SortIcon col="hc_base_forecast" /></span>
+                </th>
+                <th className="table-header px-3 py-2 text-right cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("hc_pre_cut_off")}>
+                  <span className="inline-flex items-center gap-1 justify-end">HC (Pre-Cutoff Orders) <SortIcon col="hc_pre_cut_off" /></span>
+                </th>
+                <th className="table-header px-3 py-2 text-right cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort("hc_difference")}>
+                  <span className="inline-flex items-center gap-1 justify-end">Difference <SortIcon col="hc_difference" /></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row) => (
+                <tr key={row.merchant_name} className={cn("border-b border-border/50 hover:bg-secondary/50 transition-colors", row.is_unbenchmarked && "bg-red-500/10 hover:bg-red-500/15")}>
+                  <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">{row.merchant_name}</td>
+                  <td className="table-cell px-3 py-2 text-right">{row.hc_base_forecast.toFixed(2)}</td>
+                  <td className="table-cell px-3 py-2 text-right">{row.hc_pre_cut_off.toFixed(2)}</td>
+                  <td className={cn("table-cell px-3 py-2 text-right font-semibold", row.hc_difference > 0 ? "text-amber-500" : row.hc_difference < 0 ? "text-green-500" : "")}>
+                    {row.hc_difference > 0 ? "+" : ""}{row.hc_difference.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={4} className="px-3 py-8 text-center text-sm text-muted-foreground">No merchants found</td></tr>
+              )}
+            </tbody>
+            {filtered.length > 0 && (
+              <tfoot className="border-t-2 border-border bg-secondary/50">
+                <tr>
+                  <td className="px-3 py-2 text-sm font-bold">Total</td>
+                  <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.hc_base_forecast, 0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right text-sm font-bold">{filtered.reduce((s, r) => s + r.hc_pre_cut_off, 0).toFixed(2)}</td>
+                  <td className={cn("px-3 py-2 text-right text-sm font-bold", (() => { const d = filtered.reduce((s, r) => s + r.hc_difference, 0); return d > 0 ? "text-amber-500" : d < 0 ? "text-green-500" : ""; })())}>
+                    {(() => { const d = filtered.reduce((s, r) => s + r.hc_difference, 0); return (d > 0 ? "+" : "") + d.toFixed(2); })()}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ForecastAccuracyProps {
+  pickingRates?: Record<string, number>;
+  packingRates?: Record<string, number>;
+}
+
+export function ForecastAccuracy({ pickingRates = {}, packingRates = {} }: ForecastAccuracyProps) {
+  const [rawData, setRawData] = useState<ForecastAccuracyRow[]>([]);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
+
+  useEffect(() => {
+    (async () => {
+      const stored = await cloudGet<StoredForecastAccuracyData>(FORECAST_ACCURACY_DATA_KEY);
+      if (stored?.rows?.length) {
+        const rows: ForecastAccuracyRow[] = stored.rows.map((r) => ({
+          date: new Date(r.date),
+          merchant_name: r.merchant_name,
+          base_forecast: r.base_forecast,
+          pre_cut_off_orders: r.pre_cut_off_orders,
+        }));
+        setRawData(rows);
+        if (stored.dateFrom) setDateFrom(new Date(stored.dateFrom));
+        if (stored.dateTo) setDateTo(new Date(stored.dateTo));
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    const stored: StoredForecastAccuracyData = {
+      rows: rawData.map((r) => ({
+        date: r.date.toISOString(),
+        merchant_name: r.merchant_name,
+        base_forecast: r.base_forecast,
+        pre_cut_off_orders: r.pre_cut_off_orders,
+      })),
+      dateFrom: dateFrom?.toISOString(),
+      dateTo: dateTo?.toISOString(),
+    };
+    void cloudSet(FORECAST_ACCURACY_DATA_KEY, stored);
+  }, [rawData, dateFrom, dateTo]);
+
+  const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      if (!text) return;
+      const rows = parseForecastAccuracyCsv(text);
+      setRawData(rows);
+      if (rows.length > 0) {
+        const dates = rows.map((r) => r.date.getTime()).filter((t) => !isNaN(t));
+        if (dates.length > 0) {
+          setDateFrom(new Date(Math.min(...dates)));
+          setDateTo(new Date(Math.max(...dates)));
+        }
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, []);
+
+  const availableDates = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rawData) {
+      if (!isNaN(r.date.getTime())) set.add(format(r.date, "yyyy-MM-dd"));
+    }
+    return Array.from(set).sort();
+  }, [rawData]);
+
+  const filteredData = useMemo(() => {
+    if (!dateFrom && !dateTo) return rawData;
+    return rawData.filter((r) => {
+      if (isNaN(r.date.getTime())) return true;
+      if (dateFrom && dateTo) return isWithinInterval(r.date, { start: dateFrom, end: dateTo }) || isSameDay(r.date, dateFrom) || isSameDay(r.date, dateTo);
+      if (dateFrom) return r.date >= dateFrom || isSameDay(r.date, dateFrom);
+      if (dateTo) return r.date <= dateTo || isSameDay(r.date, dateTo);
+      return true;
+    });
+  }, [rawData, dateFrom, dateTo]);
+
+  const aggregated = useMemo<AggregatedAccuracyRow[]>(() => {
+    // Group per merchant per date for both base_forecast and pre_cut_off_orders
+    const map: Record<string, Map<string, { base: number; preCut: number; date: Date }>> = {};
+    for (const r of filteredData) {
+      if (!map[r.merchant_name]) map[r.merchant_name] = new Map();
+      if (!isNaN(r.date.getTime())) {
+        const dateStr = format(r.date, "yyyy-MM-dd");
+        const entry = map[r.merchant_name].get(dateStr);
+        if (entry) {
+          entry.base += r.base_forecast;
+          entry.preCut += r.pre_cut_off_orders;
+        } else {
+          map[r.merchant_name].set(dateStr, { base: r.base_forecast, preCut: r.pre_cut_off_orders, date: r.date });
+        }
+      }
+    }
+
+    const rows: AggregatedAccuracyRow[] = [];
+    for (const [merchant_name, dateMap] of Object.entries(map)) {
+      const key = merchant_name.toLowerCase();
+      const pickRate = pickingRates[key];
+      const packRate = packingRates[key];
+      const isBenchmarked = pickRate && pickRate > 0 && packRate && packRate > 0;
+
+      let base_forecast_total = 0;
+      let pre_cut_off_total = 0;
+      let hc_base_forecast = 0;
+      let hc_pre_cut_off = 0;
+
+      for (const { base, preCut, date } of dateMap.values()) {
+        base_forecast_total += base;
+        pre_cut_off_total += preCut;
+        if (isBenchmarked) {
+          const shiftHrs = getShiftHours(date);
+          if (shiftHrs > 0) {
+            const basePickHrs = base / (pickRate * MULTIPLIER);
+            const basePackHrs = base / (packRate * MULTIPLIER);
+            hc_base_forecast += (basePickHrs + basePackHrs) / shiftHrs;
+            const preCutPickHrs = preCut / (pickRate * MULTIPLIER);
+            const preCutPackHrs = preCut / (packRate * MULTIPLIER);
+            hc_pre_cut_off += (preCutPickHrs + preCutPackHrs) / shiftHrs;
+          }
+        }
+      }
+
+      rows.push({
+        merchant_name,
+        base_forecast_total,
+        pre_cut_off_total,
+        hc_base_forecast: Math.round(hc_base_forecast * 100) / 100,
+        hc_pre_cut_off: Math.round(hc_pre_cut_off * 100) / 100,
+        hc_difference: Math.round((hc_base_forecast - hc_pre_cut_off) * 100) / 100,
+        is_unbenchmarked: !isBenchmarked,
+      });
+    }
+
+    return rows;
+  }, [filteredData, pickingRates, packingRates]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Upload Forecast Accuracy CSV</label>
+          <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors cursor-pointer">
+            <Upload size={14} />
+            {rawData.length > 0 ? `${rawData.length} rows loaded` : "Choose CSV"}
+            <input type="file" accept=".csv" className="hidden" onChange={handleUpload} />
+          </label>
+        </div>
+
+        {rawData.length > 0 && (
+          <>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">From</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs font-normal", !dateFrom && "text-muted-foreground")}>
+                    <Calendar size={14} className="mr-1" />
+                    {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">To</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs font-normal", !dateTo && "text-muted-foreground")}>
+                    <Calendar size={14} className="mr-1" />
+                    {dateTo ? format(dateTo, "MMM d, yyyy") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>Clear dates</Button>
+            {availableDates.length > 0 && (
+              <span className="text-xs text-muted-foreground self-center">
+                {availableDates.length} date(s) in data
+              </span>
+            )}
+          </>
+        )}
+      </div>
+
+      {rawData.length === 0 ? (
+        <div className="rounded-md border bg-card p-12 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+          <Upload size={32} />
+          <p className="text-sm">Upload a forecast accuracy CSV to get started</p>
+          <p className="text-xs">Expected columns: merchant_name, base_forecast, pre_cut_off_orders, date</p>
+        </div>
+      ) : (
+        <ForecastAccuracyTable data={aggregated} />
+      )}
+    </div>
+  );
+}
+
+// ─── Forecast (original) ──────────────────────────────────────────────────────
 
 interface ForecastManagementProps {
   pickingRates?: Record<string, number>;

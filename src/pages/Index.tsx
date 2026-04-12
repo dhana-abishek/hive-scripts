@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, type LucideIcon } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, Shuffle, type LucideIcon } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable } from "@/components/BenchmarkTable";
@@ -10,6 +10,7 @@ import { PerformanceTracker } from "@/components/PerformanceTracker";
 import { ActualSPH } from "@/components/ActualSPH";
 import { Reports } from "@/components/Reports";
 import { ForecastManagement, ForecastAccuracy } from "@/components/ForecastManagement";
+import { Reshuffling } from "@/components/Reshuffling";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import { getInflowFactor } from "@/lib/inflowEstimation";
@@ -22,6 +23,7 @@ const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
   { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
   { value: "reports", label: "Reports", icon: FileText },
   { value: "forecast", label: "Forecast Overview", icon: CalendarRange },
+  { value: "reshuffling", label: "Reshuffling", icon: Shuffle },
 ];
 
 function Dashboard() {
@@ -376,6 +378,9 @@ function Dashboard() {
                 <ForecastAccuracy pickingRates={pickingRates} packingRates={packingRates} />
               </TabsContent>
             </Tabs>
+          </TabsContent>
+          <TabsContent value="reshuffling">
+            <Reshuffling />
           </TabsContent>
         </Tabs>
       </main>

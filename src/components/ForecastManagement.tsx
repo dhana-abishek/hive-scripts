@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Package, Users, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -407,6 +407,7 @@ export function ForecastAccuracy({ pickingRates = {}, packingRates = {} }: Forec
   const [rawData, setRawData] = useState<ForecastAccuracyRow[]>([]);
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -422,10 +423,12 @@ export function ForecastAccuracy({ pickingRates = {}, packingRates = {} }: Forec
         if (stored.dateFrom) setDateFrom(new Date(stored.dateFrom));
         if (stored.dateTo) setDateTo(new Date(stored.dateTo));
       }
+      hasLoadedRef.current = true;
     })();
   }, []);
 
   useEffect(() => {
+    if (!hasLoadedRef.current) return;
     const stored: StoredForecastAccuracyData = {
       rows: rawData.map((r) => ({
         date: r.date.toISOString(),
@@ -640,9 +643,9 @@ interface ForecastManagementProps {
 
 export function ForecastManagement({ pickingRates = {}, packingRates = {} }: ForecastManagementProps) {
   const [rawData, setRawData] = useState<ForecastRow[]>([]);
-  
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const hasLoadedRef = useRef(false);
 
   // Load persisted forecast data from cloud storage on mount
   useEffect(() => {
@@ -658,11 +661,13 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
         if (stored.dateFrom) setDateFrom(new Date(stored.dateFrom));
         if (stored.dateTo) setDateTo(new Date(stored.dateTo));
       }
+      hasLoadedRef.current = true;
     })();
   }, []);
 
   // Persist forecast data to cloud storage whenever it changes
   useEffect(() => {
+    if (!hasLoadedRef.current) return;
     const stored: StoredForecastData = {
       rows: rawData.map((r) => ({
         date: r.date.toISOString(),

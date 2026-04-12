@@ -202,7 +202,7 @@ export function Reshuffling() {
   };
 
   const handleAddRow = () => {
-    setRows((prev) => [...prev, { ...form }]);
+    setRows((prev) => [{ ...form }, ...prev]);
     setForm(EMPTY_FORM);
     setAddDialogOpen(false);
   };

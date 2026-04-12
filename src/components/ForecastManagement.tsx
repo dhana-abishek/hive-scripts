@@ -245,6 +245,8 @@ interface AggregatedAccuracyRow {
   hc_base_forecast: number;
   hc_pre_cut_off: number;
   hc_difference: number;
+  base_hours: number;
+  pre_cut_hours: number;
   is_unbenchmarked?: boolean;
 }
 
@@ -287,9 +289,25 @@ function ForecastAccuracyTable({ data }: { data: AggregatedAccuracyRow[] }) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
 
-  const totalHcBase = useMemo(() => data.reduce((s, r) => s + r.hc_base_forecast, 0), [data]);
-  const totalHcPreCut = useMemo(() => data.reduce((s, r) => s + r.hc_pre_cut_off, 0), [data]);
-  const totalDiff = totalHcBase - totalHcPreCut;
+  const totalDiff = useMemo(() => data.reduce((s, r) => s + r.hc_difference, 0), [data]);
+
+  const { idealSphBase, idealSphPreCut } = useMemo(() => {
+    const benchmarked = data.filter((r) => !r.is_unbenchmarked);
+    const totalBaseHrs = benchmarked.reduce((s, r) => s + r.base_hours, 0);
+    const totalPreCutHrs = benchmarked.reduce((s, r) => s + r.pre_cut_hours, 0);
+    const totalBaseOrders = benchmarked.reduce((s, r) => s + r.base_forecast_total, 0);
+    const totalPreCutOrders = benchmarked.reduce((s, r) => s + r.pre_cut_off_total, 0);
+    return {
+      idealSphBase: totalBaseHrs > 0 ? totalBaseOrders / totalBaseHrs : 0,
+      idealSphPreCut: totalPreCutHrs > 0 ? totalPreCutOrders / totalPreCutHrs : 0,
+    };
+  }, [data]);
+
+  const sphDifference = idealSphBase - idealSphPreCut;
+
+  const unbenchmarkedVolume = useMemo(() => {
+    return data.filter((r) => r.is_unbenchmarked).reduce((s, r) => s + r.base_forecast_total, 0);
+  }, [data]);
 
   const filtered = useMemo(() => {
     let result = data;
@@ -317,11 +335,10 @@ function ForecastAccuracyTable({ data }: { data: AggregatedAccuracyRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total HC (Base Forecast)" value={totalHcBase.toFixed(1)} icon={<Users size={16} />} subtext={`${data.length} merchants`} />
-        <StatCard label="Total HC (Pre-Cutoff Orders)" value={totalHcPreCut.toFixed(1)} icon={<Users size={16} />} />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <StatCard label="Ideal SPH Difference" value={(sphDifference > 0 ? "+" : "") + sphDifference.toFixed(2)} icon={<TrendingUp size={16} />} subtext={`Base: ${idealSphBase.toFixed(2)} | Pre-cut: ${idealSphPreCut.toFixed(2)}`} />
         <StatCard label="Total HC Difference" value={totalDiff.toFixed(1)} icon={<TrendingUp size={16} />} subtext={totalDiff > 0 ? "Base forecast higher" : totalDiff < 0 ? "Pre-cutoff higher" : "No difference"} />
-        <StatCard label="Merchants" value={data.length.toString()} icon={<Package size={16} />} subtext={data.filter((r) => r.is_unbenchmarked).length > 0 ? `${data.filter((r) => r.is_unbenchmarked).length} unbenchmarked` : "All benchmarked"} />
+        <StatCard label="Unbenchmarked Order Volume" value={unbenchmarkedVolume.toLocaleString()} icon={<Package size={16} />} subtext={`${data.filter((r) => r.is_unbenchmarked).length} unbenchmarked merchants`} />
       </div>
       <div className="rounded-md border bg-card">
         <div className="p-3 border-b flex items-center gap-2">
@@ -479,6 +496,24 @@ export function ForecastAccuracy({ pickingRates = {}, packingRates = {} }: Forec
       }
     }
 
+    // First pass: compute per-date average Ideal SPH from benchmarked merchants only
+    const dateSphBase: Record<string, { orders: number; hours: number }> = {};
+    const dateSphPreCut: Record<string, { orders: number; hours: number }> = {};
+    for (const [merchant_name, dateMap] of Object.entries(map)) {
+      const key = merchant_name.toLowerCase();
+      const pickRate = pickingRates[key];
+      const packRate = packingRates[key];
+      if (!(pickRate && pickRate > 0 && packRate && packRate > 0)) continue;
+      for (const [dateStr, { base, preCut }] of dateMap.entries()) {
+        if (!dateSphBase[dateStr]) dateSphBase[dateStr] = { orders: 0, hours: 0 };
+        if (!dateSphPreCut[dateStr]) dateSphPreCut[dateStr] = { orders: 0, hours: 0 };
+        dateSphBase[dateStr].orders += base;
+        dateSphBase[dateStr].hours += base / (pickRate * MULTIPLIER) + base / (packRate * MULTIPLIER);
+        dateSphPreCut[dateStr].orders += preCut;
+        dateSphPreCut[dateStr].hours += preCut / (pickRate * MULTIPLIER) + preCut / (packRate * MULTIPLIER);
+      }
+    }
+
     const rows: AggregatedAccuracyRow[] = [];
     for (const [merchant_name, dateMap] of Object.entries(map)) {
       const key = merchant_name.toLowerCase();
@@ -490,19 +525,27 @@ export function ForecastAccuracy({ pickingRates = {}, packingRates = {} }: Forec
       let pre_cut_off_total = 0;
       let hc_base_forecast = 0;
       let hc_pre_cut_off = 0;
+      let base_hours = 0;
+      let pre_cut_hours = 0;
 
-      for (const { base, preCut, date } of dateMap.values()) {
+      for (const [dateStr, { base, preCut, date }] of dateMap.entries()) {
         base_forecast_total += base;
         pre_cut_off_total += preCut;
-        if (isBenchmarked) {
-          const shiftHrs = getShiftHours(date);
-          if (shiftHrs > 0) {
-            const basePickHrs = base / (pickRate * MULTIPLIER);
-            const basePackHrs = base / (packRate * MULTIPLIER);
-            hc_base_forecast += (basePickHrs + basePackHrs) / shiftHrs;
-            const preCutPickHrs = preCut / (pickRate * MULTIPLIER);
-            const preCutPackHrs = preCut / (packRate * MULTIPLIER);
-            hc_pre_cut_off += (preCutPickHrs + preCutPackHrs) / shiftHrs;
+        const shiftHrs = getShiftHours(date);
+        if (shiftHrs > 0) {
+          if (isBenchmarked) {
+            const bBaseHrs = base / (pickRate * MULTIPLIER) + base / (packRate * MULTIPLIER);
+            const bPreCutHrs = preCut / (pickRate * MULTIPLIER) + preCut / (packRate * MULTIPLIER);
+            base_hours += bBaseHrs;
+            pre_cut_hours += bPreCutHrs;
+            hc_base_forecast += bBaseHrs / shiftHrs;
+            hc_pre_cut_off += bPreCutHrs / shiftHrs;
+          } else {
+            // Assign the average Ideal SPH of that date from benchmarked merchants
+            const avgSphBase = dateSphBase[dateStr]?.hours > 0 ? dateSphBase[dateStr].orders / dateSphBase[dateStr].hours : 0;
+            const avgSphPreCut = dateSphPreCut[dateStr]?.hours > 0 ? dateSphPreCut[dateStr].orders / dateSphPreCut[dateStr].hours : 0;
+            if (avgSphBase > 0) hc_base_forecast += base / (avgSphBase * shiftHrs);
+            if (avgSphPreCut > 0) hc_pre_cut_off += preCut / (avgSphPreCut * shiftHrs);
           }
         }
       }
@@ -514,6 +557,8 @@ export function ForecastAccuracy({ pickingRates = {}, packingRates = {} }: Forec
         hc_base_forecast: Math.round(hc_base_forecast * 100) / 100,
         hc_pre_cut_off: Math.round(hc_pre_cut_off * 100) / 100,
         hc_difference: Math.round((hc_base_forecast - hc_pre_cut_off) * 100) / 100,
+        base_hours,
+        pre_cut_hours,
         is_unbenchmarked: !isBenchmarked,
       });
     }

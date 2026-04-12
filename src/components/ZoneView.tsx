@@ -230,9 +230,19 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
       };
     });
 
+    // Score each merchant by (hours / SPH): high hours = fewer merchants needed,
+    // low SPH = inefficient merchant = better candidate to defer.
+    // Sorting by this score descending minimises the number of merchants suggested
+    // while still preferring the least-efficient ones when impact is equal.
     const sorted = [...merchantData]
       .filter(r => r.order_volume > (backlog[r.merchant_name] || 0))
-      .sort((a, b) => a.ideal_sph - b.ideal_sph);
+      .sort((a, b) => {
+        const aHrs = a.picking_hours + a.packing_hours;
+        const bHrs = b.picking_hours + b.packing_hours;
+        const aScore = a.ideal_sph > 0 ? aHrs / a.ideal_sph : aHrs;
+        const bScore = b.ideal_sph > 0 ? bHrs / b.ideal_sph : bHrs;
+        return bScore - aScore;
+      });
 
     const suggested: { merchant_name: string; suggestedBacklog: number; orders: number; hoursSaved: number }[] = [];
     let toFree = totalRequired - availableCapacity;

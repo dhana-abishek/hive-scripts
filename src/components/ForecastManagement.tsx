@@ -159,8 +159,8 @@ function ForecastTable({
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total Forecast" value={totalOrders.toLocaleString()} icon={<Package size={16} />} subtext={`${data.length} merchants`} />
-        <StatCard label="Unbenchmarked Orders" value={unbenchmarked.volume.toLocaleString()} icon={<MapPin size={16} />} subtext={`${unbenchmarked.count} unbenchmarked merchants`} />
-        <StatCard label="Ideal SPH" value={weightedAvgIdealSph.toFixed(2)} icon={<Activity size={16} />} />
+        <StatCard label="Unbenchmarked Orders" value={unbenchmarked.volume.toLocaleString()} icon={<Package size={16} />} subtext={`${unbenchmarked.count} unbenchmarked merchants`} />
+        <StatCard label="Ideal SPH" value={weightedAvgIdealSph.toFixed(2)} icon={<Users size={16} />} />
         <StatCard label="Total HC Needed" value={totalHC.toFixed(1)} icon={<Users size={16} />} />
       </div>
       <div className="rounded-md border bg-card">

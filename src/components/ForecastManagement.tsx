@@ -186,7 +186,7 @@ function ForecastTable({
             </thead>
             <tbody>
               {filtered.map((row) => (
-                <tr key={row.merchant_name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
+                <tr key={row.merchant_name} className={cn("border-b border-border/50 hover:bg-secondary/50 transition-colors", row.is_unbenchmarked && row.total_forecast > 0 && "bg-red-500/10 hover:bg-red-500/15")}>
                   <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">{row.merchant_name}</td>
                   <td className="table-cell px-3 py-2 text-right">{row.total_forecast.toLocaleString()}</td>
                   <td className="table-cell px-3 py-2 text-right">{row.ideal_sph.toFixed(2)}</td>

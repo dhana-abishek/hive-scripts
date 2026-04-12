@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, Package, Shuffle, TrendingUp } from "lucide-react";
+import { Upload, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/SummaryStats";
 import { cloudGet, cloudSet } from "@/lib/cloudStorage";
 
 const RESHUFFLING_DATA_KEY = "reshufflingData";
@@ -138,10 +137,6 @@ export function Reshuffling() {
     });
   })();
 
-  const totalShipments = rows.reduce((s, r) => s + r.shipments_affected, 0);
-  const totalMaxAmount = rows.reduce((s, r) => s + r.max_reshuffling_amount_suggested, 0);
-  const uniqueSkus = new Set(rows.map((r) => r.sku_name)).size;
-
   const thClass =
     "px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide cursor-pointer select-none hover:text-foreground";
   const tdClass = "px-3 py-2 text-xs text-foreground";
@@ -175,27 +170,6 @@ export function Reshuffling() {
           </Button>
         </div>
       </div>
-
-      {/* Stat cards */}
-      {rows.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatCard
-            label="Total SKUs"
-            value={uniqueSkus.toString()}
-            icon={<Package size={14} className="text-primary" />}
-          />
-          <StatCard
-            label="Shipments Affected"
-            value={totalShipments.toLocaleString()}
-            icon={<Shuffle size={14} className="text-primary" />}
-          />
-          <StatCard
-            label="Max Reshuffle Amount"
-            value={totalMaxAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            icon={<TrendingUp size={14} className="text-primary" />}
-          />
-        </div>
-      )}
 
       {/* Table */}
       <div className="rounded-md border bg-card overflow-hidden">

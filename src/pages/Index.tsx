@@ -36,6 +36,8 @@ function Dashboard() {
     extraMerchants, setExtraMerchants,
     inflowEnabled, setInflowEnabled,
     overnightVolumes, setOvernightVolumes,
+    restockCandidates, setRestockCandidates,
+    confirmRestockExclusion, dismissRestockCandidates,
     pickUploads, pickActiveId,
     handlePickNewUpload, handlePickSelect, handlePickRename, handlePickDelete,
     packUploads, packActiveId,
@@ -261,7 +263,7 @@ function Dashboard() {
                     <span className="text-sm">Loading live data from Metabase...</span>
                   </div>
                 ) : (
-                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} availableHeadcount={availableHeadcount} />
+                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} />
                 )}
               </TabsContent>
               <TabsContent value="zoneA">

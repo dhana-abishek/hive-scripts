@@ -19,6 +19,8 @@ interface DashboardState {
   extraMerchants: ExtraMerchant[];
   inflowEnabled: boolean;
   overnightVolumes: Record<string, number>;
+  /** Restock orders detected from the CSV, pending user confirmation to exclude. */
+  restockCandidates: Record<string, number>;
   pickUploads: BenchmarkUpload[];
   pickActiveId: string | null;
   packUploads: BenchmarkUpload[];
@@ -33,6 +35,11 @@ interface DashboardActions {
   setExtraMerchants: (m: ExtraMerchant[]) => void;
   setInflowEnabled: (enabled: boolean) => void;
   setOvernightVolumes: (volumes: Record<string, number>) => void;
+  setRestockCandidates: (candidates: Record<string, number>) => void;
+  /** User confirms — subtract restock candidates from overnight volumes and persist. */
+  confirmRestockExclusion: () => void;
+  /** User dismisses — clear candidates without changing overnight volumes. */
+  dismissRestockCandidates: () => void;
   handlePickNewUpload: (upload: BenchmarkUpload) => Promise<void>;
   handlePickSelect: (id: string) => Promise<void>;
   handlePickRename: (id: string, newName: string) => Promise<void>;
@@ -63,6 +70,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
   const [inflowEnabled, setInflowEnabledRaw] = useState(false);
   const [overnightVolumes, setOvernightVolumesRaw] = useState<Record<string, number>>({});
+  const [restockCandidates, setRestockCandidatesRaw] = useState<Record<string, number>>({});
   const [pickUploads, setPickUploads] = useState<BenchmarkUpload[]>([]);
   const [pickActiveId, setPickActiveId] = useState<string | null>(null);
   const [packUploads, setPackUploads] = useState<BenchmarkUpload[]>([]);
@@ -161,6 +169,32 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setRestockCandidates = useCallback((candidates: Record<string, number>) => {
+    setRestockCandidatesRaw(candidates);
+  }, []);
+
+  const confirmRestockExclusion = useCallback(() => {
+    setOvernightVolumesRaw((prev) => {
+      const updated: Record<string, number> = {};
+      for (const [merchant, count] of Object.entries(prev)) {
+        const restock = restockCandidates[merchant] || 0;
+        const effective = Math.max(0, count - restock);
+        if (effective > 0) updated[merchant] = effective;
+      }
+      if (Object.keys(updated).length > 0) {
+        void idbSet(OVERNIGHT_VOLUMES_KEY, updated);
+      } else {
+        void idbRemove(OVERNIGHT_VOLUMES_KEY);
+      }
+      return updated;
+    });
+    setRestockCandidatesRaw({});
+  }, [restockCandidates]);
+
+  const dismissRestockCandidates = useCallback(() => {
+    setRestockCandidatesRaw({});
+  }, []);
+
   // Pick handlers
   const handlePickNewUpload = useCallback(async (upload: BenchmarkUpload) => {
     const next = [...pickUploads, upload];
@@ -241,21 +275,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<DashboardContextType>(() => ({
     nonProdHeadcount, availableHC_A, availableHC_B, availableHeadcount,
-    extraMerchants, inflowEnabled, overnightVolumes,
+    extraMerchants, inflowEnabled, overnightVolumes, restockCandidates,
     pickUploads, pickActiveId, packUploads, packActiveId,
     backlog,
     setNonProdHeadcount, setAvailableHC_A, setAvailableHC_B,
     setExtraMerchants, setInflowEnabled, setOvernightVolumes,
+    setRestockCandidates, confirmRestockExclusion, dismissRestockCandidates,
     handlePickNewUpload, handlePickSelect, handlePickRename, handlePickDelete,
     handlePackNewUpload, handlePackSelect, handlePackRename, handlePackDelete,
     handleBacklogChange, handleResetBacklog, handleResetZoneBacklog,
   }), [
     nonProdHeadcount, availableHC_A, availableHC_B, availableHeadcount,
-    extraMerchants, inflowEnabled, overnightVolumes,
+    extraMerchants, inflowEnabled, overnightVolumes, restockCandidates,
     pickUploads, pickActiveId, packUploads, packActiveId,
     backlog,
     setNonProdHeadcount, setAvailableHC_A, setAvailableHC_B,
     setInflowEnabled, setOvernightVolumes,
+    setRestockCandidates, confirmRestockExclusion, dismissRestockCandidates,
     handlePickNewUpload, handlePickSelect, handlePickRename, handlePickDelete,
     handlePackNewUpload, handlePackSelect, handlePackRename, handlePackDelete,
     handleBacklogChange, handleResetBacklog, handleResetZoneBacklog,

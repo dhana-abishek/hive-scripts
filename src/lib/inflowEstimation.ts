@@ -1,5 +1,17 @@
 import { parseCSVLine, parseCSVHeaders } from "@/lib/csvParser";
 
+export interface OvernightParseResult {
+  /** Count of overnight orders per merchant (all qualifying orders). */
+  volumes: Record<string, number>;
+  /**
+   * Suspected restock orders per merchant — orders whose created_at date
+   * differs from their ready_for_fulfillment_at date, indicating they were
+   * held due to an out-of-stock SKU and released in bulk when stock returned.
+   * These are surfaced for user confirmation before being excluded.
+   */
+  restockCandidates: Record<string, number>;
+}
+
 /**
  * Calculates the inflow factor based on current day and time.
  *
@@ -52,8 +64,12 @@ export function getInflowFactor(now?: Date): { factor: number; baseFactor: numbe
  * between 1 PM the previous day and 7 AM today (overnight orders).
  * Uses the "created_at" column for date/time filtering to ensure
  * consistent inflow accuracy.
+ *
+ * Also detects suspected restock orders: orders whose created_at date
+ * differs from their ready_for_fulfillment_at date. These are returned
+ * separately as restockCandidates for user confirmation before exclusion.
  */
-export function parseOvernightVolumes(csvText: string, now?: Date): Record<string, number> {
+export function parseOvernightVolumes(csvText: string, now?: Date): OvernightParseResult {
   const d = now ?? new Date();
 
   // 1 PM yesterday
@@ -66,15 +82,19 @@ export function parseOvernightVolumes(csvText: string, now?: Date): Record<strin
   today7AM.setHours(7, 0, 0, 0);
 
   const lines = csvText.split("\n");
-  if (lines.length < 2) return {};
+  if (lines.length < 2) return { volumes: {}, restockCandidates: {} };
 
   // Find column indices from header
   const header = parseCSVHeaders(lines[0]);
   const createdIdx = header.findIndex(h => h.includes("created_at"));
   const merchantIdx = header.indexOf("merchant");
-  if (createdIdx === -1 || merchantIdx === -1) return {};
+  if (createdIdx === -1 || merchantIdx === -1) return { volumes: {}, restockCandidates: {} };
 
-  const counts: Record<string, number> = {};
+  // ready_for_fulfillment_at column — optional; used for restock detection
+  const rffIdx = header.findIndex(h => h.includes("ready_for_fulfillment"));
+
+  const volumes: Record<string, number> = {};
+  const restockCandidates: Record<string, number> = {};
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -91,11 +111,23 @@ export function parseOvernightVolumes(csvText: string, now?: Date): Record<strin
     if (!createdDate) continue;
 
     if (createdDate >= yesterday1PM && createdDate < today7AM) {
-      counts[merchant] = (counts[merchant] || 0) + 1;
+      volumes[merchant] = (volumes[merchant] || 0) + 1;
+
+      // Restock detection: flag if ready_for_fulfillment_at is on a different
+      // calendar day than created_at (order was held, then bulk-released)
+      if (rffIdx !== -1 && fields.length > rffIdx) {
+        const rffRaw = fields[rffIdx].trim();
+        if (rffRaw) {
+          const rffDate = parseMetabaseDate(rffRaw);
+          if (rffDate && !sameDay(createdDate, rffDate)) {
+            restockCandidates[merchant] = (restockCandidates[merchant] || 0) + 1;
+          }
+        }
+      }
     }
   }
 
-  return counts;
+  return { volumes, restockCandidates };
 }
 
 /** Parse dates like "April 2, 2026, 10:30" */
@@ -107,4 +139,13 @@ function parseMetabaseDate(raw: string): Date | null {
   } catch {
     return null;
   }
+}
+
+/** Returns true if two dates fall on the same calendar day. */
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }

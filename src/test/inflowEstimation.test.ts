@@ -60,16 +60,53 @@ describe("parseOvernightVolumes", () => {
     ].join("\n");
 
     const result = parseOvernightVolumes(csv, now);
-    expect(result["MerchA"]).toBe(2);
-    expect(result["MerchB"]).toBe(1);
+    expect(result.volumes["MerchA"]).toBe(2);
+    expect(result.volumes["MerchB"]).toBe(1);
   });
 
-  it("returns empty object for empty CSV", () => {
-    expect(parseOvernightVolumes("", new Date())).toEqual({});
+  it("returns empty volumes for empty CSV", () => {
+    const result = parseOvernightVolumes("", new Date());
+    expect(result.volumes).toEqual({});
+    expect(result.restockCandidates).toEqual({});
   });
 
-  it("returns empty object if required columns are missing", () => {
+  it("returns empty volumes if required columns are missing", () => {
     const csv = "name,other\nFoo,bar";
-    expect(parseOvernightVolumes(csv, new Date())).toEqual({});
+    const result = parseOvernightVolumes(csv, new Date());
+    expect(result.volumes).toEqual({});
+    expect(result.restockCandidates).toEqual({});
+  });
+
+  it("detects restock candidates when created_at and ready_for_fulfillment_at are on different days", () => {
+    // Simulate April 14 at 8 AM
+    const now = new Date(2026, 3, 14, 8, 0);
+    const csv = [
+      "merchant,created_at,ready_for_fulfillment_at",
+      // Restock: created Apr 10, ready_for_fulfillment Apr 13 (different days, in overnight window)
+      'MerchA,"April 13, 2026, 14:00","April 13, 2026, 14:05"',  // same day — normal order
+      'MerchA,"April 13, 2026, 15:00","April 13, 2026, 15:10"',  // same day — normal order
+      'MerchB,"April 13, 2026, 14:00","April 13, 2026, 15:00"',  // same day — normal order
+      'MerchB,"April 13, 2026, 14:00","April 14, 2026, 06:00"',  // diff day — restock candidate
+      'MerchB,"April 13, 2026, 16:00","April 14, 2026, 06:00"',  // diff day — restock candidate
+    ].join("\n");
+
+    const result = parseOvernightVolumes(csv, now);
+    expect(result.volumes["MerchA"]).toBe(2);
+    expect(result.volumes["MerchB"]).toBe(3);
+    // Only MerchB has restock candidates (2 orders)
+    expect(result.restockCandidates["MerchA"]).toBeUndefined();
+    expect(result.restockCandidates["MerchB"]).toBe(2);
+  });
+
+  it("does not produce restock candidates when ready_for_fulfillment_at column is absent", () => {
+    const now = new Date(2026, 3, 14, 8, 0);
+    const csv = [
+      "merchant,created_at",
+      'MerchA,"April 13, 2026, 14:00"',
+    ].join("\n");
+
+    const result = parseOvernightVolumes(csv, now);
+    expect(result.volumes["MerchA"]).toBe(1);
+    expect(result.restockCandidates).toEqual({});
   });
 });

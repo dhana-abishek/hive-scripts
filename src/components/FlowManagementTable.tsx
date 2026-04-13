@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp, Upload, Wand2 } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp, Upload, Wand2, AlertTriangle } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,12 +29,16 @@ interface FlowManagementTableProps {
   inflowEnabled?: boolean;
   onInflowToggle?: (enabled: boolean) => void;
   onInflowCsvParsed?: (overnightVolumes: Record<string, number>) => void;
+  restockCandidates?: Record<string, number>;
+  onRestockCandidatesDetected?: (candidates: Record<string, number>) => void;
+  onRestockConfirm?: () => void;
+  onRestockDismiss?: () => void;
   availableHeadcount?: number;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, availableHeadcount = 0 }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0 }: FlowManagementTableProps) {
   const timeLeft = useTimeLeft();
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -276,8 +280,11 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
               reader.onload = (ev) => {
                 const text = ev.target?.result as string;
                 if (!text) return;
-                const overnight = parseOvernightVolumes(text);
-                onInflowCsvParsed?.(overnight);
+                const { volumes, restockCandidates: detected } = parseOvernightVolumes(text);
+                onInflowCsvParsed?.(volumes);
+                if (Object.keys(detected).length > 0) {
+                  onRestockCandidatesDetected?.(detected);
+                }
                 onInflowToggle?.(true);
               };
               reader.readAsText(file);
@@ -315,6 +322,40 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
             );
           })()}
         </div>
+
+        {/* Restock order confirmation panel */}
+        {Object.keys(restockCandidates).length > 0 && (
+          <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-warning shrink-0" />
+              <span className="text-xs font-semibold text-warning">Restock Orders Detected</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              The following overnight orders have a <span className="font-medium">created_at</span> date
+              that differs from their <span className="font-medium">ready_for_fulfillment_at</span> date,
+              suggesting they were held due to out-of-stock SKUs and bulk-released when stock returned.
+              These inflate inflow estimates — exclude them?
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(restockCandidates).map(([merchant, count]) => (
+                <span
+                  key={merchant}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-warning/10 border border-warning/20 text-warning"
+                >
+                  {merchant}: {count.toLocaleString()} order{count !== 1 ? "s" : ""}
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-0.5">
+              <Button size="sm" variant="default" onClick={onRestockConfirm} className="h-7 px-3 text-xs gap-1.5">
+                Exclude Restock Orders
+              </Button>
+              <Button size="sm" variant="outline" onClick={onRestockDismiss} className="h-7 px-3 text-xs gap-1.5">
+                Keep All Orders
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Headcount Optimizer */}

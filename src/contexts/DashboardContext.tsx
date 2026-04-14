@@ -64,7 +64,8 @@ export function useDashboard(): DashboardContextType {
 }
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [nonProdHeadcount, setNonProdHeadcountRaw] = useState(12);
+  const [nonProdHC_A, setNonProdHC_A_Raw] = useState(6);
+  const [nonProdHC_B, setNonProdHC_B_Raw] = useState(6);
   const [availableHC_A, setAvailableHC_A_Raw] = useState(0);
   const [availableHC_B, setAvailableHC_B_Raw] = useState(0);
   const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
@@ -77,20 +78,22 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [packActiveId, setPackActiveId] = useState<string | null>(null);
   const [backlog, setBacklog] = useState<Record<string, number>>({});
 
+  const nonProdHeadcount = nonProdHC_A + nonProdHC_B;
   const availableHeadcount = availableHC_A + availableHC_B;
 
   // Load all persisted state on mount
   useEffect(() => {
     (async () => {
-      const [pu, pa, pku, pka, hc, em, ahcA, ahcB, ie, ov, bl] = await Promise.all([
+      const [pu, pa, pku, pka, em, ahcA, ahcB, npA, npB, ie, ov, bl] = await Promise.all([
         idbGet<BenchmarkUpload[]>(PICK_UPLOADS_KEY),
         idbGet<string>(PICK_ACTIVE_KEY),
         idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
         idbGet<string>(PACK_ACTIVE_KEY),
-        idbGet<number>("nonProdHC_main"),
         idbGet<ExtraMerchant[]>("perfExtraMerchants"),
         idbGet<number>("availableHC_zoneA"),
         idbGet<number>("availableHC_zoneB"),
+        idbGet<number>("nonProdHC_zoneA"),
+        idbGet<number>("nonProdHC_zoneB"),
         idbGet<boolean>(INFLOW_ENABLED_KEY),
         idbGet<Record<string, number>>(OVERNIGHT_VOLUMES_KEY),
         idbGet<Record<string, number>>("plannedBacklog"),
@@ -99,10 +102,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       if (pa) setPickActiveId(pa);
       if (pku) setPackUploads(pku);
       if (pka) setPackActiveId(pka);
-      if (hc !== null) setNonProdHeadcountRaw(hc);
       if (em) setExtraMerchants(em);
       if (ahcA !== null) setAvailableHC_A_Raw(ahcA);
       if (ahcB !== null) setAvailableHC_B_Raw(ahcB);
+      if (npA !== null) setNonProdHC_A_Raw(npA);
+      if (npB !== null) setNonProdHC_B_Raw(npB);
       if (ie !== null) setInflowEnabledRaw(ie);
       if (ov) setOvernightVolumesRaw(ov);
       if (bl) setBacklog(bl);
@@ -135,9 +139,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [packUploads, packActiveId]);
 
   // Persisted setters
-  const setNonProdHeadcount = useCallback((val: number) => {
-    setNonProdHeadcountRaw(val);
-    idbSet("nonProdHC_main", val);
+  const setNonProdHC_A = useCallback((val: number) => {
+    setNonProdHC_A_Raw(val);
+    idbSet("nonProdHC_zoneA", val);
+  }, []);
+
+  const setNonProdHC_B = useCallback((val: number) => {
+    setNonProdHC_B_Raw(val);
+    idbSet("nonProdHC_zoneB", val);
   }, []);
 
   const setAvailableHC_A = useCallback((val: number) => {

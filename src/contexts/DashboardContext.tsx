@@ -13,6 +13,8 @@ const OVERNIGHT_VOLUMES_KEY = "overnightVolumes";
 
 interface DashboardState {
   nonProdHeadcount: number;
+  nonProdHC_A: number;
+  nonProdHC_B: number;
   availableHC_A: number;
   availableHC_B: number;
   availableHeadcount: number;
@@ -29,7 +31,8 @@ interface DashboardState {
 }
 
 interface DashboardActions {
-  setNonProdHeadcount: (val: number) => void;
+  setNonProdHC_A: (val: number) => void;
+  setNonProdHC_B: (val: number) => void;
   setAvailableHC_A: (val: number) => void;
   setAvailableHC_B: (val: number) => void;
   setExtraMerchants: (m: ExtraMerchant[]) => void;
@@ -283,22 +286,22 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<DashboardContextType>(() => ({
-    nonProdHeadcount, availableHC_A, availableHC_B, availableHeadcount,
+    nonProdHeadcount, nonProdHC_A, nonProdHC_B, availableHC_A, availableHC_B, availableHeadcount,
     extraMerchants, inflowEnabled, overnightVolumes, restockCandidates,
     pickUploads, pickActiveId, packUploads, packActiveId,
     backlog,
-    setNonProdHeadcount, setAvailableHC_A, setAvailableHC_B,
+    setNonProdHC_A, setNonProdHC_B, setAvailableHC_A, setAvailableHC_B,
     setExtraMerchants, setInflowEnabled, setOvernightVolumes,
     setRestockCandidates, confirmRestockExclusion, dismissRestockCandidates,
     handlePickNewUpload, handlePickSelect, handlePickRename, handlePickDelete,
     handlePackNewUpload, handlePackSelect, handlePackRename, handlePackDelete,
     handleBacklogChange, handleResetBacklog, handleResetZoneBacklog,
   }), [
-    nonProdHeadcount, availableHC_A, availableHC_B, availableHeadcount,
+    nonProdHeadcount, nonProdHC_A, nonProdHC_B, availableHC_A, availableHC_B, availableHeadcount,
     extraMerchants, inflowEnabled, overnightVolumes, restockCandidates,
     pickUploads, pickActiveId, packUploads, packActiveId,
     backlog,
-    setNonProdHeadcount, setAvailableHC_A, setAvailableHC_B,
+    setNonProdHC_A, setNonProdHC_B, setAvailableHC_A, setAvailableHC_B,
     setInflowEnabled, setOvernightVolumes,
     setRestockCandidates, confirmRestockExclusion, dismissRestockCandidates,
     handlePickNewUpload, handlePickSelect, handlePickRename, handlePickDelete,

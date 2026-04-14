@@ -63,19 +63,15 @@ interface ZoneViewProps {
   onResetZoneBacklog?: (zone: "A" | "B") => void;
   availableHeadcount?: number;
   onAvailableHeadcountChange?: (val: number) => void;
+  nonProdHC: number;
+  onNonProdHCChange: (val: number) => void;
 }
 
 type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
-export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog, availableHeadcount = 0, onAvailableHeadcountChange }: ZoneViewProps) {
-  const [nonProdHC, setNonProdHC] = useState(6);
-  useEffect(() => {
-    idbGet<number>(`nonProdHC_zone${zone}`).then((v) => { if (v !== null) setNonProdHC(v); });
-  }, [zone]);
-
+export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog, availableHeadcount = 0, onAvailableHeadcountChange, nonProdHC, onNonProdHCChange }: ZoneViewProps) {
   const handleNonProdChange = (val: number) => {
-    setNonProdHC(val);
-    idbSet(`nonProdHC_zone${zone}`, val);
+    onNonProdHCChange(val);
   };
   const [sortKey, setSortKey] = useState<SortKey>("serial");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");

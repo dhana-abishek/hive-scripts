@@ -44,7 +44,6 @@ interface SummaryStatsProps {
   totalPackingHours: number;
   merchantCount: number;
   nonProdHeadcount: number;
-  onNonProdHeadcountChange: (value: number) => void;
   totalPlannedBacklog?: number;
   adjustedSph?: number;
   onResetBacklog?: () => void;
@@ -58,7 +57,6 @@ export function SummaryStats({
   totalPackingHours,
   merchantCount,
   nonProdHeadcount,
-  onNonProdHeadcountChange,
   totalPlannedBacklog = 0,
   adjustedSph = 0,
   onResetBacklog,
@@ -156,17 +154,8 @@ export function SummaryStats({
             <span className="stat-label">Non-Prod Headcount</span>
             <span className="text-primary"><UserPlus size={16} /></span>
           </div>
-          <Input
-            type="number"
-            min={0}
-            value={nonProdHeadcount}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              onNonProdHeadcountChange(isNaN(v) || v < 0 ? 0 : v);
-            }}
-            className="h-8 text-lg font-bold w-20 bg-secondary border-border"
-          />
-          <p className="text-xs text-muted-foreground mt-1">Enter headcount</p>
+          <div className="stat-value text-foreground">{nonProdHeadcount}</div>
+          <p className="text-xs text-muted-foreground mt-1">Sum of Zone A + Zone B</p>
         </div>
         <div className={`rounded-md border bg-card p-4 ${hcGap === null ? "border-border" : hcGap >= 0 ? "border-success/30" : "border-destructive/30"}`}>
           <div className="flex items-center justify-between mb-2">

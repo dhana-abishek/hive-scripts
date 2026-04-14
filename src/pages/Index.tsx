@@ -29,7 +29,9 @@ const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
 
 function Dashboard() {
   const {
-    nonProdHeadcount, setNonProdHeadcount,
+    nonProdHeadcount,
+    nonProdHC_A, setNonProdHC_A,
+    nonProdHC_B, setNonProdHC_B,
     availableHC_A, setAvailableHC_A,
     availableHC_B, setAvailableHC_B,
     availableHeadcount,
@@ -256,7 +258,7 @@ function Dashboard() {
               </div>
 
               <TabsContent value="all" className="space-y-4">
-                <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onNonProdHeadcountChange={setNonProdHeadcount} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} />
+                <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} />
                 {isLoading && mergedFlowData.length === 0 ? (
                   <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
                     <Loader2 size={16} className="animate-spin" />
@@ -267,10 +269,10 @@ function Dashboard() {
                 )}
               </TabsContent>
               <TabsContent value="zoneA">
-                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_A} onAvailableHeadcountChange={setAvailableHC_A} />
+                <ZoneView zone="A" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_A} onAvailableHeadcountChange={setAvailableHC_A} nonProdHC={nonProdHC_A} onNonProdHCChange={setNonProdHC_A} />
               </TabsContent>
               <TabsContent value="zoneB">
-                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_B} onAvailableHeadcountChange={setAvailableHC_B} />
+                <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_B} onAvailableHeadcountChange={setAvailableHC_B} nonProdHC={nonProdHC_B} onNonProdHCChange={setNonProdHC_B} />
               </TabsContent>
             </Tabs>
           </TabsContent>

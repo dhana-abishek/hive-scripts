@@ -39,7 +39,7 @@ interface FlowManagementTableProps {
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0 }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set() }: FlowManagementTableProps) {
   const timeLeft = useTimeLeft();
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");

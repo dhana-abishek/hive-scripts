@@ -34,11 +34,12 @@ interface FlowManagementTableProps {
   onRestockConfirm?: () => void;
   onRestockDismiss?: () => void;
   availableHeadcount?: number;
+  unbenchmarkedMerchants?: Set<string>;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0 }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set() }: FlowManagementTableProps) {
   const timeLeft = useTimeLeft();
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -118,6 +119,12 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
         pickHrs = Math.round(pickHrs * 100) / 100;
         packHrs = Math.round(packHrs * 100) / 100;
         idealSph = Math.round(idealSph * 100) / 100;
+      } else if (bl > 0) {
+        // Unbenchmarked: scale hours proportionally
+        const volRatio = row.order_volume > 0 ? effectiveVolume / row.order_volume : 0;
+        pickHrs = Math.round(row.picking_hours * volRatio * 100) / 100;
+        packHrs = Math.round(row.packing_hours * volRatio * 100) / 100;
+        // ideal_sph stays the same (weighted avg)
       }
 
       return {
@@ -419,8 +426,10 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
-              <tr key={row.merchant_name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
+            {filtered.map((row) => {
+              const isUnbenchmarked = unbenchmarkedMerchants.has(row.merchant_name);
+              return (
+              <tr key={row.merchant_name} className={`border-b border-border/50 hover:bg-secondary/50 transition-colors ${isUnbenchmarked ? "bg-destructive/10" : ""}`}>
                 <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">{row.merchant_name}</td>
                 <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
                 <td className="table-cell px-3 py-2 text-right">
@@ -450,9 +459,11 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
                 <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
                 <td className={`table-cell px-3 py-2 text-right font-semibold ${getSphColor(row.ideal_sph)}`}>
                   {row.ideal_sph.toFixed(2)}
+                  {isUnbenchmarked && <span className="ml-1 text-[10px] text-muted-foreground font-normal">(avg)</span>}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

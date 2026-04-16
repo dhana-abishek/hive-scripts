@@ -111,7 +111,15 @@ function Dashboard() {
             ideal_sph: totalHrs > 0 ? Math.round((newVol / totalHrs) * 100) / 100 : r.ideal_sph,
           };
         }
-        return { ...r, order_volume: newVol, waiting_for_picking: newWaiting };
+        // Unbenchmarked: scale hours proportionally based on volume change
+        const volRatio = r.order_volume > 0 ? newVol / r.order_volume : 1;
+        return {
+          ...r,
+          order_volume: newVol,
+          waiting_for_picking: newWaiting,
+          picking_hours: Math.round(r.picking_hours * volRatio * 100) / 100,
+          packing_hours: Math.round(r.packing_hours * volRatio * 100) / 100,
+        };
       }
       return r;
     });
@@ -135,13 +143,24 @@ function Dashboard() {
   const setPerfSubTab     = (v: string) => setParam("perfSub", v);
   const setForecastSubTab = (v: string) => setParam("forecastSub", v);
 
+  const unbenchmarkedMerchants = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of mergedFlowData) {
+      const key = r.merchant_name.toLowerCase();
+      if (!pickingRates[key] || !packingRates[key]) {
+        set.add(r.merchant_name);
+      }
+    }
+    return set;
+  }, [mergedFlowData, pickingRates, packingRates]);
+
   const stats = useMemo(() => {
     const MULTIPLIER = 1.125;
     let adjPickHrs = 0;
     let adjPackHrs = 0;
     let adjVolume = 0;
-    let benchmarkedOrders = 0;
-    let benchmarkedBacklog = 0;
+    let totalOrders = 0;
+    let totalBacklog = 0;
     for (const r of mergedFlowData) {
       const bl = backlog[r.merchant_name] || 0;
       const effVol = Math.max(0, r.order_volume - bl);
@@ -150,17 +169,24 @@ function Dashboard() {
       const pickRate = pickingRates[key];
       const packRate = packingRates[key];
       if (pickRate && packRate && pickRate > 0 && packRate > 0) {
+        // Benchmarked: recalculate from rates
         adjPickHrs += effWait / (pickRate * MULTIPLIER);
         adjPackHrs += effVol / (packRate * MULTIPLIER);
-        adjVolume += effVol;
-        benchmarkedOrders += r.order_volume;
-        benchmarkedBacklog += bl;
+      } else {
+        // Unbenchmarked: use the pre-calculated hours (based on weighted avg SPH)
+        // Scale proportionally if backlog applies
+        const volRatio = r.order_volume > 0 ? effVol / r.order_volume : 0;
+        adjPickHrs += r.picking_hours * volRatio;
+        adjPackHrs += r.packing_hours * volRatio;
       }
+      adjVolume += effVol;
+      totalOrders += r.order_volume;
+      totalBacklog += bl;
     }
     const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8);
     const adjustedSph = adjDenom > 0 ? adjVolume / adjDenom : 0;
 
-    return { totalOrders: benchmarkedOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: mergedFlowData.length, totalPlannedBacklog: benchmarkedBacklog, adjustedSph };
+    return { totalOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: mergedFlowData.length, totalPlannedBacklog: totalBacklog, adjustedSph };
   }, [mergedFlowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
 
   return (
@@ -265,7 +291,7 @@ function Dashboard() {
                     <span className="text-sm">Loading live data from Metabase...</span>
                   </div>
                 ) : (
-                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} />
+                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} unbenchmarkedMerchants={unbenchmarkedMerchants} />
                 )}
               </TabsContent>
               <TabsContent value="zoneA">

@@ -420,8 +420,10 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
-              <tr key={row.merchant_name} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
+            {filtered.map((row) => {
+              const isUnbenchmarked = unbenchmarkedMerchants.has(row.merchant_name);
+              return (
+              <tr key={row.merchant_name} className={`border-b border-border/50 hover:bg-secondary/50 transition-colors ${isUnbenchmarked ? "bg-destructive/10" : ""}`}>
                 <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">{row.merchant_name}</td>
                 <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
                 <td className="table-cell px-3 py-2 text-right">
@@ -451,9 +453,11 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
                 <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
                 <td className={`table-cell px-3 py-2 text-right font-semibold ${getSphColor(row.ideal_sph)}`}>
                   {row.ideal_sph.toFixed(2)}
+                  {isUnbenchmarked && <span className="ml-1 text-[10px] text-muted-foreground font-normal">(avg)</span>}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

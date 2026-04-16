@@ -135,6 +135,17 @@ function Dashboard() {
   const setPerfSubTab     = (v: string) => setParam("perfSub", v);
   const setForecastSubTab = (v: string) => setParam("forecastSub", v);
 
+  const unbenchmarkedMerchants = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of mergedFlowData) {
+      const key = r.merchant_name.toLowerCase();
+      if (!pickingRates[key] || !packingRates[key]) {
+        set.add(r.merchant_name);
+      }
+    }
+    return set;
+  }, [mergedFlowData, pickingRates, packingRates]);
+
   const stats = useMemo(() => {
     const MULTIPLIER = 1.125;
     let adjPickHrs = 0;
@@ -272,7 +283,7 @@ function Dashboard() {
                     <span className="text-sm">Loading live data from Metabase...</span>
                   </div>
                 ) : (
-                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} />
+                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} unbenchmarkedMerchants={unbenchmarkedMerchants} />
                 )}
               </TabsContent>
               <TabsContent value="zoneA">

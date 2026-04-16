@@ -119,6 +119,12 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
         pickHrs = Math.round(pickHrs * 100) / 100;
         packHrs = Math.round(packHrs * 100) / 100;
         idealSph = Math.round(idealSph * 100) / 100;
+      } else if (bl > 0) {
+        // Unbenchmarked: scale hours proportionally
+        const volRatio = row.order_volume > 0 ? effectiveVolume / row.order_volume : 0;
+        pickHrs = Math.round(row.picking_hours * volRatio * 100) / 100;
+        packHrs = Math.round(row.packing_hours * volRatio * 100) / 100;
+        // ideal_sph stays the same (weighted avg)
       }
 
       return {

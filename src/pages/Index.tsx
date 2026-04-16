@@ -111,7 +111,15 @@ function Dashboard() {
             ideal_sph: totalHrs > 0 ? Math.round((newVol / totalHrs) * 100) / 100 : r.ideal_sph,
           };
         }
-        return { ...r, order_volume: newVol, waiting_for_picking: newWaiting };
+        // Unbenchmarked: scale hours proportionally based on volume change
+        const volRatio = r.order_volume > 0 ? newVol / r.order_volume : 1;
+        return {
+          ...r,
+          order_volume: newVol,
+          waiting_for_picking: newWaiting,
+          picking_hours: Math.round(r.picking_hours * volRatio * 100) / 100,
+          packing_hours: Math.round(r.packing_hours * volRatio * 100) / 100,
+        };
       }
       return r;
     });

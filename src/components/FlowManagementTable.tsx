@@ -34,6 +34,7 @@ interface FlowManagementTableProps {
   onRestockConfirm?: () => void;
   onRestockDismiss?: () => void;
   availableHeadcount?: number;
+  unbenchmarkedMerchants?: Set<string>;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";

@@ -140,8 +140,8 @@ function Dashboard() {
     let adjPickHrs = 0;
     let adjPackHrs = 0;
     let adjVolume = 0;
-    let benchmarkedOrders = 0;
-    let benchmarkedBacklog = 0;
+    let totalOrders = 0;
+    let totalBacklog = 0;
     for (const r of mergedFlowData) {
       const bl = backlog[r.merchant_name] || 0;
       const effVol = Math.max(0, r.order_volume - bl);
@@ -150,17 +150,24 @@ function Dashboard() {
       const pickRate = pickingRates[key];
       const packRate = packingRates[key];
       if (pickRate && packRate && pickRate > 0 && packRate > 0) {
+        // Benchmarked: recalculate from rates
         adjPickHrs += effWait / (pickRate * MULTIPLIER);
         adjPackHrs += effVol / (packRate * MULTIPLIER);
-        adjVolume += effVol;
-        benchmarkedOrders += r.order_volume;
-        benchmarkedBacklog += bl;
+      } else {
+        // Unbenchmarked: use the pre-calculated hours (based on weighted avg SPH)
+        // Scale proportionally if backlog applies
+        const volRatio = r.order_volume > 0 ? effVol / r.order_volume : 0;
+        adjPickHrs += r.picking_hours * volRatio;
+        adjPackHrs += r.packing_hours * volRatio;
       }
+      adjVolume += effVol;
+      totalOrders += r.order_volume;
+      totalBacklog += bl;
     }
     const adjDenom = adjPickHrs + adjPackHrs + (nonProdHeadcount * 8);
     const adjustedSph = adjDenom > 0 ? adjVolume / adjDenom : 0;
 
-    return { totalOrders: benchmarkedOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: mergedFlowData.length, totalPlannedBacklog: benchmarkedBacklog, adjustedSph };
+    return { totalOrders, totalPickingHours: adjPickHrs, totalPackingHours: adjPackHrs, merchantCount: mergedFlowData.length, totalPlannedBacklog: totalBacklog, adjustedSph };
   }, [mergedFlowData, backlog, pickingRates, packingRates, nonProdHeadcount]);
 
   return (

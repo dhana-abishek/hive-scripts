@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Package, Clock, Timer, Users, UserPlus, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Search, PackageMinus, ArrowDownToLine, UserCheck } from "lucide-react";
 import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
-import { buildZoneLookup, zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
+import { zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
+import { useZoneOverrides } from "@/hooks/useZoneOverrides";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 
 const MULTIPLIER = 1.125;
@@ -30,7 +31,7 @@ const zoneSerialOrder: Record<string, string[]> = {
   ],
 };
 
-const zoneLookup = buildZoneLookup();
+
 
 interface FlowRow {
   merchant_name: string;
@@ -70,6 +71,7 @@ interface ZoneViewProps {
 type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
 export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog, availableHeadcount = 0, onAvailableHeadcountChange, nonProdHC, onNonProdHCChange }: ZoneViewProps) {
+  const { lookup: zoneLookup } = useZoneOverrides();
   const handleNonProdChange = (val: number) => {
     onNonProdHCChange(val);
   };

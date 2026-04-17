@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getInflowFactor, parseOvernightVolumes } from "@/lib/inflowEstimation";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
+import { buildZoneLookup } from "@/data/zoneMappings";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
+
+const zoneLookup = buildZoneLookup();
 
 const MULTIPLIER = 1.125;
 const BACKLOG_KEY = "plannedBacklog";

@@ -77,6 +77,36 @@ export interface ZoneAssignment {
   group?: string; // if part of a group, name of group
 }
 
+// ─── Runtime overrides (cloud-backed user assignments) ───
+let zoneOverrides: Record<string, ZoneAssignment> = {};
+const listeners = new Set<() => void>();
+
+export function getZoneOverrides(): Record<string, ZoneAssignment> {
+  return zoneOverrides;
+}
+
+export function setZoneOverrides(overrides: Record<string, ZoneAssignment>): void {
+  zoneOverrides = { ...overrides };
+  listeners.forEach((l) => l());
+}
+
+export function upsertZoneOverride(merchant: string, assignment: ZoneAssignment): void {
+  zoneOverrides = { ...zoneOverrides, [merchant]: assignment };
+  listeners.forEach((l) => l());
+}
+
+export function removeZoneOverride(merchant: string): void {
+  const next = { ...zoneOverrides };
+  delete next[merchant];
+  zoneOverrides = next;
+  listeners.forEach((l) => l());
+}
+
+export function subscribeZoneOverrides(cb: () => void): () => void {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
 export function buildZoneLookup(): Record<string, ZoneAssignment> {
   const lookup: Record<string, ZoneAssignment> = {};
 
@@ -97,5 +127,15 @@ export function buildZoneLookup(): Record<string, ZoneAssignment> {
     }
   }
 
+  // Apply runtime overrides last so they take precedence
+  for (const [m, a] of Object.entries(zoneOverrides)) {
+    lookup[m] = a;
+  }
+
   return lookup;
+}
+
+// Available group names per zone for UI selection
+export function getZoneGroups(zone: "A" | "B"): string[] {
+  return Object.keys(zone === "A" ? zoneAGroups : zoneBGroups);
 }

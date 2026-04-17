@@ -31,7 +31,7 @@ const zoneSerialOrder: Record<string, string[]> = {
   ],
 };
 
-const zoneLookup = buildZoneLookup();
+
 
 interface FlowRow {
   merchant_name: string;

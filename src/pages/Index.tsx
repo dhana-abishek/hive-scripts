@@ -291,7 +291,7 @@ function Dashboard() {
                     <span className="text-sm">Loading live data from Metabase...</span>
                   </div>
                 ) : (
-                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} unbenchmarkedMerchants={unbenchmarkedMerchants} />
+                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} overnightVolumes={overnightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} unbenchmarkedMerchants={unbenchmarkedMerchants} />
                 )}
               </TabsContent>
               <TabsContent value="zoneA">

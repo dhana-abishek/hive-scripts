@@ -71,6 +71,7 @@ interface ZoneViewProps {
 type SortKey = "serial" | "name" | "order_volume" | "waiting_for_picking" | "planned_backlog" | "picking_hours" | "packing_hours" | "headcount";
 
 export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, packingRates = {}, onBacklogChange, onResetZoneBacklog, availableHeadcount = 0, onAvailableHeadcountChange, nonProdHC, onNonProdHCChange }: ZoneViewProps) {
+  const { lookup: zoneLookup } = useZoneOverrides();
   const handleNonProdChange = (val: number) => {
     onNonProdHCChange(val);
   };

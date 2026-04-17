@@ -45,6 +45,9 @@ type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_f
 
 export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, overnightVolumes = {}, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set() }: FlowManagementTableProps) {
   const timeLeft = useTimeLeft();
+  const { lookup: zoneLookup, assign: assignZone } = useZoneOverrides();
+  const [assignZoneFor, setAssignZoneFor] = useState<Record<string, "A" | "B">>({});
+  const [assignGroupFor, setAssignGroupFor] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");

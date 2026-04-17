@@ -29,6 +29,7 @@ interface FlowManagementTableProps {
   inflowEnabled?: boolean;
   onInflowToggle?: (enabled: boolean) => void;
   onInflowCsvParsed?: (overnightVolumes: Record<string, number>) => void;
+  overnightVolumes?: Record<string, number>;
   restockCandidates?: Record<string, number>;
   onRestockCandidatesDetected?: (candidates: Record<string, number>) => void;
   onRestockConfirm?: () => void;
@@ -39,7 +40,7 @@ interface FlowManagementTableProps {
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set() }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, overnightVolumes = {}, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set() }: FlowManagementTableProps) {
   const timeLeft = useTimeLeft();
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -325,6 +326,15 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
                   {label} {inflowEnabled && factor > 0 && `· +${Math.round(factor * 100)}% applied to overnight orders`}
                   {inflowEnabled && factor === 0 && "· No additional inflow at this time"}
                 </span>
+                {inflowEnabled && (() => {
+                  const totalOvernight = Object.values(overnightVolumes).reduce((s, v) => s + v, 0);
+                  const ordersAdded = Math.round(totalOvernight * factor);
+                  return (
+                    <span className="ml-auto text-xs font-semibold text-primary">
+                      +{ordersAdded.toLocaleString()} orders being added now
+                    </span>
+                  );
+                })()}
               </>
             );
           })()}

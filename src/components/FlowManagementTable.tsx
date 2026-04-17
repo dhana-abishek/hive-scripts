@@ -378,6 +378,41 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
         )}
       </div>
 
+      {/* Unzoned Merchants */}
+      {(() => {
+        const unzoned = data.filter((r) => !zoneLookup[r.merchant_name] && r.order_volume > 0);
+        if (unzoned.length === 0) return null;
+        const totalOrders = unzoned.reduce((s, r) => s + r.order_volume, 0);
+        return (
+          <div className="rounded-lg border border-warning/40 bg-warning/5 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-warning shrink-0" />
+              <h3 className="text-sm font-semibold text-warning">
+                Merchants Without Zone Assignment
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                {unzoned.length} merchant{unzoned.length !== 1 ? "s" : ""} · {totalOrders.toLocaleString()} order{totalOrders !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              These merchants are not mapped to Zone A or Zone B. Add them to <span className="font-medium">src/data/zoneMappings.ts</span> to include them in zone-level views.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {unzoned
+                .sort((a, b) => b.order_volume - a.order_volume)
+                .map((r) => (
+                  <span
+                    key={r.merchant_name}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-warning/10 border border-warning/20 text-warning"
+                  >
+                    {r.merchant_name}: {r.order_volume.toLocaleString()}
+                  </span>
+                ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Headcount Optimizer */}
       {availableHeadcount > 0 && suggestions && suggestions.length > 0 && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3">

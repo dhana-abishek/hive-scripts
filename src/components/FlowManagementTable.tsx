@@ -398,19 +398,76 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
               </span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              These merchants are not mapped to Zone A or Zone B. Add them to <span className="font-medium">src/data/zoneMappings.ts</span> to include them in zone-level views.
+              These merchants are not mapped to Zone A or Zone B. Assign each to a zone (and optional group) below — assignments are saved to your account and used everywhere.
             </p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-col gap-1.5">
               {unzoned
                 .sort((a, b) => b.order_volume - a.order_volume)
-                .map((r) => (
-                  <span
-                    key={r.merchant_name}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-warning/10 border border-warning/20 text-warning"
-                  >
-                    {r.merchant_name}: {r.order_volume.toLocaleString()}
-                  </span>
-                ))}
+                .map((r) => {
+                  const selZone = assignZoneFor[r.merchant_name];
+                  const groups = selZone ? getZoneGroups(selZone) : [];
+                  const selGroup = assignGroupFor[r.merchant_name] ?? "";
+                  return (
+                    <div
+                      key={r.merchant_name}
+                      className="flex flex-wrap items-center gap-2 px-2.5 py-1.5 rounded border border-warning/20 bg-warning/10"
+                    >
+                      <span className="text-xs font-medium text-warning truncate max-w-[200px]">
+                        {r.merchant_name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {r.order_volume.toLocaleString()} orders
+                      </span>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <select
+                          value={selZone ?? ""}
+                          onChange={(e) => {
+                            const z = e.target.value as "" | "A" | "B";
+                            setAssignZoneFor((p) => ({ ...p, [r.merchant_name]: z as "A" | "B" }));
+                            setAssignGroupFor((p) => ({ ...p, [r.merchant_name]: "" }));
+                          }}
+                          className="h-7 text-xs bg-card border border-border rounded px-1.5 outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">Zone…</option>
+                          <option value="A">Zone A</option>
+                          <option value="B">Zone B</option>
+                        </select>
+                        <select
+                          value={selGroup}
+                          disabled={!selZone}
+                          onChange={(e) =>
+                            setAssignGroupFor((p) => ({ ...p, [r.merchant_name]: e.target.value }))
+                          }
+                          className="h-7 text-xs bg-card border border-border rounded px-1.5 outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        >
+                          <option value="">No group</option>
+                          {groups.map((g) => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={!selZone}
+                          onClick={async () => {
+                            if (!selZone) return;
+                            await assignZone(r.merchant_name, {
+                              zone: selZone,
+                              ...(selGroup ? { group: selGroup } : {}),
+                            });
+                            toast({
+                              title: "Merchant assigned",
+                              description: `${r.merchant_name} → Zone ${selZone}${selGroup ? ` · ${selGroup}` : ""}`,
+                            });
+                          }}
+                          className="h-7 px-2 text-xs"
+                        >
+                          Assign
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         );

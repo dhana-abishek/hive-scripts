@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getInflowFactor, parseOvernightVolumes } from "@/lib/inflowEstimation";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
-import { buildZoneLookup } from "@/data/zoneMappings";
+import { getZoneGroups } from "@/data/zoneMappings";
+import { useZoneOverrides } from "@/hooks/useZoneOverrides";
+import { toast } from "@/hooks/use-toast";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
-
-const zoneLookup = buildZoneLookup();
 
 const MULTIPLIER = 1.125;
 const BACKLOG_KEY = "plannedBacklog";

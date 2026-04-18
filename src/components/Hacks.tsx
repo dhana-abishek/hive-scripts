@@ -238,7 +238,9 @@ export function Hacks() {
           <div className="mt-2 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">{fileName}</span>
             {" — "}
-            {rows.length} combinations · {totalShipments.toLocaleString()} total shipments
+            {filtersActive ? `${filteredRows.length} of ${rows.length}` : rows.length} combinations
+            {" · "}
+            {totalShipments.toLocaleString()} shipments{filtersActive ? " (filtered)" : ""}
             {uploadedAt && (
               <span className="ml-2 opacity-70">
                 · synced {new Date(uploadedAt).toLocaleString()}
@@ -247,6 +249,73 @@ export function Hacks() {
           </div>
         )}
       </div>
+
+      {rows.length > 0 && (
+        <div className="rounded-md border bg-card p-3 flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Filter size={12} />
+            <span className="font-medium">Filters</span>
+          </div>
+
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Zone</span>
+            <select
+              value={zoneFilter}
+              onChange={(e) => setZoneFilter(e.target.value as typeof zoneFilter)}
+              className="px-2 py-1 rounded border border-border bg-background text-foreground"
+            >
+              <option value="all">All</option>
+              <option value="A">Zone A</option>
+              <option value="B">Zone B</option>
+              <option value="unzoned">Unzoned</option>
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Merchant</span>
+            <select
+              value={merchantFilter}
+              onChange={(e) => setMerchantFilter(e.target.value)}
+              className="px-2 py-1 rounded border border-border bg-background text-foreground max-w-[180px]"
+            >
+              <option value="all">All ({merchantOptions.length})</option>
+              {merchantOptions.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground"># SKUs</span>
+            <select
+              value={skuCountFilter}
+              onChange={(e) => setSkuCountFilter(e.target.value)}
+              className="px-2 py-1 rounded border border-border bg-background text-foreground"
+            >
+              <option value="all">All</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5+">5+</option>
+            </select>
+          </label>
+
+          {filtersActive && (
+            <button
+              onClick={() => {
+                setZoneFilter("all");
+                setMerchantFilter("all");
+                setSkuCountFilter("all");
+              }}
+              className="ml-auto px-2 py-1 rounded border border-border bg-secondary text-foreground hover:bg-accent transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="rounded-md border bg-card p-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">

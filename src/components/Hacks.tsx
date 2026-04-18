@@ -238,7 +238,7 @@ export function Hacks() {
       }
       return true;
     });
-  }, [rows, merchantFilter, zoneFilter, skuCountFilter, zoneLookup]);
+  }, [effectiveRows, merchantFilter, zoneFilter, skuCountFilter, zoneLookup]);
 
   const totalShipments = useMemo(
     () => filteredRows.reduce((s, r) => s + r.shipments.length, 0),

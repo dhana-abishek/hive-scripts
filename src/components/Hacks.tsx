@@ -104,17 +104,48 @@ function parseHacksCsv(text: string): HackRow[] {
 export function Hacks() {
   const [rows, setRows] = useState<HackRow[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadedAt, setUploadedAt] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  // Load persisted data on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const stored = await cloudGet<StoredHacks>(STORAGE_KEY);
+      if (cancelled) return;
+      if (stored && Array.isArray(stored.rows)) {
+        setRows(stored.rows);
+        setFileName(stored.fileName ?? null);
+        setUploadedAt(stored.uploadedAt ?? null);
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleUpload = async (file: File) => {
     try {
       const text = await file.text();
       const parsed = parseHacksCsv(text);
+      const now = new Date().toISOString();
       setRows(parsed);
       setFileName(file.name);
-      toast({ title: "CSV loaded", description: `${parsed.length} unique SKU combinations` });
+      setUploadedAt(now);
+      setSaving(true);
+      await cloudSet(STORAGE_KEY, {
+        fileName: file.name,
+        rows: parsed,
+        uploadedAt: now,
+      } satisfies StoredHacks);
+      setSaving(false);
+      toast({ title: "CSV saved", description: `${parsed.length} unique SKU combinations synced` });
     } catch (e) {
+      setSaving(false);
       toast({ title: "Failed to parse CSV", description: String(e), variant: "destructive" });
     }
   };

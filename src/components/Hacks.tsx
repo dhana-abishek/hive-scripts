@@ -166,14 +166,59 @@ export function Hacks() {
   const [zoneFilter, setZoneFilter] = useState<"all" | "A" | "B" | "unzoned">("all");
   const [merchantFilter, setMerchantFilter] = useState<string>("all");
   const [skuCountFilter, setSkuCountFilter] = useState<string>("all");
+  const [mergeSubsets, setMergeSubsets] = useState(false);
 
   const merchantOptions = useMemo(() => {
     const set = new Set(rows.map((r) => r.merchant_name));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [rows]);
 
+  // Optionally merge subset combinations: a row's shipments absorb shipments from
+  // any superset combination (same merchant) that contains all of its SKUs.
+  const effectiveRows = useMemo(() => {
+    if (!mergeSubsets) return rows;
+    // Group row indices by merchant for efficiency
+    const byMerchant = new Map<string, number[]>();
+    rows.forEach((r, i) => {
+      const arr = byMerchant.get(r.merchant_name) ?? [];
+      arr.push(i);
+      byMerchant.set(r.merchant_name, arr);
+    });
+    const skuSets = rows.map((r) => new Set(r.pairs.split("_").filter(Boolean)));
+
+    return rows.map((r, i) => {
+      const mySet = skuSets[i];
+      const merged = new Set(r.shipments);
+      const candidates = byMerchant.get(r.merchant_name) ?? [];
+      for (const j of candidates) {
+        if (j === i) continue;
+        const other = skuSets[j];
+        if (other.size <= mySet.size) continue;
+        // mySet ⊂ other?
+        let isSubset = true;
+        for (const sku of mySet) {
+          if (!other.has(sku)) {
+            isSubset = false;
+            break;
+          }
+        }
+        if (isSubset) {
+          rows[j].shipments.forEach((s) => merged.add(s));
+        }
+      }
+      const shipments = Array.from(merged);
+      const total = r.merchants_total_shipments;
+      return {
+        ...r,
+        shipments,
+        times_occured: shipments.length,
+        percentage: total > 0 ? shipments.length / total : r.percentage,
+      };
+    }).sort((a, b) => b.times_occured - a.times_occured);
+  }, [rows, mergeSubsets]);
+
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
+    return effectiveRows.filter((r) => {
       if (merchantFilter !== "all" && r.merchant_name !== merchantFilter) return false;
       if (zoneFilter !== "all") {
         const zone = zoneLookup[r.merchant_name]?.zone;
@@ -193,7 +238,7 @@ export function Hacks() {
       }
       return true;
     });
-  }, [rows, merchantFilter, zoneFilter, skuCountFilter, zoneLookup]);
+  }, [effectiveRows, merchantFilter, zoneFilter, skuCountFilter, zoneLookup]);
 
   const totalShipments = useMemo(
     () => filteredRows.reduce((s, r) => s + r.shipments.length, 0),
@@ -239,6 +284,7 @@ export function Hacks() {
             <span className="font-medium text-foreground">{fileName}</span>
             {" — "}
             {filtersActive ? `${filteredRows.length} of ${rows.length}` : rows.length} combinations
+            {mergeSubsets && <span className="ml-1 text-primary">(subsets merged)</span>}
             {" · "}
             {totalShipments.toLocaleString()} shipments{filtersActive ? " (filtered)" : ""}
             {uploadedAt && (
@@ -302,6 +348,20 @@ export function Hacks() {
             </select>
           </label>
 
+          <button
+            type="button"
+            onClick={() => setMergeSubsets((v) => !v)}
+            className={`ml-auto inline-flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${
+              mergeSubsets
+                ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                : "bg-secondary text-foreground border-border hover:bg-accent"
+            }`}
+            title="When on, each combination's shipment list also includes shipments from larger combinations that contain all of its SKUs."
+          >
+            {mergeSubsets ? <Check size={12} /> : <Wand2 size={12} />}
+            Merge subsets {mergeSubsets ? "ON" : "OFF"}
+          </button>
+
           {filtersActive && (
             <button
               onClick={() => {
@@ -309,7 +369,7 @@ export function Hacks() {
                 setMerchantFilter("all");
                 setSkuCountFilter("all");
               }}
-              className="ml-auto px-2 py-1 rounded border border-border bg-secondary text-foreground hover:bg-accent transition-colors"
+              className="px-2 py-1 rounded border border-border bg-secondary text-foreground hover:bg-accent transition-colors"
             >
               Clear filters
             </button>

@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, Shuffle, type LucideIcon } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, Shuffle, Wand2, type LucideIcon } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable } from "@/components/BenchmarkTable";
@@ -12,6 +12,7 @@ import { ActualSPH } from "@/components/ActualSPH";
 import { Reports } from "@/components/Reports";
 import { ForecastManagement, ForecastAccuracy } from "@/components/ForecastManagement";
 import { Reshuffling } from "@/components/Reshuffling";
+import { Hacks } from "@/components/Hacks";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
 import { getInflowFactor } from "@/lib/inflowEstimation";
@@ -19,6 +20,7 @@ import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
 
 const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
   { value: "flow", label: "Flow Management", icon: Activity },
+  { value: "hacks", label: "Hacks", icon: Wand2 },
   { value: "aging", label: "Aging Orders", icon: CalendarClock },
   { value: "performance", label: "Performance", icon: Users },
   { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
@@ -301,6 +303,10 @@ function Dashboard() {
                 <ZoneView zone="B" flowData={mergedFlowData} timeLeft={0} backlog={backlog} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} onResetZoneBacklog={handleResetZoneBacklog} availableHeadcount={availableHC_B} onAvailableHeadcountChange={setAvailableHC_B} nonProdHC={nonProdHC_B} onNonProdHCChange={setNonProdHC_B} />
               </TabsContent>
             </Tabs>
+          </TabsContent>
+
+          <TabsContent value="hacks">
+            <Hacks />
           </TabsContent>
 
           <TabsContent value="aging">

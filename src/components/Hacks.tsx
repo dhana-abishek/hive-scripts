@@ -166,14 +166,59 @@ export function Hacks() {
   const [zoneFilter, setZoneFilter] = useState<"all" | "A" | "B" | "unzoned">("all");
   const [merchantFilter, setMerchantFilter] = useState<string>("all");
   const [skuCountFilter, setSkuCountFilter] = useState<string>("all");
+  const [mergeSubsets, setMergeSubsets] = useState(false);
 
   const merchantOptions = useMemo(() => {
     const set = new Set(rows.map((r) => r.merchant_name));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [rows]);
 
+  // Optionally merge subset combinations: a row's shipments absorb shipments from
+  // any superset combination (same merchant) that contains all of its SKUs.
+  const effectiveRows = useMemo(() => {
+    if (!mergeSubsets) return rows;
+    // Group row indices by merchant for efficiency
+    const byMerchant = new Map<string, number[]>();
+    rows.forEach((r, i) => {
+      const arr = byMerchant.get(r.merchant_name) ?? [];
+      arr.push(i);
+      byMerchant.set(r.merchant_name, arr);
+    });
+    const skuSets = rows.map((r) => new Set(r.pairs.split("_").filter(Boolean)));
+
+    return rows.map((r, i) => {
+      const mySet = skuSets[i];
+      const merged = new Set(r.shipments);
+      const candidates = byMerchant.get(r.merchant_name) ?? [];
+      for (const j of candidates) {
+        if (j === i) continue;
+        const other = skuSets[j];
+        if (other.size <= mySet.size) continue;
+        // mySet ⊂ other?
+        let isSubset = true;
+        for (const sku of mySet) {
+          if (!other.has(sku)) {
+            isSubset = false;
+            break;
+          }
+        }
+        if (isSubset) {
+          rows[j].shipments.forEach((s) => merged.add(s));
+        }
+      }
+      const shipments = Array.from(merged);
+      const total = r.merchants_total_shipments;
+      return {
+        ...r,
+        shipments,
+        times_occured: shipments.length,
+        percentage: total > 0 ? shipments.length / total : r.percentage,
+      };
+    }).sort((a, b) => b.times_occured - a.times_occured);
+  }, [rows, mergeSubsets]);
+
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
+    return effectiveRows.filter((r) => {
       if (merchantFilter !== "all" && r.merchant_name !== merchantFilter) return false;
       if (zoneFilter !== "all") {
         const zone = zoneLookup[r.merchant_name]?.zone;

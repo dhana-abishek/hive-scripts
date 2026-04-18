@@ -1,7 +1,16 @@
-import { useMemo, useState } from "react";
-import { Upload, Copy, Check, Wand2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Upload, Copy, Check, Wand2, Loader2 } from "lucide-react";
 import { parseCSVRows, parseCSVHeaders } from "@/lib/csvParser";
 import { useToast } from "@/hooks/use-toast";
+import { cloudGet, cloudSet } from "@/lib/cloudStorage";
+
+const STORAGE_KEY = "hacksData";
+
+interface StoredHacks {
+  fileName: string | null;
+  rows: HackRow[];
+  uploadedAt: string;
+}
 
 interface HackRow {
   pairs: string;            // canonical (sorted) SKU key

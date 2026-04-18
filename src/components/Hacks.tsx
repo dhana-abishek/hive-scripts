@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Upload, Copy, Check, Wand2, Loader2 } from "lucide-react";
+import { Upload, Copy, Check, Wand2, Loader2, Filter } from "lucide-react";
 import { parseCSVRows, parseCSVHeaders } from "@/lib/csvParser";
 import { useToast } from "@/hooks/use-toast";
 import { cloudGet, cloudSet } from "@/lib/cloudStorage";
+import { useZoneOverrides } from "@/hooks/useZoneOverrides";
 
 const STORAGE_KEY = "hacksData";
 
@@ -160,10 +161,47 @@ export function Hacks() {
     }
   };
 
+  // Filters
+  const { lookup: zoneLookup } = useZoneOverrides();
+  const [zoneFilter, setZoneFilter] = useState<"all" | "A" | "B" | "unzoned">("all");
+  const [merchantFilter, setMerchantFilter] = useState<string>("all");
+  const [skuCountFilter, setSkuCountFilter] = useState<string>("all");
+
+  const merchantOptions = useMemo(() => {
+    const set = new Set(rows.map((r) => r.merchant_name));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (merchantFilter !== "all" && r.merchant_name !== merchantFilter) return false;
+      if (zoneFilter !== "all") {
+        const zone = zoneLookup[r.merchant_name]?.zone;
+        if (zoneFilter === "unzoned") {
+          if (zone) return false;
+        } else if (zone !== zoneFilter) {
+          return false;
+        }
+      }
+      if (skuCountFilter !== "all") {
+        const n = r.pairs.split("_").filter(Boolean).length;
+        if (skuCountFilter === "5+") {
+          if (n < 5) return false;
+        } else if (n !== Number(skuCountFilter)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [rows, merchantFilter, zoneFilter, skuCountFilter, zoneLookup]);
+
   const totalShipments = useMemo(
-    () => rows.reduce((s, r) => s + r.shipments.length, 0),
-    [rows]
+    () => filteredRows.reduce((s, r) => s + r.shipments.length, 0),
+    [filteredRows]
   );
+
+  const filtersActive =
+    zoneFilter !== "all" || merchantFilter !== "all" || skuCountFilter !== "all";
 
   return (
     <div className="space-y-4">
@@ -200,7 +238,9 @@ export function Hacks() {
           <div className="mt-2 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">{fileName}</span>
             {" — "}
-            {rows.length} combinations · {totalShipments.toLocaleString()} total shipments
+            {filtersActive ? `${filteredRows.length} of ${rows.length}` : rows.length} combinations
+            {" · "}
+            {totalShipments.toLocaleString()} shipments{filtersActive ? " (filtered)" : ""}
             {uploadedAt && (
               <span className="ml-2 opacity-70">
                 · synced {new Date(uploadedAt).toLocaleString()}
@@ -209,6 +249,73 @@ export function Hacks() {
           </div>
         )}
       </div>
+
+      {rows.length > 0 && (
+        <div className="rounded-md border bg-card p-3 flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Filter size={12} />
+            <span className="font-medium">Filters</span>
+          </div>
+
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Zone</span>
+            <select
+              value={zoneFilter}
+              onChange={(e) => setZoneFilter(e.target.value as typeof zoneFilter)}
+              className="px-2 py-1 rounded border border-border bg-background text-foreground"
+            >
+              <option value="all">All</option>
+              <option value="A">Zone A</option>
+              <option value="B">Zone B</option>
+              <option value="unzoned">Unzoned</option>
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Merchant</span>
+            <select
+              value={merchantFilter}
+              onChange={(e) => setMerchantFilter(e.target.value)}
+              className="px-2 py-1 rounded border border-border bg-background text-foreground max-w-[180px]"
+            >
+              <option value="all">All ({merchantOptions.length})</option>
+              {merchantOptions.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground"># SKUs</span>
+            <select
+              value={skuCountFilter}
+              onChange={(e) => setSkuCountFilter(e.target.value)}
+              className="px-2 py-1 rounded border border-border bg-background text-foreground"
+            >
+              <option value="all">All</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5+">5+</option>
+            </select>
+          </label>
+
+          {filtersActive && (
+            <button
+              onClick={() => {
+                setZoneFilter("all");
+                setMerchantFilter("all");
+                setSkuCountFilter("all");
+              }}
+              className="ml-auto px-2 py-1 rounded border border-border bg-secondary text-foreground hover:bg-accent transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="rounded-md border bg-card p-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
@@ -234,7 +341,14 @@ export function Hacks() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {filteredRows.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                      No combinations match the current filters.
+                    </td>
+                  </tr>
+                )}
+                {filteredRows.map((r) => {
                   const key = `${r.pairs}__${r.merchant_name}`;
                   const list = r.shipments.join(",");
                   const copied = copiedKey === key;

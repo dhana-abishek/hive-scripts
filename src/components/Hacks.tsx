@@ -190,7 +190,9 @@ export function Hacks() {
                   const copied = copiedKey === key;
                   return (
                     <tr key={key} className="border-t border-border align-top">
-                      <td className="px-3 py-2 font-mono whitespace-nowrap">{r.pairsDisplay}</td>
+                      <td className="px-3 py-2 font-mono text-[11px] max-w-[140px]">
+                        <div className="break-all leading-tight">{r.pairsDisplay}</div>
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap">{r.merchant_name}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{r.times_occured}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{r.merchants_total_shipments}</td>

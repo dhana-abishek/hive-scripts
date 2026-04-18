@@ -9,7 +9,6 @@ import { WorkerTable } from "@/components/WorkerTable";
 
 const PICK_CSV_KEY = "perfPickingCsv";
 const PACK_CSV_KEY = "perfPackingCsv";
-const EXTRA_MERCHANTS_KEY = "perfExtraMerchants";
 
 export interface ExtraMerchant {
   id: string;

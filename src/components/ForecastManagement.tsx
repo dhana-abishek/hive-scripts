@@ -6,7 +6,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parse, isWithinInterval, isSameDay } from "date-fns";
-import { buildZoneLookup } from "@/data/zoneMappings";
 import { StatCard } from "@/components/SummaryStats";
 import { cloudGet, cloudSet } from "@/lib/cloudStorage";
 
@@ -43,8 +42,6 @@ interface AggregatedRow {
 }
 
 type SortKey = "merchant_name" | "total_forecast" | "ideal_sph" | "hc_needed";
-
-const zoneLookup = buildZoneLookup();
 
 function getShiftHours(date: Date): number {
   const day = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
@@ -104,10 +101,8 @@ function parseForecastCsv(text: string): ForecastRow[] {
 
 function ForecastTable({
   data,
-  title,
 }: {
   data: AggregatedRow[];
-  title: string;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("total_forecast");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -865,7 +860,7 @@ export function ForecastManagement({ pickingRates = {}, packingRates = {} }: For
           <p className="text-xs">Expected columns: merchant_name, total_forecast, date</p>
         </div>
       ) : (
-          <ForecastTable data={aggregated} title="All Merchants" />
+          <ForecastTable data={aggregated} />
       )}
     </div>
   );

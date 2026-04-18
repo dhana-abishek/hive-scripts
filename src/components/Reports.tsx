@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Copy, Check, FileText } from "lucide-react";
-import { cloudGet, cloudSet } from "@/lib/cloudStorage";
+import { cloudGet } from "@/lib/cloudStorage";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { Input } from "@/components/ui/input";

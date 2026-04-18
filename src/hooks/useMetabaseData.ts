@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { calculateFlowManagement, buildLookup } from "@/lib/warehouseProcessing";
 import type { BenchmarkEntry } from "@/types/warehouse";
 import { parseCSVLine } from "@/lib/csvParser";
 
 import { supabase } from "@/integrations/supabase/client";
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export interface MerchantAgg {
   merchant_name: string;
@@ -67,7 +66,6 @@ export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customP
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const pickLookup = useMemo(() => buildLookup(customPicking ?? defaultPickingBenchmarks), [customPicking]);
   const packLookup = useMemo(() => buildLookup(customPacking ?? defaultPackingBenchmarks), [customPacking]);

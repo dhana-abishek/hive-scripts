@@ -341,7 +341,14 @@ export function Hacks() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {filteredRows.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                      No combinations match the current filters.
+                    </td>
+                  </tr>
+                )}
+                {filteredRows.map((r) => {
                   const key = `${r.pairs}__${r.merchant_name}`;
                   const list = r.shipments.join(",");
                   const copied = copiedKey === key;

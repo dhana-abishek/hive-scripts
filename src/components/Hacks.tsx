@@ -181,12 +181,13 @@ export function Hacks() {
             </div>
           </div>
           <label className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors cursor-pointer">
-            <Upload size={12} />
-            Upload CSV
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+            {saving ? "Saving…" : "Upload CSV"}
             <input
               type="file"
               accept=".csv,text/csv"
               className="hidden"
+              disabled={saving}
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) handleUpload(f);
@@ -200,11 +201,20 @@ export function Hacks() {
             <span className="font-medium text-foreground">{fileName}</span>
             {" — "}
             {rows.length} combinations · {totalShipments.toLocaleString()} total shipments
+            {uploadedAt && (
+              <span className="ml-2 opacity-70">
+                · synced {new Date(uploadedAt).toLocaleString()}
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      {rows.length === 0 ? (
+      {loading ? (
+        <div className="rounded-md border bg-card p-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+          <Loader2 size={14} className="animate-spin" /> Loading saved data…
+        </div>
+      ) : rows.length === 0 ? (
         <div className="rounded-md border bg-card p-12 text-center text-sm text-muted-foreground">
           Upload a CSV to view combined SKU pair data.
         </div>

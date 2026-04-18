@@ -348,6 +348,20 @@ export function Hacks() {
             </select>
           </label>
 
+          <button
+            type="button"
+            onClick={() => setMergeSubsets((v) => !v)}
+            className={`ml-auto inline-flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${
+              mergeSubsets
+                ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                : "bg-secondary text-foreground border-border hover:bg-accent"
+            }`}
+            title="When on, each combination's shipment list also includes shipments from larger combinations that contain all of its SKUs."
+          >
+            {mergeSubsets ? <Check size={12} /> : <Wand2 size={12} />}
+            Merge subsets {mergeSubsets ? "ON" : "OFF"}
+          </button>
+
           {filtersActive && (
             <button
               onClick={() => {
@@ -355,7 +369,7 @@ export function Hacks() {
                 setMerchantFilter("all");
                 setSkuCountFilter("all");
               }}
-              className="ml-auto px-2 py-1 rounded border border-border bg-secondary text-foreground hover:bg-accent transition-colors"
+              className="px-2 py-1 rounded border border-border bg-secondary text-foreground hover:bg-accent transition-colors"
             >
               Clear filters
             </button>

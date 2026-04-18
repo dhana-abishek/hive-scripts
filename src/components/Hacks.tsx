@@ -173,31 +173,46 @@ export function Hacks() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [rows]);
 
-  // Optionally merge subset combinations: a row's shipments absorb shipments from
-  // any superset combination (same merchant) that contains all of its SKUs.
+  // Optionally merge subsets: each combination absorbs shipments from every
+  // smaller combination (same merchant) whose SKUs are a multiset-subset of it.
+  // Multiset semantics: 673748 appearing twice in the parent matches a child
+  // that has 673748 once or twice (but not three times).
   const effectiveRows = useMemo(() => {
     if (!mergeSubsets) return rows;
-    // Group row indices by merchant for efficiency
     const byMerchant = new Map<string, number[]>();
     rows.forEach((r, i) => {
       const arr = byMerchant.get(r.merchant_name) ?? [];
       arr.push(i);
       byMerchant.set(r.merchant_name, arr);
     });
-    const skuSets = rows.map((r) => new Set(r.pairs.split("_").filter(Boolean)));
+    // Multiset (bag) of SKUs per row
+    const skuBags = rows.map((r) => {
+      const bag = new Map<string, number>();
+      for (const s of r.pairs.split("_").filter(Boolean)) {
+        bag.set(s, (bag.get(s) ?? 0) + 1);
+      }
+      return bag;
+    });
+    const bagSize = (b: Map<string, number>) => {
+      let n = 0;
+      for (const v of b.values()) n += v;
+      return n;
+    };
+    const sizes = skuBags.map(bagSize);
 
     return rows.map((r, i) => {
-      const mySet = skuSets[i];
+      const myBag = skuBags[i];
+      const mySize = sizes[i];
       const merged = new Set(r.shipments);
       const candidates = byMerchant.get(r.merchant_name) ?? [];
       for (const j of candidates) {
         if (j === i) continue;
-        const other = skuSets[j];
-        if (other.size <= mySet.size) continue;
-        // mySet ⊂ other?
+        if (sizes[j] >= mySize) continue; // only strictly smaller subsets
+        const other = skuBags[j];
+        // other ⊆ myBag (multiset)?
         let isSubset = true;
-        for (const sku of mySet) {
-          if (!other.has(sku)) {
+        for (const [sku, count] of other) {
+          if ((myBag.get(sku) ?? 0) < count) {
             isSubset = false;
             break;
           }

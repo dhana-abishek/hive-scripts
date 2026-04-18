@@ -284,6 +284,7 @@ export function Hacks() {
             <span className="font-medium text-foreground">{fileName}</span>
             {" — "}
             {filtersActive ? `${filteredRows.length} of ${rows.length}` : rows.length} combinations
+            {mergeSubsets && <span className="ml-1 text-primary">(subsets merged)</span>}
             {" · "}
             {totalShipments.toLocaleString()} shipments{filtersActive ? " (filtered)" : ""}
             {uploadedAt && (

@@ -1,7 +1,16 @@
-import { useMemo, useState } from "react";
-import { Upload, Copy, Check, Wand2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Upload, Copy, Check, Wand2, Loader2 } from "lucide-react";
 import { parseCSVRows, parseCSVHeaders } from "@/lib/csvParser";
 import { useToast } from "@/hooks/use-toast";
+import { cloudGet, cloudSet } from "@/lib/cloudStorage";
+
+const STORAGE_KEY = "hacksData";
+
+interface StoredHacks {
+  fileName: string | null;
+  rows: HackRow[];
+  uploadedAt: string;
+}
 
 interface HackRow {
   pairs: string;            // canonical (sorted) SKU key
@@ -95,17 +104,48 @@ function parseHacksCsv(text: string): HackRow[] {
 export function Hacks() {
   const [rows, setRows] = useState<HackRow[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadedAt, setUploadedAt] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  // Load persisted data on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const stored = await cloudGet<StoredHacks>(STORAGE_KEY);
+      if (cancelled) return;
+      if (stored && Array.isArray(stored.rows)) {
+        setRows(stored.rows);
+        setFileName(stored.fileName ?? null);
+        setUploadedAt(stored.uploadedAt ?? null);
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleUpload = async (file: File) => {
     try {
       const text = await file.text();
       const parsed = parseHacksCsv(text);
+      const now = new Date().toISOString();
       setRows(parsed);
       setFileName(file.name);
-      toast({ title: "CSV loaded", description: `${parsed.length} unique SKU combinations` });
+      setUploadedAt(now);
+      setSaving(true);
+      await cloudSet(STORAGE_KEY, {
+        fileName: file.name,
+        rows: parsed,
+        uploadedAt: now,
+      } satisfies StoredHacks);
+      setSaving(false);
+      toast({ title: "CSV saved", description: `${parsed.length} unique SKU combinations synced` });
     } catch (e) {
+      setSaving(false);
       toast({ title: "Failed to parse CSV", description: String(e), variant: "destructive" });
     }
   };
@@ -141,12 +181,13 @@ export function Hacks() {
             </div>
           </div>
           <label className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors cursor-pointer">
-            <Upload size={12} />
-            Upload CSV
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+            {saving ? "Saving…" : "Upload CSV"}
             <input
               type="file"
               accept=".csv,text/csv"
               className="hidden"
+              disabled={saving}
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) handleUpload(f);
@@ -160,11 +201,20 @@ export function Hacks() {
             <span className="font-medium text-foreground">{fileName}</span>
             {" — "}
             {rows.length} combinations · {totalShipments.toLocaleString()} total shipments
+            {uploadedAt && (
+              <span className="ml-2 opacity-70">
+                · synced {new Date(uploadedAt).toLocaleString()}
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      {rows.length === 0 ? (
+      {loading ? (
+        <div className="rounded-md border bg-card p-12 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+          <Loader2 size={14} className="animate-spin" /> Loading saved data…
+        </div>
+      ) : rows.length === 0 ? (
         <div className="rounded-md border bg-card p-12 text-center text-sm text-muted-foreground">
           Upload a CSV to view combined SKU pair data.
         </div>

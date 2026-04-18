@@ -161,10 +161,47 @@ export function Hacks() {
     }
   };
 
+  // Filters
+  const { lookup: zoneLookup } = useZoneOverrides();
+  const [zoneFilter, setZoneFilter] = useState<"all" | "A" | "B" | "unzoned">("all");
+  const [merchantFilter, setMerchantFilter] = useState<string>("all");
+  const [skuCountFilter, setSkuCountFilter] = useState<string>("all");
+
+  const merchantOptions = useMemo(() => {
+    const set = new Set(rows.map((r) => r.merchant_name));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (merchantFilter !== "all" && r.merchant_name !== merchantFilter) return false;
+      if (zoneFilter !== "all") {
+        const zone = zoneLookup[r.merchant_name]?.zone;
+        if (zoneFilter === "unzoned") {
+          if (zone) return false;
+        } else if (zone !== zoneFilter) {
+          return false;
+        }
+      }
+      if (skuCountFilter !== "all") {
+        const n = r.pairs.split("_").filter(Boolean).length;
+        if (skuCountFilter === "5+") {
+          if (n < 5) return false;
+        } else if (n !== Number(skuCountFilter)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [rows, merchantFilter, zoneFilter, skuCountFilter, zoneLookup]);
+
   const totalShipments = useMemo(
-    () => rows.reduce((s, r) => s + r.shipments.length, 0),
-    [rows]
+    () => filteredRows.reduce((s, r) => s + r.shipments.length, 0),
+    [filteredRows]
   );
+
+  const filtersActive =
+    zoneFilter !== "all" || merchantFilter !== "all" || skuCountFilter !== "all";
 
   return (
     <div className="space-y-4">

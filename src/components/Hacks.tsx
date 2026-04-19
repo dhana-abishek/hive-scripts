@@ -174,11 +174,11 @@ export function Hacks() {
   }, [rows]);
 
   // Optionally merge subsets: each combination absorbs shipments from every
-  // larger combination (same merchant) whose SKUs are a multiset-superset of it.
-  // A shipment with SKUs {1,2,3} definitely also contains the {1,2} hack, so
-  // the {1,2} row should absorb all {1,2,3} shipments — not the other way around.
-  // Multiset semantics: a SKU appearing twice in myBag requires it at least twice
-  // in the candidate's bag for the candidate to qualify as a superset.
+  // smaller combination (same merchant) whose SKUs are a multiset-subset of it.
+  // Subset rows are then dropped — their shipment IDs have been absorbed into
+  // the superset rows, so keeping them would show duplicate IDs in the table.
+  // Multiset semantics: 673748 appearing twice in the parent matches a child
+  // that has 673748 once or twice (but not three times).
   const effectiveRows = useMemo(() => {
     if (!mergeSubsets) return rows;
     const byMerchant = new Map<string, number[]>();
@@ -202,36 +202,57 @@ export function Hacks() {
     };
     const sizes = skuBags.map(bagSize);
 
-    return rows.map((r, i) => {
+    // Track which rows are strict subsets of at least one other row (same merchant).
+    // Those rows will be dropped after their shipments are absorbed.
+    const absorbed = new Set<number>();
+    rows.forEach((_, i) => {
       const myBag = skuBags[i];
       const mySize = sizes[i];
-      const merged = new Set(r.shipments);
-      const candidates = byMerchant.get(r.merchant_name) ?? [];
+      const candidates = byMerchant.get(rows[i].merchant_name) ?? [];
       for (const j of candidates) {
         if (j === i) continue;
-        if (sizes[j] <= mySize) continue; // only strictly larger supersets
+        if (sizes[j] <= mySize) continue; // j must be strictly larger
         const other = skuBags[j];
-        // myBag ⊆ other (multiset)? i.e., j is a superset of i
-        let isSupersetOfMe = true;
+        let isSubsetOfJ = true;
         for (const [sku, count] of myBag) {
-          if ((other.get(sku) ?? 0) < count) {
-            isSupersetOfMe = false;
-            break;
+          if ((other.get(sku) ?? 0) < count) { isSubsetOfJ = false; break; }
+        }
+        if (isSubsetOfJ) { absorbed.add(i); break; }
+      }
+    });
+
+    return rows
+      .map((r, i) => {
+        const myBag = skuBags[i];
+        const mySize = sizes[i];
+        const merged = new Set(r.shipments);
+        const candidates = byMerchant.get(r.merchant_name) ?? [];
+        for (const j of candidates) {
+          if (j === i) continue;
+          if (sizes[j] >= mySize) continue; // only strictly smaller subsets
+          const other = skuBags[j];
+          // other ⊆ myBag (multiset)?
+          let isSubset = true;
+          for (const [sku, count] of other) {
+            if ((myBag.get(sku) ?? 0) < count) { isSubset = false; break; }
+          }
+          if (isSubset) {
+            rows[j].shipments.forEach((s) => merged.add(s));
           }
         }
-        if (isSupersetOfMe) {
-          rows[j].shipments.forEach((s) => merged.add(s));
-        }
-      }
-      const shipments = Array.from(merged);
-      const total = r.merchants_total_shipments;
-      return {
-        ...r,
-        shipments,
-        times_occured: shipments.length,
-        percentage: total > 0 ? shipments.length / total : r.percentage,
-      };
-    }).sort((a, b) => b.times_occured - a.times_occured);
+        const shipments = Array.from(merged);
+        const total = r.merchants_total_shipments;
+        return {
+          ...r,
+          shipments,
+          times_occured: shipments.length,
+          percentage: total > 0 ? shipments.length / total : r.percentage,
+          _idx: i,
+        };
+      })
+      .filter((r) => !absorbed.has(r._idx))
+      .map(({ _idx, ...r }) => r)
+      .sort((a, b) => b.times_occured - a.times_occured);
   }, [rows, mergeSubsets]);
 
   const filteredRows = useMemo(() => {

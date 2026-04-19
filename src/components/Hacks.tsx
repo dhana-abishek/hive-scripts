@@ -306,10 +306,11 @@ export function Hacks() {
     });
   }, [effectiveRows, merchantFilter, zoneFilter, skuCountFilter, zoneLookup]);
 
-  const totalShipments = useMemo(
-    () => filteredRows.reduce((s, r) => s + r.shipments.length, 0),
-    [filteredRows]
-  );
+  const totalShipments = useMemo(() => {
+    const seen = new Set<string>();
+    for (const r of filteredRows) for (const s of r.shipments) seen.add(s);
+    return seen.size;
+  }, [filteredRows]);
 
   const filtersActive =
     zoneFilter !== "all" || merchantFilter !== "all" || skuCountFilter !== "all";

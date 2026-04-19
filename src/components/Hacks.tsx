@@ -174,9 +174,11 @@ export function Hacks() {
   }, [rows]);
 
   // Optionally merge subsets: each combination absorbs shipments from every
-  // smaller combination (same merchant) whose SKUs are a multiset-subset of it.
-  // Multiset semantics: 673748 appearing twice in the parent matches a child
-  // that has 673748 once or twice (but not three times).
+  // larger combination (same merchant) whose SKUs are a multiset-superset of it.
+  // A shipment with SKUs {1,2,3} definitely also contains the {1,2} hack, so
+  // the {1,2} row should absorb all {1,2,3} shipments — not the other way around.
+  // Multiset semantics: a SKU appearing twice in myBag requires it at least twice
+  // in the candidate's bag for the candidate to qualify as a superset.
   const effectiveRows = useMemo(() => {
     if (!mergeSubsets) return rows;
     const byMerchant = new Map<string, number[]>();
@@ -207,17 +209,17 @@ export function Hacks() {
       const candidates = byMerchant.get(r.merchant_name) ?? [];
       for (const j of candidates) {
         if (j === i) continue;
-        if (sizes[j] >= mySize) continue; // only strictly smaller subsets
+        if (sizes[j] <= mySize) continue; // only strictly larger supersets
         const other = skuBags[j];
-        // other ⊆ myBag (multiset)?
-        let isSubset = true;
-        for (const [sku, count] of other) {
-          if ((myBag.get(sku) ?? 0) < count) {
-            isSubset = false;
+        // myBag ⊆ other (multiset)? i.e., j is a superset of i
+        let isSupersetOfMe = true;
+        for (const [sku, count] of myBag) {
+          if ((other.get(sku) ?? 0) < count) {
+            isSupersetOfMe = false;
             break;
           }
         }
-        if (isSubset) {
+        if (isSupersetOfMe) {
           rows[j].shipments.forEach((s) => merged.add(s));
         }
       }

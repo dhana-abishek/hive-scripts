@@ -175,10 +175,9 @@ export function Hacks() {
 
   // Optionally merge subsets: each combination absorbs shipments from every
   // smaller combination (same merchant) whose SKUs are a multiset-subset of it.
-  // Subset rows are then dropped — their shipment IDs have been absorbed into
-  // the superset rows, so keeping them would show duplicate IDs in the table.
-  // Multiset semantics: 673748 appearing twice in the parent matches a child
-  // that has 673748 once or twice (but not three times).
+  // Subset rows are then dropped. A final deduplication pass ensures each
+  // shipment ID appears in exactly one output row (the most-SKU row that
+  // contains it; ties broken by lex order of pairs).
   const effectiveRows = useMemo(() => {
     if (!mergeSubsets) return rows;
     const byMerchant = new Map<string, number[]>();
@@ -187,7 +186,6 @@ export function Hacks() {
       arr.push(i);
       byMerchant.set(r.merchant_name, arr);
     });
-    // Multiset (bag) of SKUs per row
     const skuBags = rows.map((r) => {
       const bag = new Map<string, number>();
       for (const s of r.pairs.split("_").filter(Boolean)) {
@@ -202,8 +200,6 @@ export function Hacks() {
     };
     const sizes = skuBags.map(bagSize);
 
-    // Track which rows are strict subsets of at least one other row (same merchant).
-    // Those rows will be dropped after their shipments are absorbed.
     const absorbed = new Set<number>();
     rows.forEach((_, i) => {
       const myBag = skuBags[i];
@@ -211,7 +207,7 @@ export function Hacks() {
       const candidates = byMerchant.get(rows[i].merchant_name) ?? [];
       for (const j of candidates) {
         if (j === i) continue;
-        if (sizes[j] <= mySize) continue; // j must be strictly larger
+        if (sizes[j] <= mySize) continue;
         const other = skuBags[j];
         let isSubsetOfJ = true;
         for (const [sku, count] of myBag) {
@@ -221,37 +217,54 @@ export function Hacks() {
       }
     });
 
-    return rows
+    // Build merged rows, keeping original index for the dedup pass.
+    const merged = rows
       .map((r, i) => {
         const myBag = skuBags[i];
         const mySize = sizes[i];
-        const merged = new Set(r.shipments);
+        const shipSet = new Set(r.shipments);
         const candidates = byMerchant.get(r.merchant_name) ?? [];
         for (const j of candidates) {
           if (j === i) continue;
-          if (sizes[j] >= mySize) continue; // only strictly smaller subsets
+          if (sizes[j] >= mySize) continue;
           const other = skuBags[j];
-          // other ⊆ myBag (multiset)?
           let isSubset = true;
           for (const [sku, count] of other) {
             if ((myBag.get(sku) ?? 0) < count) { isSubset = false; break; }
           }
-          if (isSubset) {
-            rows[j].shipments.forEach((s) => merged.add(s));
-          }
+          if (isSubset) rows[j].shipments.forEach((s) => shipSet.add(s));
         }
-        const shipments = Array.from(merged);
-        const total = r.merchants_total_shipments;
+        return { row: r, shipments: Array.from(shipSet), _idx: i, _size: mySize };
+      })
+      .filter((r) => !absorbed.has(r._idx));
+
+    // Dedup: for each shipment ID, keep it only in the output row with the
+    // most SKUs. Ties are broken by lex order of the pairs string (earlier = wins).
+    const owner = new Map<string, number>(); // shipmentId -> index in merged[]
+    merged.forEach(({ shipments, _size, row }, idx) => {
+      for (const s of shipments) {
+        const prev = owner.get(s);
+        if (prev === undefined) { owner.set(s, idx); continue; }
+        const prevSize = merged[prev]._size;
+        const prevPairs = merged[prev].row.pairs;
+        if (_size > prevSize || (_size === prevSize && row.pairs < prevPairs)) {
+          owner.set(s, idx);
+        }
+      }
+    });
+
+    return merged
+      .map(({ row, shipments, _idx }, idx) => {
+        const deduped = shipments.filter((s) => owner.get(s) === idx);
+        const total = row.merchants_total_shipments;
         return {
-          ...r,
-          shipments,
-          times_occured: shipments.length,
-          percentage: total > 0 ? shipments.length / total : r.percentage,
-          _idx: i,
+          ...row,
+          shipments: deduped,
+          times_occured: deduped.length,
+          percentage: total > 0 ? deduped.length / total : row.percentage,
         };
       })
-      .filter((r) => !absorbed.has(r._idx))
-      .map(({ _idx, ...r }) => r)
+      .filter((r) => r.times_occured > 0)
       .sort((a, b) => b.times_occured - a.times_occured);
   }, [rows, mergeSubsets]);
 

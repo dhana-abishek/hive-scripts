@@ -167,6 +167,7 @@ export function Hacks() {
   const [merchantFilter, setMerchantFilter] = useState<string>("all");
   const [skuCountFilter, setSkuCountFilter] = useState<string>("all");
   const [mergeSubsets, setMergeSubsets] = useState(false);
+  const [deduplicateShipments, setDeduplicateShipments] = useState(false);
 
   const merchantOptions = useMemo(() => {
     const set = new Set(rows.map((r) => r.merchant_name));
@@ -175,9 +176,9 @@ export function Hacks() {
 
   // Optionally merge subsets: each combination absorbs shipments from every
   // smaller combination (same merchant) whose SKUs are a multiset-subset of it.
-  // Subset rows are then dropped. A final deduplication pass ensures each
-  // shipment ID appears in exactly one output row (the most-SKU row that
-  // contains it; ties broken by lex order of pairs).
+  // Subset rows are then dropped. When deduplicateShipments is also on, a final
+  // pass ensures each shipment ID appears in exactly one output row (the
+  // most-SKU row that contains it; ties broken by lex order of pairs).
   const effectiveRows = useMemo(() => {
     if (!mergeSubsets) return rows;
     const byMerchant = new Map<string, number[]>();
@@ -238,35 +239,49 @@ export function Hacks() {
       })
       .filter((r) => !absorbed.has(r._idx));
 
-    // Dedup: for each shipment ID, keep it only in the output row with the
-    // most SKUs. Ties are broken by lex order of the pairs string (earlier = wins).
-    const owner = new Map<string, number>(); // shipmentId -> index in merged[]
-    merged.forEach(({ shipments, _size, row }, idx) => {
-      for (const s of shipments) {
-        const prev = owner.get(s);
-        if (prev === undefined) { owner.set(s, idx); continue; }
-        const prevSize = merged[prev]._size;
-        const prevPairs = merged[prev].row.pairs;
-        if (_size > prevSize || (_size === prevSize && row.pairs < prevPairs)) {
-          owner.set(s, idx);
+    if (deduplicateShipments) {
+      // For each shipment ID, keep it only in the output row with the most SKUs.
+      // Ties are broken by lex order of the pairs string (earlier = wins).
+      const owner = new Map<string, number>(); // shipmentId -> index in merged[]
+      merged.forEach(({ shipments, _size, row }, idx) => {
+        for (const s of shipments) {
+          const prev = owner.get(s);
+          if (prev === undefined) { owner.set(s, idx); continue; }
+          const prevSize = merged[prev]._size;
+          const prevPairs = merged[prev].row.pairs;
+          if (_size > prevSize || (_size === prevSize && row.pairs < prevPairs)) {
+            owner.set(s, idx);
+          }
         }
-      }
-    });
+      });
+
+      return merged
+        .map(({ row, shipments, _idx }, idx) => {
+          const deduped = shipments.filter((s) => owner.get(s) === idx);
+          const total = row.merchants_total_shipments;
+          return {
+            ...row,
+            shipments: deduped,
+            times_occured: deduped.length,
+            percentage: total > 0 ? deduped.length / total : row.percentage,
+          };
+        })
+        .filter((r) => r.times_occured > 0)
+        .sort((a, b) => b.times_occured - a.times_occured);
+    }
 
     return merged
-      .map(({ row, shipments, _idx }, idx) => {
-        const deduped = shipments.filter((s) => owner.get(s) === idx);
+      .map(({ row, shipments }) => {
         const total = row.merchants_total_shipments;
         return {
           ...row,
-          shipments: deduped,
-          times_occured: deduped.length,
-          percentage: total > 0 ? deduped.length / total : row.percentage,
+          shipments,
+          times_occured: shipments.length,
+          percentage: total > 0 ? shipments.length / total : row.percentage,
         };
       })
-      .filter((r) => r.times_occured > 0)
       .sort((a, b) => b.times_occured - a.times_occured);
-  }, [rows, mergeSubsets]);
+  }, [rows, mergeSubsets, deduplicateShipments]);
 
   const filteredRows = useMemo(() => {
     return effectiveRows.filter((r) => {
@@ -401,7 +416,7 @@ export function Hacks() {
 
           <button
             type="button"
-            onClick={() => setMergeSubsets((v) => !v)}
+            onClick={() => { setMergeSubsets((v) => { if (v) setDeduplicateShipments(false); return !v; }); }}
             className={`ml-auto inline-flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${
               mergeSubsets
                 ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
@@ -412,6 +427,22 @@ export function Hacks() {
             {mergeSubsets ? <Check size={12} /> : <Wand2 size={12} />}
             Merge subsets {mergeSubsets ? "ON" : "OFF"}
           </button>
+
+          {mergeSubsets && (
+            <button
+              type="button"
+              onClick={() => setDeduplicateShipments((v) => !v)}
+              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${
+                deduplicateShipments
+                  ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                  : "bg-secondary text-foreground border-border hover:bg-accent"
+              }`}
+              title="When on, each shipment ID appears in exactly one row (the combination with the most SKUs)."
+            >
+              {deduplicateShipments ? <Check size={12} /> : <Filter size={12} />}
+              Deduplicate IDs {deduplicateShipments ? "ON" : "OFF"}
+            </button>
+          )}
 
           {filtersActive && (
             <button

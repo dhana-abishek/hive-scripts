@@ -15,8 +15,7 @@ export interface OvernightParseResult {
 /**
  * Calculates the inflow factor based on current day and time.
  *
- * - Monday: base factor = 20% (total orders ≈ 120% of 7 AM volume)
- * - Tuesday–Saturday: base factor = 30% (total orders ≈ 130% of 7 AM volume)
+ * - Monday–Saturday: base factor = 30% (total orders ≈ 130% of 7 AM volume)
  * - Sunday: 0 (no operations)
  *
  * The factor starts at full value at 07:00 and linearly decreases to 0% at 13:00.
@@ -32,12 +31,9 @@ export function getInflowFactor(now?: Date): { factor: number; baseFactor: numbe
   if (day === 0) {
     // Sunday
     return { factor: 0, baseFactor: 0, label: "Sunday – no inflow" };
-  } else if (day === 1) {
-    baseFactor = 0.20;
-    label = "Monday (20%)";
   } else {
     baseFactor = 0.30;
-    label = "Tue–Sat (30%)";
+    label = "Mon–Sat (30%)";
   }
 
   const hours = d.getHours() + d.getMinutes() / 60;

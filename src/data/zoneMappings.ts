@@ -20,7 +20,7 @@ export const zoneAGroups: Record<string, string[]> = {
     "Good Day Sunshine", "Swifiss", "CureTape", "Boodies GmbH",
     "Sternzeichen Arzt", "Goldies Worldwide GmbH", "Anita Hass",
     "Ladneri GmbH", "MiniVet", "Onors", "MyBodyAdvice", "ORGNZ",
-    "Revitalash", "Spark Up", "sun matters",
+    "Revitalash", "Spark Up", "sun matters", "Little Casimir UG",
   ],
   "Multi Big": [
     "Kernpunkt Connect UG", "Koona UG", "terra peak", "Venna",

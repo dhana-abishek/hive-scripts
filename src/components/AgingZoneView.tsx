@@ -60,6 +60,7 @@ export function AgingZoneView({
   onBacklogChange,
   onResetZoneBacklog,
 }: AgingZoneViewProps) {
+  const { lookup: zoneLookup } = useZoneOverrides();
   const TIME_LEFT = useTimeLeft();
   const [nonProdHC, setNonProdHC] = useState(6);
   useEffect(() => {
@@ -76,7 +77,19 @@ export function AgingZoneView({
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  const groups = zone === "A" ? zoneAGroups : zoneBGroups;
+  // Build groups dynamically from the live zone lookup so user overrides apply.
+  const groups = useMemo(() => {
+    const baseGroups = zone === "A" ? zoneAGroups : zoneBGroups;
+    const result: Record<string, string[]> = {};
+    for (const g of Object.keys(baseGroups)) result[g] = [];
+    for (const [merchant, assignment] of Object.entries(zoneLookup)) {
+      if (assignment.zone === zone && assignment.group) {
+        if (!result[assignment.group]) result[assignment.group] = [];
+        result[assignment.group].push(merchant);
+      }
+    }
+    return result;
+  }, [zone, zoneLookup]);
 
   const zoneRows = useMemo(() => {
     const rows: AgingZoneRow[] = [];

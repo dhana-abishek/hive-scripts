@@ -21,6 +21,7 @@ interface HackRow {
   merchants_total_shipments: number;
   percentage: number;
   shipments: string[];
+  averageUps?: number;      // avg SKUs per shipment (computed)
 }
 
 function canonicalize(pairs: string): string {

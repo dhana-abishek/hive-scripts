@@ -501,6 +501,7 @@ export function Hacks() {
               <thead className="bg-secondary text-muted-foreground">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">SKU Combination</th>
+                  <th className="text-right px-3 py-2 font-medium">Average UPS</th>
                   <th className="text-left px-3 py-2 font-medium">Merchant</th>
                   <th className="text-right px-3 py-2 font-medium">Times</th>
                   <th className="text-right px-3 py-2 font-medium">Total Shipments</th>

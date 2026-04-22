@@ -513,7 +513,7 @@ export function Hacks() {
               <tbody>
                 {filteredRows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                       No combinations match the current filters.
                     </td>
                   </tr>

@@ -4,11 +4,11 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Search, Package, Clock, Timer, UserPlu
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatCard } from "@/components/SummaryStats";
-import { zoneAGroups, zoneBGroups, buildZoneLookup } from "@/data/zoneMappings";
+import { zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
+import { useZoneOverrides } from "@/hooks/useZoneOverrides";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 
 const MULTIPLIER = 1.125;
-const zoneLookup = buildZoneLookup();
 
 const zoneAHCGroups: string[][] = [
   ["Horl", "ela mo", "MagicHolz", "Hydraid"],

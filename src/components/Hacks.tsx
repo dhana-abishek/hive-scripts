@@ -21,6 +21,7 @@ interface HackRow {
   merchants_total_shipments: number;
   percentage: number;
   shipments: string[];
+  averageUps?: number;      // avg SKUs per shipment (computed)
 }
 
 function canonicalize(pairs: string): string {
@@ -180,7 +181,12 @@ export function Hacks() {
   // pass ensures each shipment ID appears in exactly one output row (the
   // most-SKU row that contains it; ties broken by lex order of pairs).
   const effectiveRows = useMemo(() => {
-    if (!mergeSubsets) return rows;
+    if (!mergeSubsets) {
+      return rows.map((r) => ({
+        ...r,
+        averageUps: r.pairs.split("_").filter(Boolean).length,
+      }));
+    }
     const byMerchant = new Map<string, number[]>();
     rows.forEach((r, i) => {
       const arr = byMerchant.get(r.merchant_name) ?? [];
@@ -218,12 +224,15 @@ export function Hacks() {
       }
     });
 
-    // Build merged rows, keeping original index for the dedup pass.
+    // Build merged rows. Track per-shipment SKU count (from the smallest source
+    // combination contributing it) so we can compute a true Average UPS.
     const merged = rows
       .map((r, i) => {
         const myBag = skuBags[i];
         const mySize = sizes[i];
-        const shipSet = new Set(r.shipments);
+        const shipUps = new Map<string, number>();
+        // Own shipments are observed at this row's SKU count.
+        for (const s of r.shipments) shipUps.set(s, mySize);
         const candidates = byMerchant.get(r.merchant_name) ?? [];
         for (const j of candidates) {
           if (j === i) continue;
@@ -233,18 +242,23 @@ export function Hacks() {
           for (const [sku, count] of other) {
             if ((myBag.get(sku) ?? 0) < count) { isSubset = false; break; }
           }
-          if (isSubset) rows[j].shipments.forEach((s) => shipSet.add(s));
+          if (isSubset) {
+            const ups = sizes[j];
+            for (const s of rows[j].shipments) {
+              const prev = shipUps.get(s);
+              // Keep the smallest observed SKU count per shipment as the truthful UPS.
+              if (prev === undefined || ups < prev) shipUps.set(s, ups);
+            }
+          }
         }
-        return { row: r, shipments: Array.from(shipSet), _idx: i, _size: mySize };
+        return { row: r, shipUps, _idx: i, _size: mySize };
       })
       .filter((r) => !absorbed.has(r._idx));
 
     if (deduplicateShipments) {
-      // For each shipment ID, keep it only in the output row with the most SKUs.
-      // Ties are broken by lex order of the pairs string (earlier = wins).
-      const owner = new Map<string, number>(); // shipmentId -> index in merged[]
-      merged.forEach(({ shipments, _size, row }, idx) => {
-        for (const s of shipments) {
+      const owner = new Map<string, number>();
+      merged.forEach(({ shipUps, _size, row }, idx) => {
+        for (const s of shipUps.keys()) {
           const prev = owner.get(s);
           if (prev === undefined) { owner.set(s, idx); continue; }
           const prevSize = merged[prev]._size;
@@ -256,14 +270,22 @@ export function Hacks() {
       });
 
       return merged
-        .map(({ row, shipments, _idx }, idx) => {
-          const deduped = shipments.filter((s) => owner.get(s) === idx);
+        .map(({ row, shipUps }, idx) => {
+          const deduped: string[] = [];
+          let upsSum = 0;
+          for (const [s, ups] of shipUps) {
+            if (owner.get(s) === idx) {
+              deduped.push(s);
+              upsSum += ups;
+            }
+          }
           const total = row.merchants_total_shipments;
           return {
             ...row,
             shipments: deduped,
             times_occured: deduped.length,
             percentage: total > 0 ? deduped.length / total : row.percentage,
+            averageUps: deduped.length > 0 ? upsSum / deduped.length : 0,
           };
         })
         .filter((r) => r.times_occured > 0)
@@ -271,13 +293,17 @@ export function Hacks() {
     }
 
     return merged
-      .map(({ row, shipments }) => {
+      .map(({ row, shipUps }) => {
+        const shipments = Array.from(shipUps.keys());
+        let upsSum = 0;
+        for (const ups of shipUps.values()) upsSum += ups;
         const total = row.merchants_total_shipments;
         return {
           ...row,
           shipments,
           times_occured: shipments.length,
           percentage: total > 0 ? shipments.length / total : row.percentage,
+          averageUps: shipments.length > 0 ? upsSum / shipments.length : 0,
         };
       })
       .sort((a, b) => b.times_occured - a.times_occured);
@@ -475,6 +501,7 @@ export function Hacks() {
               <thead className="bg-secondary text-muted-foreground">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">SKU Combination</th>
+                  <th className="text-right px-3 py-2 font-medium">Average UPS</th>
                   <th className="text-left px-3 py-2 font-medium">Merchant</th>
                   <th className="text-right px-3 py-2 font-medium">Times</th>
                   <th className="text-right px-3 py-2 font-medium">Total Shipments</th>
@@ -486,7 +513,7 @@ export function Hacks() {
               <tbody>
                 {filteredRows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                       No combinations match the current filters.
                     </td>
                   </tr>
@@ -499,6 +526,9 @@ export function Hacks() {
                     <tr key={key} className="border-t border-border align-top">
                       <td className="px-3 py-2 font-mono text-[11px] max-w-[140px]">
                         <div className="break-all leading-tight">{r.pairsDisplay}</div>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {(r.averageUps ?? 0).toFixed(2)}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">{r.merchant_name}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{r.times_occured}</td>

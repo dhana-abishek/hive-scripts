@@ -102,7 +102,22 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
   };
 
   const timeLeft = useTimeLeft();
-  const groups = zone === "A" ? zoneAGroups : zoneBGroups;
+
+  // Build groups dynamically from the live zone lookup so that user overrides
+  // (re-assigning a merchant to a different zone/group) are reflected here.
+  const groups = useMemo(() => {
+    const baseGroups = zone === "A" ? zoneAGroups : zoneBGroups;
+    const result: Record<string, string[]> = {};
+    // seed with all known group names for this zone so empty groups still render
+    for (const g of Object.keys(baseGroups)) result[g] = [];
+    for (const [merchant, assignment] of Object.entries(zoneLookup)) {
+      if (assignment.zone === zone && assignment.group) {
+        if (!result[assignment.group]) result[assignment.group] = [];
+        result[assignment.group].push(merchant);
+      }
+    }
+    return result;
+  }, [zone, zoneLookup]);
 
   // Collect zone merchants' backlog by resolving group members
   const getBacklogForMerchant = (merchantName: string) => backlog[merchantName] || 0;

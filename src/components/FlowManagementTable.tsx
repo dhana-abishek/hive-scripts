@@ -586,8 +586,8 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
               const isManual = !!manualEntry && (manualEntry.pick || manualEntry.pack);
               const isEditingBm = bmEditingMerchant === row.merchant_name;
               return (
-                <>
-                <tr key={row.merchant_name} className={`border-b border-border/50 hover:bg-secondary/50 transition-colors ${isUnbenchmarked ? "bg-destructive/10" : ""} ${isManual ? "bg-primary/5" : ""}`}>
+                <FragmentWithKey key={row.merchant_name}>
+                <tr className={`border-b border-border/50 hover:bg-secondary/50 transition-colors ${isUnbenchmarked ? "bg-destructive/10" : ""} ${isManual ? "bg-primary/5" : ""}`}>
                   <td className="px-3 py-2 text-sm font-medium max-w-[240px]">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate">{row.merchant_name}</span>

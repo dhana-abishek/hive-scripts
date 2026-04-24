@@ -686,7 +686,7 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
                     </td>
                   </tr>
                 )}
-                </>
+                </FragmentWithKey>
               );
             })}
           </tbody>

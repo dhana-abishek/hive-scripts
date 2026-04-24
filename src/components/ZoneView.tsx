@@ -132,12 +132,26 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
         const bl = getBacklogForMerchant(row.merchant_name);
         const effectiveVol = Math.max(0, row.order_volume - bl);
         const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
+        const bl = getBacklogForMerchant(row.merchant_name);
+        const effectiveVol = Math.max(0, row.order_volume - bl);
+        const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
         const key = row.merchant_name.toLowerCase();
         const pickRate = pickingRates[key];
         const packRate = packingRates[key];
         const hasRates = pickRate && packRate && pickRate > 0 && packRate > 0;
-        const pickHrs = hasRates ? effectiveWaiting / (pickRate * MULTIPLIER) : 0;
-        const packHrs = hasRates ? effectiveVol / (packRate * MULTIPLIER) : 0;
+        let pickHrs: number;
+        let packHrs: number;
+        if (hasRates) {
+          pickHrs = effectiveWaiting / (pickRate * MULTIPLIER);
+          packHrs = effectiveVol / (packRate * MULTIPLIER);
+        } else {
+          // Unbenchmarked: use the precomputed hours from flow data
+          // (derived in useMetabaseData via weighted-avg ideal SPH).
+          // Scale proportionally if a planned backlog applies.
+          const volRatio = row.order_volume > 0 ? effectiveVol / row.order_volume : 0;
+          pickHrs = row.picking_hours * volRatio;
+          packHrs = row.packing_hours * volRatio;
+        }
         const hc = timeLeft > 0 ? (pickHrs + packHrs) / timeLeft : 0;
         rows.push({
           name: row.merchant_name,

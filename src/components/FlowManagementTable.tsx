@@ -58,6 +58,47 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
   const [backlog, setBacklog] = useState<Record<string, number>>({});
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [bmEditingMerchant, setBmEditingMerchant] = useState<string | null>(null);
+  const [bmPickValue, setBmPickValue] = useState("");
+  const [bmPackValue, setBmPackValue] = useState("");
+
+  const startBmEdit = (merchant: string) => {
+    const key = merchant.toLowerCase();
+    const existing = manualBenchmarks[key];
+    setBmEditingMerchant(merchant);
+    setBmPickValue(existing?.pick ? String(existing.pick) : "");
+    setBmPackValue(existing?.pack ? String(existing.pack) : "");
+  };
+
+  const cancelBmEdit = () => {
+    setBmEditingMerchant(null);
+    setBmPickValue("");
+    setBmPackValue("");
+  };
+
+  const saveBmEdit = async () => {
+    if (!bmEditingMerchant) return;
+    const pick = parseFloat(bmPickValue);
+    const pack = parseFloat(bmPackValue);
+    const validPick = !isNaN(pick) && pick > 0 ? pick : null;
+    const validPack = !isNaN(pack) && pack > 0 ? pack : null;
+    if (!validPick && !validPack) {
+      toast({ title: "Enter at least one rate", description: "Provide a pick rate, pack rate, or both.", variant: "destructive" });
+      return;
+    }
+    await onSetManualBenchmark?.(bmEditingMerchant, validPick, validPack);
+    toast({
+      title: "Benchmark saved",
+      description: `${bmEditingMerchant}${validPick ? ` · pick ${validPick}` : ""}${validPack ? ` · pack ${validPack}` : ""}`,
+    });
+    cancelBmEdit();
+  };
+
+  const clearBm = async (merchant: string) => {
+    await onClearManualBenchmark?.(merchant);
+    toast({ title: "Manual benchmark cleared", description: `${merchant} reverted to weighted-avg ideal SPH.` });
+    if (bmEditingMerchant === merchant) cancelBmEdit();
+  };
   const [newMerchantName, setNewMerchantName] = useState("");
   const [newMerchantVolume, setNewMerchantVolume] = useState("");
 

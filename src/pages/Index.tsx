@@ -56,9 +56,21 @@ function Dashboard() {
   const pickingBenchmarks = activePick?.entries ?? defaultPickingBenchmarks;
   const packingBenchmarks = activePack?.entries ?? defaultPackingBenchmarks;
 
-  const { flowData, rawMerchants, pickingRates, packingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
+  const { flowData, rawMerchants, pickingRates: rawPickingRates, packingRates: rawPackingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
     activePick?.entries ?? null,
     activePack?.entries ?? null
+  );
+
+  const { manual: manualBenchmarks, setMerchantBenchmark, clearMerchantBenchmark } = useManualBenchmarks();
+
+  // Merge manual overrides into rates so all consumers (flow, zones, stats) pick them up
+  const pickingRates = useMemo(
+    () => mergeManualRates(rawPickingRates, manualBenchmarks, "pick"),
+    [rawPickingRates, manualBenchmarks]
+  );
+  const packingRates = useMemo(
+    () => mergeManualRates(rawPackingRates, manualBenchmarks, "pack"),
+    [rawPackingRates, manualBenchmarks]
   );
 
   // Merge extra merchants into flowData as additional rows, with optional inflow estimation

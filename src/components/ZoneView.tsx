@@ -132,9 +132,6 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
         const bl = getBacklogForMerchant(row.merchant_name);
         const effectiveVol = Math.max(0, row.order_volume - bl);
         const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
-        const bl = getBacklogForMerchant(row.merchant_name);
-        const effectiveVol = Math.max(0, row.order_volume - bl);
-        const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
         const key = row.merchant_name.toLowerCase();
         const pickRate = pickingRates[key];
         const packRate = packingRates[key];

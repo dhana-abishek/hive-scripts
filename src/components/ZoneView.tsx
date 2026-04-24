@@ -160,14 +160,15 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
           const key = row.merchant_name.toLowerCase();
           const pickRate = pickingRates[key];
           const packRate = packingRates[key];
-          if (!pickRate || !packRate || pickRate <= 0 || packRate <= 0) continue;
           const effectiveVol = Math.max(0, row.order_volume - bl);
           const effectiveWaiting = Math.max(0, row.waiting_for_picking - bl);
           totalOrders += row.order_volume;
           totalWaiting += row.waiting_for_picking;
           totalBacklog += bl;
-          totalPick += effectiveWaiting / (pickRate * MULTIPLIER);
-          totalPack += effectiveVol / (packRate * MULTIPLIER);
+          if (pickRate && packRate && pickRate > 0 && packRate > 0) {
+            totalPick += effectiveWaiting / (pickRate * MULTIPLIER);
+            totalPack += effectiveVol / (packRate * MULTIPLIER);
+          }
         }
       }
       const hc = timeLeft > 0 ? (totalPick + totalPack) / timeLeft : 0;

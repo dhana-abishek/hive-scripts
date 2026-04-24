@@ -15,6 +15,7 @@ import { Reshuffling } from "@/components/Reshuffling";
 import { Hacks } from "@/components/Hacks";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData } from "@/hooks/useMetabaseData";
+import { useManualBenchmarks, mergeManualRates } from "@/hooks/useManualBenchmarks";
 import { getInflowFactor } from "@/lib/inflowEstimation";
 import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
 

@@ -135,9 +135,9 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
         const key = row.merchant_name.toLowerCase();
         const pickRate = pickingRates[key];
         const packRate = packingRates[key];
-        if (!pickRate || !packRate || pickRate <= 0 || packRate <= 0) continue;
-        const pickHrs = effectiveWaiting / (pickRate * MULTIPLIER);
-        const packHrs = effectiveVol / (packRate * MULTIPLIER);
+        const hasRates = pickRate && packRate && pickRate > 0 && packRate > 0;
+        const pickHrs = hasRates ? effectiveWaiting / (pickRate * MULTIPLIER) : 0;
+        const packHrs = hasRates ? effectiveVol / (packRate * MULTIPLIER) : 0;
         const hc = timeLeft > 0 ? (pickHrs + packHrs) / timeLeft : 0;
         rows.push({
           name: row.merchant_name,

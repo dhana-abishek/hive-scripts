@@ -179,6 +179,11 @@ export function ZoneView({ zone, flowData, backlog = {}, pickingRates = {}, pack
           if (pickRate && packRate && pickRate > 0 && packRate > 0) {
             totalPick += effectiveWaiting / (pickRate * MULTIPLIER);
             totalPack += effectiveVol / (packRate * MULTIPLIER);
+          } else {
+            // Unbenchmarked: use precomputed hours (weighted-avg ideal SPH)
+            const volRatio = row.order_volume > 0 ? effectiveVol / row.order_volume : 0;
+            totalPick += row.picking_hours * volRatio;
+            totalPack += row.packing_hours * volRatio;
           }
         }
       }

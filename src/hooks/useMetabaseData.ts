@@ -100,43 +100,57 @@ export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customP
     fetchData();
   }, [fetchData]);
 
-  const flowData = useMemo(() => {
-    if (rawMerchants.length === 0) return [];
-    const benchmarked = calculateFlowManagement(rawMerchants, pickLookup, packLookup);
-
-    // Compute weighted average ideal SPH from benchmarked merchants
-    let totalVol = 0;
-    let totalHrs = 0;
-    for (const r of benchmarked) {
-      totalVol += r.order_volume;
-      totalHrs += r.picking_hours + r.packing_hours;
-    }
-    const weightedAvgSph = totalHrs > 0 ? totalVol / totalHrs : 0;
-
-    // Find unbenchmarked merchants (no pick or pack rate)
-    const benchmarkedNames = new Set(benchmarked.map(r => r.merchant_name));
-    const unbenchmarkedRows = rawMerchants
-      .filter(m => !benchmarkedNames.has(m.merchant_name))
-      .map(m => {
-        // Use weighted avg SPH to derive total hours, split proportionally
-        const pickRatio = totalHrs > 0 ? (benchmarked.reduce((s, r) => s + r.picking_hours, 0) / totalHrs) : 0.5;
-        const totalMerchantHrs = weightedAvgSph > 0 ? m.order_volume / weightedAvgSph : 0;
-        const pickHrs = totalMerchantHrs * pickRatio;
-        const packHrs = totalMerchantHrs * (1 - pickRatio);
-        return {
-          merchant_name: m.merchant_name,
-          order_volume: m.order_volume,
-          waiting_for_picking: m.waiting_for_picking,
-          picking_hours: Math.round(pickHrs * 100) / 100,
-          packing_hours: Math.round(packHrs * 100) / 100,
-          ideal_sph: Math.round(weightedAvgSph * 100) / 100,
-        };
-      });
-
-    const all = [...benchmarked, ...unbenchmarkedRows];
-    all.sort((a, b) => b.order_volume - a.order_volume);
-    return all;
-  }, [rawMerchants, pickLookup, packLookup]);
+  const flowData = useMemo(
+    () => buildFlowData(rawMerchants, pickLookup, packLookup),
+    [rawMerchants, pickLookup, packLookup]
+  );
 
   return { flowData, rawMerchants, pickingRates: pickLookup, packingRates: packLookup, isLoading, error, lastUpdated, refresh: fetchData };
+}
+
+/**
+ * Build flow data rows for all merchants, blending benchmarked (rate-driven)
+ * and unbenchmarked (weighted-average ideal SPH) calculations. Exported so
+ * callers can recompute when manual benchmark overrides change.
+ */
+export function buildFlowData(
+  rawMerchants: MerchantAgg[],
+  pickLookup: Record<string, number>,
+  packLookup: Record<string, number>
+) {
+  if (rawMerchants.length === 0) return [];
+  const benchmarked = calculateFlowManagement(rawMerchants, pickLookup, packLookup);
+
+  let totalVol = 0;
+  let totalHrs = 0;
+  for (const r of benchmarked) {
+    totalVol += r.order_volume;
+    totalHrs += r.picking_hours + r.packing_hours;
+  }
+  const weightedAvgSph = totalHrs > 0 ? totalVol / totalHrs : 0;
+
+  const benchmarkedNames = new Set(benchmarked.map((r) => r.merchant_name));
+  const unbenchmarkedRows = rawMerchants
+    .filter((m) => !benchmarkedNames.has(m.merchant_name))
+    .map((m) => {
+      const pickRatio =
+        totalHrs > 0
+          ? benchmarked.reduce((s, r) => s + r.picking_hours, 0) / totalHrs
+          : 0.5;
+      const totalMerchantHrs = weightedAvgSph > 0 ? m.order_volume / weightedAvgSph : 0;
+      const pickHrs = totalMerchantHrs * pickRatio;
+      const packHrs = totalMerchantHrs * (1 - pickRatio);
+      return {
+        merchant_name: m.merchant_name,
+        order_volume: m.order_volume,
+        waiting_for_picking: m.waiting_for_picking,
+        picking_hours: Math.round(pickHrs * 100) / 100,
+        packing_hours: Math.round(packHrs * 100) / 100,
+        ideal_sph: Math.round(weightedAvgSph * 100) / 100,
+      };
+    });
+
+  const all = [...benchmarked, ...unbenchmarkedRows];
+  all.sort((a, b) => b.order_volume - a.order_volume);
+  return all;
 }

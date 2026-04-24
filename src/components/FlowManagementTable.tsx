@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, Fragment as FragmentWithKey } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp, Upload, Wand2, AlertTriangle } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { getZoneGroups } from "@/data/zoneMappings";
 import { useZoneOverrides } from "@/hooks/useZoneOverrides";
 import { toast } from "@/hooks/use-toast";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
+import type { ManualBenchmarks } from "@/hooks/useManualBenchmarks";
 
 const MULTIPLIER = 1.125;
 const BACKLOG_KEY = "plannedBacklog";
@@ -39,11 +40,14 @@ interface FlowManagementTableProps {
   onRestockDismiss?: () => void;
   availableHeadcount?: number;
   unbenchmarkedMerchants?: Set<string>;
+  manualBenchmarks?: ManualBenchmarks;
+  onSetManualBenchmark?: (merchantName: string, pick: number | null, pack: number | null) => void | Promise<void>;
+  onClearManualBenchmark?: (merchantName: string) => void | Promise<void>;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, overnightVolumes = {}, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set() }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, overnightVolumes = {}, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set(), manualBenchmarks = {}, onSetManualBenchmark, onClearManualBenchmark }: FlowManagementTableProps) {
   const timeLeft = useTimeLeft();
   const { lookup: zoneLookup, assign: assignZone } = useZoneOverrides();
   const [assignZoneFor, setAssignZoneFor] = useState<Record<string, "A" | "B">>({});
@@ -54,6 +58,47 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
   const [backlog, setBacklog] = useState<Record<string, number>>({});
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [bmEditingMerchant, setBmEditingMerchant] = useState<string | null>(null);
+  const [bmPickValue, setBmPickValue] = useState("");
+  const [bmPackValue, setBmPackValue] = useState("");
+
+  const startBmEdit = (merchant: string) => {
+    const key = merchant.toLowerCase();
+    const existing = manualBenchmarks[key];
+    setBmEditingMerchant(merchant);
+    setBmPickValue(existing?.pick ? String(existing.pick) : "");
+    setBmPackValue(existing?.pack ? String(existing.pack) : "");
+  };
+
+  const cancelBmEdit = () => {
+    setBmEditingMerchant(null);
+    setBmPickValue("");
+    setBmPackValue("");
+  };
+
+  const saveBmEdit = async () => {
+    if (!bmEditingMerchant) return;
+    const pick = parseFloat(bmPickValue);
+    const pack = parseFloat(bmPackValue);
+    const validPick = !isNaN(pick) && pick > 0 ? pick : null;
+    const validPack = !isNaN(pack) && pack > 0 ? pack : null;
+    if (!validPick && !validPack) {
+      toast({ title: "Enter at least one rate", description: "Provide a pick rate, pack rate, or both.", variant: "destructive" });
+      return;
+    }
+    await onSetManualBenchmark?.(bmEditingMerchant, validPick, validPack);
+    toast({
+      title: "Benchmark saved",
+      description: `${bmEditingMerchant}${validPick ? ` · pick ${validPick}` : ""}${validPack ? ` · pack ${validPack}` : ""}`,
+    });
+    cancelBmEdit();
+  };
+
+  const clearBm = async (merchant: string) => {
+    await onClearManualBenchmark?.(merchant);
+    toast({ title: "Manual benchmark cleared", description: `${merchant} reverted to weighted-avg ideal SPH.` });
+    if (bmEditingMerchant === merchant) cancelBmEdit();
+  };
   const [newMerchantName, setNewMerchantName] = useState("");
   const [newMerchantVolume, setNewMerchantVolume] = useState("");
 
@@ -536,40 +581,112 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
           <tbody>
             {filtered.map((row) => {
               const isUnbenchmarked = unbenchmarkedMerchants.has(row.merchant_name);
+              const key = row.merchant_name.toLowerCase();
+              const manualEntry = manualBenchmarks[key];
+              const isManual = !!manualEntry && (manualEntry.pick || manualEntry.pack);
+              const isEditingBm = bmEditingMerchant === row.merchant_name;
               return (
-              <tr key={row.merchant_name} className={`border-b border-border/50 hover:bg-secondary/50 transition-colors ${isUnbenchmarked ? "bg-destructive/10" : ""}`}>
-                <td className="px-3 py-2 text-sm font-medium truncate max-w-[200px]">{row.merchant_name}</td>
-                <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
-                <td className="table-cell px-3 py-2 text-right">
-                  {editingMerchant === row.merchant_name ? (
-                    <input
-                      type="number"
-                      min={0}
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleCommitEdit}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleCommitEdit(); if (e.key === "Escape") setEditingMerchant(null); }}
-                      autoFocus
-                      className="w-16 bg-secondary border border-border rounded px-1 py-0.5 text-xs text-right text-foreground outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  ) : (
-                    <button
-                      onClick={() => handleStartEdit(row.merchant_name)}
-                      className="text-xs hover:text-primary transition-colors cursor-pointer tabular-nums"
-                      title="Click to edit planned backlog"
-                    >
-                      {row.planned_backlog}
-                    </button>
-                  )}
-                </td>
-                <td className="table-cell px-3 py-2 text-right">{row.waiting_for_picking}</td>
-                <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
-                <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
-                <td className={`table-cell px-3 py-2 text-right font-semibold ${getSphColor(row.ideal_sph)}`}>
-                  {row.ideal_sph.toFixed(2)}
-                  {isUnbenchmarked && <span className="ml-1 text-[10px] text-muted-foreground font-normal">(avg)</span>}
-                </td>
-              </tr>
+                <FragmentWithKey key={row.merchant_name}>
+                <tr className={`border-b border-border/50 hover:bg-secondary/50 transition-colors ${isUnbenchmarked ? "bg-destructive/10" : ""} ${isManual ? "bg-primary/5" : ""}`}>
+                  <td className="px-3 py-2 text-sm font-medium max-w-[240px]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate">{row.merchant_name}</span>
+                      {(isUnbenchmarked || isManual) && (
+                        <button
+                          type="button"
+                          onClick={() => (isEditingBm ? cancelBmEdit() : startBmEdit(row.merchant_name))}
+                          className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                          title={isManual ? "Edit manual benchmark" : "Set manual pick/pack benchmark"}
+                        >
+                          {isEditingBm ? "Cancel" : isManual ? "Edit BM" : "Set BM"}
+                        </button>
+                      )}
+                      {isManual && !isEditingBm && (
+                        <button
+                          type="button"
+                          onClick={() => clearBm(row.merchant_name)}
+                          className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-secondary hover:bg-destructive hover:text-destructive-foreground hover:border-destructive text-muted-foreground transition-colors shrink-0"
+                          title="Clear manual benchmark — revert to weighted-avg"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                  <td className="table-cell px-3 py-2 text-right">{row.order_volume}</td>
+                  <td className="table-cell px-3 py-2 text-right">
+                    {editingMerchant === row.merchant_name ? (
+                      <input
+                        type="number"
+                        min={0}
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={handleCommitEdit}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleCommitEdit(); if (e.key === "Escape") setEditingMerchant(null); }}
+                        autoFocus
+                        className="w-16 bg-secondary border border-border rounded px-1 py-0.5 text-xs text-right text-foreground outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => handleStartEdit(row.merchant_name)}
+                        className="text-xs hover:text-primary transition-colors cursor-pointer tabular-nums"
+                        title="Click to edit planned backlog"
+                      >
+                        {row.planned_backlog}
+                      </button>
+                    )}
+                  </td>
+                  <td className="table-cell px-3 py-2 text-right">{row.waiting_for_picking}</td>
+                  <td className="table-cell px-3 py-2 text-right">{row.picking_hours.toFixed(2)}</td>
+                  <td className="table-cell px-3 py-2 text-right">{row.packing_hours.toFixed(2)}</td>
+                  <td className={`table-cell px-3 py-2 text-right font-semibold ${getSphColor(row.ideal_sph)}`}>
+                    {row.ideal_sph.toFixed(2)}
+                    {isUnbenchmarked && !isManual && <span className="ml-1 text-[10px] text-muted-foreground font-normal">(avg)</span>}
+                    {isManual && <span className="ml-1 text-[10px] text-primary font-normal">(manual)</span>}
+                  </td>
+                </tr>
+                {isEditingBm && (
+                  <tr key={`${row.merchant_name}-bm-editor`} className="border-b border-border/50 bg-secondary/40">
+                    <td colSpan={7} className="px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Manual benchmarks for <span className="font-medium text-foreground">{row.merchant_name}</span>:</span>
+                        <label className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Pick rate</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.1"
+                            value={bmPickValue}
+                            onChange={(e) => setBmPickValue(e.target.value)}
+                            placeholder="orders/hr"
+                            className="h-7 w-24 text-xs"
+                          />
+                        </label>
+                        <label className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Pack rate</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.1"
+                            value={bmPackValue}
+                            onChange={(e) => setBmPackValue(e.target.value)}
+                            placeholder="orders/hr"
+                            className="h-7 w-24 text-xs"
+                          />
+                        </label>
+                        <Button size="sm" onClick={saveBmEdit} className="h-7 px-3 text-xs">Save</Button>
+                        <Button size="sm" variant="outline" onClick={cancelBmEdit} className="h-7 px-3 text-xs">Cancel</Button>
+                        {isManual && (
+                          <Button size="sm" variant="ghost" onClick={() => clearBm(row.merchant_name)} className="h-7 px-3 text-xs text-destructive hover:text-destructive">
+                            Clear override
+                          </Button>
+                        )}
+                        <span className="text-muted-foreground ml-auto">Leave a field blank to fall back to the weighted-average for that step.</span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </FragmentWithKey>
               );
             })}
           </tbody>

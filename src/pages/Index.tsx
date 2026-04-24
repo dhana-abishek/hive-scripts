@@ -14,7 +14,8 @@ import { ForecastManagement, ForecastAccuracy } from "@/components/ForecastManag
 import { Reshuffling } from "@/components/Reshuffling";
 import { Hacks } from "@/components/Hacks";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
-import { useMetabaseData } from "@/hooks/useMetabaseData";
+import { useMetabaseData, buildFlowData } from "@/hooks/useMetabaseData";
+import { useManualBenchmarks, mergeManualRates } from "@/hooks/useManualBenchmarks";
 import { getInflowFactor } from "@/lib/inflowEstimation";
 import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
 
@@ -55,9 +56,27 @@ function Dashboard() {
   const pickingBenchmarks = activePick?.entries ?? defaultPickingBenchmarks;
   const packingBenchmarks = activePack?.entries ?? defaultPackingBenchmarks;
 
-  const { flowData, rawMerchants, pickingRates, packingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
+  const { rawMerchants, pickingRates: rawPickingRates, packingRates: rawPackingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
     activePick?.entries ?? null,
     activePack?.entries ?? null
+  );
+
+  const { manual: manualBenchmarks, setMerchantBenchmark, clearMerchantBenchmark } = useManualBenchmarks();
+
+  // Merge manual overrides into rates so all consumers (flow, zones, stats) pick them up
+  const pickingRates = useMemo(
+    () => mergeManualRates(rawPickingRates, manualBenchmarks, "pick"),
+    [rawPickingRates, manualBenchmarks]
+  );
+  const packingRates = useMemo(
+    () => mergeManualRates(rawPackingRates, manualBenchmarks, "pack"),
+    [rawPackingRates, manualBenchmarks]
+  );
+
+  // Rebuild flowData with merged rates so manual overrides drive pick/pack hours
+  const flowData = useMemo(
+    () => buildFlowData(rawMerchants, pickingRates, packingRates),
+    [rawMerchants, pickingRates, packingRates]
   );
 
   // Merge extra merchants into flowData as additional rows, with optional inflow estimation
@@ -293,7 +312,7 @@ function Dashboard() {
                     <span className="text-sm">Loading live data from Metabase...</span>
                   </div>
                 ) : (
-                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} overnightVolumes={overnightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} unbenchmarkedMerchants={unbenchmarkedMerchants} />
+                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} overnightVolumes={overnightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} unbenchmarkedMerchants={unbenchmarkedMerchants} manualBenchmarks={manualBenchmarks} onSetManualBenchmark={setMerchantBenchmark} onClearManualBenchmark={clearMerchantBenchmark} />
                 )}
               </TabsContent>
               <TabsContent value="zoneA">

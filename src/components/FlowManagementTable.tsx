@@ -40,11 +40,14 @@ interface FlowManagementTableProps {
   onRestockDismiss?: () => void;
   availableHeadcount?: number;
   unbenchmarkedMerchants?: Set<string>;
+  manualBenchmarks?: ManualBenchmarks;
+  onSetManualBenchmark?: (merchantName: string, pick: number | null, pack: number | null) => void | Promise<void>;
+  onClearManualBenchmark?: (merchantName: string) => void | Promise<void>;
 }
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, overnightVolumes = {}, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set() }: FlowManagementTableProps) {
+export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, overnightVolumes = {}, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set(), manualBenchmarks = {}, onSetManualBenchmark, onClearManualBenchmark }: FlowManagementTableProps) {
   const timeLeft = useTimeLeft();
   const { lookup: zoneLookup, assign: assignZone } = useZoneOverrides();
   const [assignZoneFor, setAssignZoneFor] = useState<Record<string, "A" | "B">>({});

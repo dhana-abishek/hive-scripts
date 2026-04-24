@@ -9,6 +9,7 @@ import { getZoneGroups } from "@/data/zoneMappings";
 import { useZoneOverrides } from "@/hooks/useZoneOverrides";
 import { toast } from "@/hooks/use-toast";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
+import type { ManualBenchmarks } from "@/hooks/useManualBenchmarks";
 
 const MULTIPLIER = 1.125;
 const BACKLOG_KEY = "plannedBacklog";

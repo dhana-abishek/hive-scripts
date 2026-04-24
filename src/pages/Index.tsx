@@ -56,7 +56,7 @@ function Dashboard() {
   const pickingBenchmarks = activePick?.entries ?? defaultPickingBenchmarks;
   const packingBenchmarks = activePack?.entries ?? defaultPackingBenchmarks;
 
-  const { flowData, rawMerchants, pickingRates: rawPickingRates, packingRates: rawPackingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
+  const { rawMerchants, pickingRates: rawPickingRates, packingRates: rawPackingRates, isLoading, error, lastUpdated, refresh } = useMetabaseData(
     activePick?.entries ?? null,
     activePack?.entries ?? null
   );
@@ -71,6 +71,12 @@ function Dashboard() {
   const packingRates = useMemo(
     () => mergeManualRates(rawPackingRates, manualBenchmarks, "pack"),
     [rawPackingRates, manualBenchmarks]
+  );
+
+  // Rebuild flowData with merged rates so manual overrides drive pick/pack hours
+  const flowData = useMemo(
+    () => buildFlowData(rawMerchants, pickingRates, packingRates),
+    [rawMerchants, pickingRates, packingRates]
   );
 
   // Merge extra merchants into flowData as additional rows, with optional inflow estimation

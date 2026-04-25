@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScanLine, X, ChevronRight, Info, Upload, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ScanLine, X, ChevronRight, Info, Upload, ArrowUp, ArrowDown, ArrowUpDown, Printer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { parseCSVLine } from "@/lib/csvParser";

@@ -334,6 +334,9 @@ export function InventoryDiscrepancies() {
             {csvName} · {Object.keys(pickableMap).length} SKUs
           </span>
         )}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {!hydrated ? "Loading…" : syncing ? "Syncing…" : "Synced"}
+        </span>
       </div>
 
       <div className="rounded-md border border-border bg-card p-6 space-y-4">

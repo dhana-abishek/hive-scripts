@@ -43,6 +43,9 @@ export function InventoryDiscrepancies() {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const skipNextSyncRef = useRef<{ entries?: boolean; pickable?: boolean; csv?: boolean }>({});
+  // Track our own recent writes so realtime echoes don't clobber local state
+  // (large payloads may be truncated by the realtime broadcast and arrive as null/empty)
+  const ownWriteRef = useRef<Record<string, number>>({});
 
   // Initial load from Supabase
   useEffect(() => {

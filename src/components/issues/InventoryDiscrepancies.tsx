@@ -329,7 +329,7 @@ export function InventoryDiscrepancies() {
 
       {entries.length > 0 && (
         <div className="rounded-md border border-border bg-card">
-          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1.4fr_0.8fr_70px_2fr_100px_32px] gap-3">
+          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1.4fr_0.8fr_70px_2fr_100px_32px] gap-3 [grid-cols-[1.4fr_0.8fr_70px_2fr_100px_32px] gap-3>*:nth-child(3)]:mr-6">
             <span>SKU</span>
             <span>PB</span>
             <span className="text-right">Qty</span>
@@ -359,7 +359,7 @@ export function InventoryDiscrepancies() {
               return (
                 <li
                   key={`${entry.sku}-${i}`}
-                  className="grid grid-cols-[1.4fr_0.8fr_70px_2fr_100px_32px] gap-3 items-center px-4 py-2 text-sm"
+                  className="grid grid-cols-[1.4fr_0.8fr_70px_2fr_100px_32px] gap-3 [grid-cols-[1.4fr_0.8fr_70px_2fr_100px_32px] gap-3>*:nth-child(3)]:mr-6 items-center px-4 py-2 text-sm"
                 >
                   <span className="font-mono truncate">{entry.sku}</span>
                   <span className="font-mono">{entry.pb}</span>

@@ -332,7 +332,7 @@ export function InventoryDiscrepancies() {
           <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1fr_1fr_1fr_1fr_1fr_32px] gap-8 items-center">
             <span>SKU</span>
             <span>PB</span>
-            <span className="text-right">Qty</span>
+            <span>Qty</span>
             <button
               type="button"
               onClick={cycleLocSort}

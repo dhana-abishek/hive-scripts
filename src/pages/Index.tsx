@@ -1,12 +1,13 @@
 import { useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, Wand2, type LucideIcon } from "lucide-react";
+import { Package, BarChart3, Gauge, Activity, RefreshCw, Loader2, MapPin, CalendarClock, Users, TrendingUp, FileText, CalendarRange, Wand2, AlertTriangle, type LucideIcon } from "lucide-react";
 import { SummaryStats } from "@/components/SummaryStats";
 import { FlowManagementTable } from "@/components/FlowManagementTable";
 import { BenchmarkTable } from "@/components/BenchmarkTable";
 import { ZoneView } from "@/components/ZoneView";
 import { AgingOrders } from "@/components/AgingOrders";
+import { Issues } from "@/components/Issues";
 import { PerformanceTracker } from "@/components/PerformanceTracker";
 import { ActualSPH } from "@/components/ActualSPH";
 import { Reports } from "@/components/Reports";
@@ -22,6 +23,7 @@ const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
   { value: "flow", label: "Flow Management", icon: Activity },
   { value: "hacks", label: "Hacks", icon: Wand2 },
   { value: "aging", label: "Aging Orders", icon: CalendarClock },
+  { value: "issues", label: "Issues", icon: AlertTriangle },
   { value: "performance", label: "Performance", icon: Users },
   { value: "actualsph", label: "Actual SPH", icon: TrendingUp },
   { value: "reports", label: "Reports", icon: FileText },
@@ -328,6 +330,10 @@ function Dashboard() {
 
           <TabsContent value="aging">
             <AgingOrders pickingRates={pickingRates} packingRates={packingRates} />
+          </TabsContent>
+
+          <TabsContent value="issues">
+            <Issues />
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-4">

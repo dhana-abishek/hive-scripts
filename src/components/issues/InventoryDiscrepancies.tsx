@@ -438,6 +438,16 @@ export function InventoryDiscrepancies() {
         <span className="ml-auto text-xs text-muted-foreground">
           {!hydrated ? "Loading…" : syncing ? "Syncing…" : "Synced"}
         </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={handlePrint}
+          disabled={entries.length === 0}
+        >
+          <Printer size={14} className="mr-1.5" />
+          Print
+        </Button>
       </div>
 
       <div className="rounded-md border border-border bg-card p-6 space-y-4">

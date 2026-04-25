@@ -348,7 +348,7 @@ export function InventoryDiscrepancies() {
                 <ArrowUpDown size={12} className="opacity-50" />
               )}
             </button>
-            <span className="text-right">Available Qty</span>
+            <span>Available Qty</span>
             <span className="sr-only">Actions</span>
           </div>
           <ul className="divide-y divide-border">

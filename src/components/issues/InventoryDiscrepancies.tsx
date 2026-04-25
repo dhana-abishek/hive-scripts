@@ -351,7 +351,7 @@ export function InventoryDiscrepancies() {
         </Button>
         {csvName && (
           <span className="text-xs text-muted-foreground truncate">
-            {csvName} · {Object.keys(pickableMap).length} SKUs
+            {Object.keys(pickableMap).length} SKUs
             {csvUploadedAt && (
               <> · uploaded {new Date(csvUploadedAt).toLocaleString()}</>
             )}

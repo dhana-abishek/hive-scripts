@@ -359,15 +359,15 @@ export function InventoryDiscrepancies() {
               return (
                 <li
                   key={`${entry.sku}-${i}`}
-                  className="grid grid-cols-[1.4fr_0.8fr_70px_2fr_100px_32px] gap-3 [grid-cols-[1.4fr_0.8fr_70px_2fr_100px_32px] gap-3>*:nth-child(3)]:mr-6 items-center px-4 py-2 text-sm"
+                  className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_32px] gap-8 items-center px-4 py-2 text-sm"
                 >
                   <span className="font-mono truncate">{entry.sku}</span>
                   <span className="font-mono">{entry.pb}</span>
-                  <span className="font-mono tabular-nums text-right">{entry.qty}</span>
+                  <span className="font-mono tabular-nums">{entry.qty}</span>
                   <span className="font-mono text-xs truncate text-muted-foreground" title={allTitle}>
                     {!hasMap ? "—" : top ? top.location : "Not pickable / not found"}
                   </span>
-                  <span className="font-mono tabular-nums text-xs text-right text-muted-foreground">
+                  <span className="font-mono tabular-nums text-xs text-muted-foreground">
                     {!hasMap || !top ? "—" : top.available}
                   </span>
                   <button

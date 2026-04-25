@@ -329,26 +329,46 @@ export function InventoryDiscrepancies() {
 
       {entries.length > 0 && (
         <div className="rounded-md border border-border bg-card">
-          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1.2fr_0.8fr_auto_2fr_auto] gap-4">
+          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1.2fr_0.8fr_auto_2fr_auto_auto] gap-4">
             <span>SKU</span>
             <span>PB</span>
             <span>Qty</span>
-            <span>Pickable Location{hasMap ? "" : " (upload CSV)"}</span>
+            <button
+              type="button"
+              onClick={cycleLocSort}
+              className="flex items-center gap-1 text-left hover:text-foreground transition-colors"
+              aria-label="Sort by pickable location"
+            >
+              <span>Pickable Location{hasMap ? "" : " (upload CSV)"}</span>
+              {locSort === "asc" ? (
+                <ArrowUp size={12} />
+              ) : locSort === "desc" ? (
+                <ArrowDown size={12} />
+              ) : (
+                <ArrowUpDown size={12} className="opacity-50" />
+              )}
+            </button>
+            <span className="text-right">Available Qty</span>
             <span className="sr-only">Actions</span>
           </div>
           <ul className="divide-y divide-border">
-            {entries.map((entry, i) => {
-              const locs = pickableMap[entry.sku];
+            {sortedEntries.map(({ e: entry, i }) => {
+              const top = topPickable(entry.sku);
+              const allLocs = pickableMap[entry.sku];
+              const allTitle = allLocs?.map((l) => `${l.location} (${l.available})`).join(", ");
               return (
                 <li
                   key={`${entry.sku}-${i}`}
-                  className="grid grid-cols-[1.2fr_0.8fr_auto_2fr_auto] gap-4 items-center px-4 py-2 text-sm"
+                  className="grid grid-cols-[1.2fr_0.8fr_auto_2fr_auto_auto] gap-4 items-center px-4 py-2 text-sm"
                 >
                   <span className="font-mono truncate">{entry.sku}</span>
                   <span className="font-mono">{entry.pb}</span>
                   <span className="font-mono tabular-nums text-right">{entry.qty}</span>
-                  <span className="font-mono text-xs truncate text-muted-foreground" title={locs?.join(", ")}>
-                    {!hasMap ? "—" : locs && locs.length > 0 ? locs.join(", ") : "Not pickable / not found"}
+                  <span className="font-mono text-xs truncate text-muted-foreground" title={allTitle}>
+                    {!hasMap ? "—" : top ? top.location : "Not pickable / not found"}
+                  </span>
+                  <span className="font-mono tabular-nums text-xs text-right text-muted-foreground">
+                    {!hasMap || !top ? "—" : top.available}
                   </span>
                   <button
                     onClick={() => removeAt(i)}

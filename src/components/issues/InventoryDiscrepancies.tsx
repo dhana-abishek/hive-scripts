@@ -14,8 +14,11 @@ type Entry = {
   qty: number;
 };
 
-// Map of sku_id -> array of pickable locations
-type PickableMap = Record<string, string[]>;
+// Map of sku_id -> array of pickable locations with available quantity, sorted desc by qty
+type PickableEntry = { location: string; available: number };
+type PickableMap = Record<string, PickableEntry[]>;
+
+type SortDir = "none" | "asc" | "desc";
 
 export function InventoryDiscrepancies() {
   const [step, setStep] = useState<Step>("sku");

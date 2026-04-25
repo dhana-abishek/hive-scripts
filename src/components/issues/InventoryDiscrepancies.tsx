@@ -169,6 +169,33 @@ export function InventoryDiscrepancies() {
     step === "sku" ? "Scan SKU ID" : step === "qty" ? "Enter Quantity" : "Scan PB Number";
 
   const hasMap = useMemo(() => Object.keys(pickableMap).length > 0, [pickableMap]);
+  const [locSort, setLocSort] = useState<SortDir>("none");
+
+  const topPickable = (sku: string): PickableEntry | null => {
+    const list = pickableMap[sku];
+    if (!list || list.length === 0) return null;
+    return list[0]; // already sorted desc
+  };
+
+  const cycleLocSort = () => {
+    setLocSort((d) => (d === "none" ? "asc" : d === "asc" ? "desc" : "none"));
+  };
+
+  const sortedEntries = useMemo(() => {
+    if (locSort === "none") return entries.map((e, i) => ({ e, i }));
+    const indexed = entries.map((e, i) => ({ e, i }));
+    indexed.sort((a, b) => {
+      const la = topPickable(a.e.sku)?.location ?? "";
+      const lb = topPickable(b.e.sku)?.location ?? "";
+      // empties last
+      if (!la && !lb) return 0;
+      if (!la) return 1;
+      if (!lb) return -1;
+      const cmp = la.localeCompare(lb, undefined, { numeric: true, sensitivity: "base" });
+      return locSort === "asc" ? cmp : -cmp;
+    });
+    return indexed;
+  }, [entries, locSort, pickableMap]);
 
   return (
     <div className="space-y-4">

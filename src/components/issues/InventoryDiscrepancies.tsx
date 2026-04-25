@@ -92,6 +92,11 @@ export function InventoryDiscrepancies() {
       return;
     }
 
+    if (entries.some((e) => e.pb === trimmed)) {
+      setError(`PB "${trimmed}" has already been used. Scan a different basket.`);
+      return;
+    }
+
     setEntries((prev) => [{ pb: trimmed, sku: currentSku, qty: currentQty }, ...prev]);
     setInfo(null);
     resetFlow();

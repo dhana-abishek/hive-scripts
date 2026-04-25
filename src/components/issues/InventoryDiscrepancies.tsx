@@ -463,7 +463,8 @@ export function InventoryDiscrepancies() {
 
       {entries.length > 0 && (
         <div className="rounded-md border border-border bg-card">
-          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1fr_1fr_1fr_1fr_1fr_32px] gap-8 items-center">
+          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[0.5fr_1fr_1fr_1fr_1fr_1fr_32px] gap-8 items-center">
+            <span>Cart #</span>
             <span>SKU</span>
             <span>PB</span>
             <span>Qty</span>

@@ -37,6 +37,7 @@ export function InventoryDiscrepancies() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [pickableMap, setPickableMap] = useState<PickableMap>({});
   const [csvName, setCsvName] = useState<string | null>(null);
+  const [csvUploadedAt, setCsvUploadedAt] = useState<string | null>(null);
   const [csvLoading, setCsvLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -65,8 +66,9 @@ export function InventoryDiscrepancies() {
           } else if (row.key === PICKABLE_KEY && row.value && typeof row.value === "object") {
             setPickableMap(row.value as PickableMap);
           } else if (row.key === CSV_META_KEY && row.value && typeof row.value === "object") {
-            const meta = row.value as { name?: string };
+            const meta = row.value as { name?: string; uploadedAt?: string };
             if (meta.name) setCsvName(meta.name);
+            if (meta.uploadedAt) setCsvUploadedAt(meta.uploadedAt);
           }
         }
       }
@@ -109,8 +111,9 @@ export function InventoryDiscrepancies() {
             setPickableMap(value && typeof value === "object" ? (value as PickableMap) : {});
           } else if (row.key === CSV_META_KEY) {
             skipNextSyncRef.current.csv = true;
-            const meta = (value ?? {}) as { name?: string };
+            const meta = (value ?? {}) as { name?: string; uploadedAt?: string };
             setCsvName(meta.name ?? null);
+            setCsvUploadedAt(meta.uploadedAt ?? null);
           }
         }
       )
@@ -157,8 +160,8 @@ export function InventoryDiscrepancies() {
       skipNextSyncRef.current.csv = false;
       return;
     }
-    persist(CSV_META_KEY, { name: csvName });
-  }, [csvName, hydrated]);
+    persist(CSV_META_KEY, { name: csvName, uploadedAt: csvUploadedAt });
+  }, [csvName, csvUploadedAt, hydrated]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -213,6 +216,7 @@ export function InventoryDiscrepancies() {
       }
       setPickableMap(map);
       setCsvName(file.name);
+      setCsvUploadedAt(new Date().toISOString());
       setError(null);
       setInfo(`Loaded ${Object.keys(map).length} SKUs with pickable locations from "${file.name}".`);
     } catch (err) {
@@ -348,6 +352,9 @@ export function InventoryDiscrepancies() {
         {csvName && (
           <span className="text-xs text-muted-foreground truncate">
             {csvName} · {Object.keys(pickableMap).length} SKUs
+            {csvUploadedAt && (
+              <> · uploaded {new Date(csvUploadedAt).toLocaleString()}</>
+            )}
           </span>
         )}
         <span className="ml-auto text-xs text-muted-foreground">

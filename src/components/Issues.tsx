@@ -223,6 +223,21 @@ export function Issues() {
           />
         </div>
 
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Zone</label>
+          <div className="inline-flex rounded-md border border-border bg-secondary p-0.5">
+            {(["all", "A", "B"] as ZoneFilter[]).map((z) => (
+              <button
+                key={z}
+                onClick={() => setZoneFilter(z)}
+                className={`px-3 h-8 text-xs rounded ${zoneFilter === z ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"}`}
+              >
+                {z === "all" ? "All" : `Zone ${z}`}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {hasFile && (
           <div className="text-xs text-muted-foreground pb-2">
             <div className="flex items-center gap-1.5">

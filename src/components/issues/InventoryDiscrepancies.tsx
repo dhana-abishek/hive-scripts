@@ -5,18 +5,21 @@ import { Button } from "@/components/ui/button";
 
 const PB_REGEX = /^PB\.\d+$/;
 
-type Step = "pb" | "sku";
+type Step = "pb" | "sku" | "qty";
 
 type Entry = {
   pb: string;
   sku: string;
+  qty: number;
 };
 
 export function InventoryDiscrepancies() {
   const [step, setStep] = useState<Step>("pb");
   const [pbValue, setPbValue] = useState("");
   const [skuValue, setSkuValue] = useState("");
+  const [qtyValue, setQtyValue] = useState("");
   const [currentPb, setCurrentPb] = useState<string | null>(null);
+  const [currentSku, setCurrentSku] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +27,16 @@ export function InventoryDiscrepancies() {
   useEffect(() => {
     inputRef.current?.focus();
   }, [step]);
+
+  const resetFlow = () => {
+    setCurrentPb(null);
+    setCurrentSku(null);
+    setPbValue("");
+    setSkuValue("");
+    setQtyValue("");
+    setError(null);
+    setStep("pb");
+  };
 
   const handlePbSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,41 +61,58 @@ export function InventoryDiscrepancies() {
     if (!currentPb) return;
 
     setError(null);
-    setEntries((prev) => [{ pb: currentPb, sku: trimmed }, ...prev]);
+    setCurrentSku(trimmed);
     setSkuValue("");
-    setCurrentPb(null);
-    setStep("pb");
+    setStep("qty");
   };
 
-  const cancelSku = () => {
-    setCurrentPb(null);
-    setSkuValue("");
-    setError(null);
-    setStep("pb");
+  const handleQtySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = qtyValue.trim();
+    if (!trimmed) return;
+    if (!currentPb || !currentSku) return;
+
+    const n = Number(trimmed);
+    if (!Number.isInteger(n) || n <= 0) {
+      setError(`Invalid quantity: "${trimmed}". Must be a positive whole number.`);
+      return;
+    }
+
+    setEntries((prev) => [{ pb: currentPb, sku: currentSku, qty: n }, ...prev]);
+    resetFlow();
   };
 
   const removeAt = (idx: number) => {
     setEntries((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const heading =
+    step === "pb" ? "Scan PB Number" : step === "sku" ? "Scan SKU ID" : "Enter Quantity";
+
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-border bg-card p-6 space-y-4">
         <div className="flex items-center gap-2">
           <ScanLine size={18} className="text-muted-foreground" />
-          <h3 className="text-sm font-medium">
-            {step === "pb" ? "Scan PB Number" : "Scan SKU ID"}
-          </h3>
+          <h3 className="text-sm font-medium">{heading}</h3>
           {currentPb && (
             <span className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground">
               <span className="font-mono px-2 py-0.5 rounded bg-secondary">{currentPb}</span>
               <ChevronRight size={12} />
-              <span>SKU</span>
+              {currentSku ? (
+                <>
+                  <span className="font-mono px-2 py-0.5 rounded bg-secondary">{currentSku}</span>
+                  <ChevronRight size={12} />
+                  <span>Qty</span>
+                </>
+              ) : (
+                <span>SKU</span>
+              )}
             </span>
           )}
         </div>
 
-        {step === "pb" ? (
+        {step === "pb" && (
           <form onSubmit={handlePbSubmit} className="flex gap-2">
             <Input
               ref={inputRef}
@@ -98,7 +128,9 @@ export function InventoryDiscrepancies() {
             />
             <Button type="submit" size="sm">Next</Button>
           </form>
-        ) : (
+        )}
+
+        {step === "sku" && (
           <form onSubmit={handleSkuSubmit} className="flex gap-2">
             <Input
               ref={inputRef}
@@ -111,8 +143,32 @@ export function InventoryDiscrepancies() {
               autoComplete="off"
               spellCheck={false}
             />
+            <Button type="submit" size="sm">Next</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={resetFlow}>
+              Cancel
+            </Button>
+          </form>
+        )}
+
+        {step === "qty" && (
+          <form onSubmit={handleQtySubmit} className="flex gap-2">
+            <Input
+              ref={inputRef}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              value={qtyValue}
+              onChange={(e) => {
+                setQtyValue(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="Enter quantity"
+              autoComplete="off"
+              className={error ? "border-destructive focus-visible:ring-destructive" : ""}
+            />
             <Button type="submit" size="sm">Add</Button>
-            <Button type="button" size="sm" variant="ghost" onClick={cancelSku}>
+            <Button type="button" size="sm" variant="ghost" onClick={resetFlow}>
               Cancel
             </Button>
           </form>
@@ -120,27 +176,33 @@ export function InventoryDiscrepancies() {
 
         {error && <p className="text-xs text-destructive">{error}</p>}
         <p className="text-xs text-muted-foreground">
-          {step === "pb"
-            ? <>Format must be <code className="px-1 py-0.5 rounded bg-secondary">PB.</code> followed by a number (e.g. PB.1, PB.250).</>
-            : <>Scan the SKU ID for <span className="font-mono">{currentPb}</span>.</>}
+          {step === "pb" && (
+            <>Format must be <code className="px-1 py-0.5 rounded bg-secondary">PB.</code> followed by a number (e.g. PB.1, PB.250).</>
+          )}
+          {step === "sku" && <>Scan the SKU ID for <span className="font-mono">{currentPb}</span>.</>}
+          {step === "qty" && (
+            <>Enter quantity for <span className="font-mono">{currentSku}</span> in <span className="font-mono">{currentPb}</span>.</>
+          )}
         </p>
       </div>
 
       {entries.length > 0 && (
         <div className="rounded-md border border-border bg-card">
-          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1fr_2fr_auto] gap-4">
+          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1fr_2fr_auto_auto] gap-4">
             <span>PB</span>
             <span>SKU</span>
+            <span>Qty</span>
             <span className="sr-only">Actions</span>
           </div>
           <ul className="divide-y divide-border">
             {entries.map((entry, i) => (
               <li
                 key={`${entry.pb}-${entry.sku}-${i}`}
-                className="grid grid-cols-[1fr_2fr_auto] gap-4 items-center px-4 py-2 text-sm"
+                className="grid grid-cols-[1fr_2fr_auto_auto] gap-4 items-center px-4 py-2 text-sm"
               >
                 <span className="font-mono">{entry.pb}</span>
                 <span className="font-mono truncate">{entry.sku}</span>
+                <span className="font-mono tabular-nums text-right">{entry.qty}</span>
                 <button
                   onClick={() => removeAt(i)}
                   className="text-muted-foreground hover:text-foreground"

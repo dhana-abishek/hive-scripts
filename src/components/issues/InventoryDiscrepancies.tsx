@@ -11,7 +11,7 @@ const CSV_META_KEY = "inventory_csv_meta";
 
 const PB_REGEX = /^PB\.\d+$/;
 
-type Step = "sku" | "qty" | "pb";
+type Step = "pb" | "sku" | "qty";
 
 type Entry = {
   pb: string;
@@ -26,12 +26,12 @@ type PickableMap = Record<string, PickableEntry[]>;
 type SortDir = "none" | "asc" | "desc";
 
 export function InventoryDiscrepancies() {
-  const [step, setStep] = useState<Step>("sku");
+  const [step, setStep] = useState<Step>("pb");
   const [skuValue, setSkuValue] = useState("");
   const [qtyValue, setQtyValue] = useState("");
   const [pbValue, setPbValue] = useState("");
+  const [currentPb, setCurrentPb] = useState<string | null>(null);
   const [currentSku, setCurrentSku] = useState<string | null>(null);
-  const [currentQty, setCurrentQty] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -168,13 +168,13 @@ export function InventoryDiscrepancies() {
   }, [step]);
 
   const resetFlow = () => {
+    setCurrentPb(null);
     setCurrentSku(null);
-    setCurrentQty(null);
     setSkuValue("");
     setQtyValue("");
     setPbValue("");
     setError(null);
-    setStep("sku");
+    setStep("pb");
   };
 
   const handleCsvUpload = async (file: File) => {
@@ -226,53 +226,10 @@ export function InventoryDiscrepancies() {
     }
   };
 
-  const handleSkuSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = skuValue.trim();
-    if (!trimmed) return;
-
-    setError(null);
-    setInfo(null);
-    setCurrentSku(trimmed);
-    setSkuValue("");
-    setStep("qty");
-  };
-
-  const handleQtySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = qtyValue.trim();
-    if (!trimmed || !currentSku) return;
-
-    const n = Number(trimmed);
-    if (!Number.isInteger(n) || n <= 0) {
-      setError(`Invalid quantity: "${trimmed}". Must be a positive whole number.`);
-      return;
-    }
-
-    // Check if SKU already exists
-    const existingIdx = entries.findIndex((e) => e.sku === currentSku);
-    if (existingIdx !== -1) {
-      const existing = entries[existingIdx];
-      setEntries((prev) =>
-        prev.map((e, i) => (i === existingIdx ? { ...e, qty: e.qty + n } : e))
-      );
-      setInfo(
-        `SKU "${currentSku}" already in basket ${existing.pb}. Added ${n} (new total: ${existing.qty + n}).`
-      );
-      resetFlow();
-      return;
-    }
-
-    setError(null);
-    setCurrentQty(n);
-    setQtyValue("");
-    setStep("pb");
-  };
-
   const handlePbSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = pbValue.trim();
-    if (!trimmed || !currentSku || currentQty == null) return;
+    if (!trimmed) return;
 
     if (!PB_REGEX.test(trimmed)) {
       setError(`Invalid PB format: "${trimmed}". Expected like "PB.1", "PB.42", "PB.100".`);
@@ -284,7 +241,37 @@ export function InventoryDiscrepancies() {
       return;
     }
 
-    setEntries((prev) => [{ pb: trimmed, sku: currentSku, qty: currentQty }, ...prev]);
+    setError(null);
+    setInfo(null);
+    setCurrentPb(trimmed);
+    setPbValue("");
+    setStep("sku");
+  };
+
+  const handleSkuSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = skuValue.trim();
+    if (!trimmed || !currentPb) return;
+
+    setError(null);
+    setInfo(null);
+    setCurrentSku(trimmed);
+    setSkuValue("");
+    setStep("qty");
+  };
+
+  const handleQtySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = qtyValue.trim();
+    if (!trimmed || !currentPb || !currentSku) return;
+
+    const n = Number(trimmed);
+    if (!Number.isInteger(n) || n <= 0) {
+      setError(`Invalid quantity: "${trimmed}". Must be a positive whole number.`);
+      return;
+    }
+
+    setEntries((prev) => [{ pb: currentPb, sku: currentSku, qty: n }, ...prev]);
     setInfo(null);
     resetFlow();
   };
@@ -294,7 +281,7 @@ export function InventoryDiscrepancies() {
   };
 
   const heading =
-    step === "sku" ? "Scan SKU ID" : step === "qty" ? "Enter Quantity" : "Scan PB Number";
+    step === "pb" ? "Scan PB Number" : step === "sku" ? "Scan SKU ID" : "Enter Quantity";
 
   const hasMap = useMemo(() => Object.keys(pickableMap).length > 0, [pickableMap]);
   const [locSort, setLocSort] = useState<SortDir>("none");
@@ -454,18 +441,18 @@ export function InventoryDiscrepancies() {
         <div className="flex items-center gap-2">
           <ScanLine size={18} className="text-muted-foreground" />
           <h3 className="text-sm font-medium">{heading}</h3>
-          {currentSku && (
+          {currentPb && (
             <span className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <span className="font-mono px-2 py-0.5 rounded bg-secondary">{currentSku}</span>
+              <span className="font-mono px-2 py-0.5 rounded bg-secondary">{currentPb}</span>
               <ChevronRight size={12} />
-              {currentQty != null ? (
+              {currentSku ? (
                 <>
-                  <span className="font-mono px-2 py-0.5 rounded bg-secondary">Qty {currentQty}</span>
+                  <span className="font-mono px-2 py-0.5 rounded bg-secondary">{currentSku}</span>
                   <ChevronRight size={12} />
-                  <span>PB</span>
+                  <span>Qty</span>
                 </>
               ) : (
-                <span>Qty</span>
+                <span>SKU</span>
               )}
             </span>
           )}
@@ -541,11 +528,11 @@ export function InventoryDiscrepancies() {
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          {step === "sku" && <>Scan the SKU ID to begin.</>}
-          {step === "qty" && <>Enter quantity for <span className="font-mono">{currentSku}</span>.</>}
           {step === "pb" && (
-            <>New SKU — scan the PB number where <span className="font-mono">{currentSku}</span> (qty {currentQty}) is located. Format: <code className="px-1 py-0.5 rounded bg-secondary">PB.</code> followed by a number.</>
+            <>Scan the PB number to begin. Format: <code className="px-1 py-0.5 rounded bg-secondary">PB.</code> followed by a number.</>
           )}
+          {step === "sku" && <>Scan the SKU ID for basket <span className="font-mono">{currentPb}</span>.</>}
+          {step === "qty" && <>Enter quantity for <span className="font-mono">{currentSku}</span> in <span className="font-mono">{currentPb}</span>.</>}
         </p>
       </div>
 

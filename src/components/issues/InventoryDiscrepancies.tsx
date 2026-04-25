@@ -38,8 +38,111 @@ export function InventoryDiscrepancies() {
   const [pickableMap, setPickableMap] = useState<PickableMap>({});
   const [csvName, setCsvName] = useState<string | null>(null);
   const [csvLoading, setCsvLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const skipNextSyncRef = useRef<{ entries?: boolean; pickable?: boolean; csv?: boolean }>({});
+
+  // Initial load from Supabase
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error: loadErr } = await supabase
+        .from("app_storage")
+        .select("key, value")
+        .in("key", [ENTRIES_KEY, PICKABLE_KEY, CSV_META_KEY]);
+      if (cancelled) return;
+      if (loadErr) {
+        setError(`Failed to load synced data: ${loadErr.message}`);
+      } else if (data) {
+        for (const row of data) {
+          if (row.key === ENTRIES_KEY && Array.isArray(row.value)) {
+            setEntries(row.value as Entry[]);
+          } else if (row.key === PICKABLE_KEY && row.value && typeof row.value === "object") {
+            setPickableMap(row.value as PickableMap);
+          } else if (row.key === CSV_META_KEY && row.value && typeof row.value === "object") {
+            const meta = row.value as { name?: string };
+            if (meta.name) setCsvName(meta.name);
+          }
+        }
+      }
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Realtime subscription so other devices stay in sync
+  useEffect(() => {
+    const channel = supabase
+      .channel("app_storage_inventory")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_storage" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { key?: string; value?: unknown } | null;
+          if (!row?.key) return;
+          if (row.key === ENTRIES_KEY) {
+            skipNextSyncRef.current.entries = true;
+            setEntries(Array.isArray(row.value) ? (row.value as Entry[]) : []);
+          } else if (row.key === PICKABLE_KEY) {
+            skipNextSyncRef.current.pickable = true;
+            setPickableMap(
+              row.value && typeof row.value === "object" ? (row.value as PickableMap) : {}
+            );
+          } else if (row.key === CSV_META_KEY) {
+            skipNextSyncRef.current.csv = true;
+            const meta = (row.value ?? {}) as { name?: string };
+            setCsvName(meta.name ?? null);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const persist = async (key: string, value: unknown) => {
+    setSyncing(true);
+    const { error: upErr } = await supabase
+      .from("app_storage")
+      .upsert({ key, value: value as never, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    setSyncing(false);
+    if (upErr) setError(`Sync failed: ${upErr.message}`);
+  };
+
+  // Persist entries when they change locally
+  useEffect(() => {
+    if (!hydrated) return;
+    if (skipNextSyncRef.current.entries) {
+      skipNextSyncRef.current.entries = false;
+      return;
+    }
+    persist(ENTRIES_KEY, entries);
+  }, [entries, hydrated]);
+
+  // Persist pickable map
+  useEffect(() => {
+    if (!hydrated) return;
+    if (skipNextSyncRef.current.pickable) {
+      skipNextSyncRef.current.pickable = false;
+      return;
+    }
+    persist(PICKABLE_KEY, pickableMap);
+  }, [pickableMap, hydrated]);
+
+  // Persist csv name
+  useEffect(() => {
+    if (!hydrated) return;
+    if (skipNextSyncRef.current.csv) {
+      skipNextSyncRef.current.csv = false;
+      return;
+    }
+    persist(CSV_META_KEY, { name: csvName });
+  }, [csvName, hydrated]);
 
   useEffect(() => {
     inputRef.current?.focus();

@@ -173,7 +173,7 @@ export function Issues() {
       }
       return sortDir === "asc" ? av - bv : bv - av;
     });
-  }, [rawData, uploadedAt, thresholdHours, search, sortKey, sortDir]);
+  }, [rawData, uploadedAt, thresholdHours, search, sortKey, sortDir, zoneFilter]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => (d === "asc" ? "desc" : "asc"));

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScanLine, X, ChevronRight, Info, Upload, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ScanLine, X, ChevronRight, Info, Upload, ArrowUp, ArrowDown, ArrowUpDown, Printer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { parseCSVLine } from "@/lib/csvParser";
@@ -325,6 +325,84 @@ export function InventoryDiscrepancies() {
     return indexed;
   }, [entries, locSort, pickableMap]);
 
+  const handlePrint = () => {
+    const rows = sortedEntries
+      .map(({ e: entry, i }) => {
+        const top = topPickable(entry.sku);
+        const cartNum = entries.length - i;
+        const loc = !hasMap ? "—" : top ? top.location : "Not pickable / not found";
+        const avail = !hasMap || !top ? "—" : String(top.available);
+        const esc = (s: string) =>
+          s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<tr>
+          <td>${esc(loc)}</td>
+          <td class="num">${cartNum}</td>
+          <td>${esc(entry.pb)}</td>
+          <td class="num">${entry.qty}</td>
+          <td>${esc(entry.sku)}</td>
+          <td class="num">${esc(avail)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Inventory Discrepancies</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #000; }
+  h1 { font-size: 14pt; margin: 0 0 4mm 0; }
+  .meta { font-size: 9pt; color: #444; margin-bottom: 4mm; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9pt; }
+  th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; word-wrap: break-word; overflow-wrap: break-word; }
+  th { background: #f0f0f0; font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  thead { display: table-header-group; }
+  tr { page-break-inside: avoid; }
+  col.loc { width: 24%; }
+  col.cart { width: 10%; }
+  col.pb { width: 14%; }
+  col.qty { width: 10%; }
+  col.sku { width: 28%; }
+  col.avail { width: 14%; }
+</style>
+</head>
+<body>
+  <h1>Inventory Discrepancies</h1>
+  <div class="meta">${entries.length} item${entries.length === 1 ? "" : "s"} · printed ${new Date().toLocaleString()}${csvUploadedAt ? ` · CSV uploaded ${new Date(csvUploadedAt).toLocaleString()}` : ""}</div>
+  <table>
+    <colgroup>
+      <col class="loc" /><col class="cart" /><col class="pb" /><col class="qty" /><col class="sku" /><col class="avail" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Pickable Location</th>
+        <th class="num">Cart #</th>
+        <th>PB</th>
+        <th class="num">Qty</th>
+        <th>SKU</th>
+        <th class="num">Available Qty</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <script>window.onload = () => { window.focus(); window.print(); };<\/script>
+</body>
+</html>`;
+
+    const w = window.open("", "_blank");
+    if (!w) {
+      setError("Unable to open print window. Please allow pop-ups.");
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -360,6 +438,16 @@ export function InventoryDiscrepancies() {
         <span className="ml-auto text-xs text-muted-foreground">
           {!hydrated ? "Loading…" : syncing ? "Syncing…" : "Synced"}
         </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={handlePrint}
+          disabled={entries.length === 0}
+        >
+          <Printer size={14} className="mr-1.5" />
+          Print
+        </Button>
       </div>
 
       <div className="rounded-md border border-border bg-card p-6 space-y-4">

@@ -63,6 +63,7 @@ export function InventoryDiscrepancies() {
       const skuIdx = headers.indexOf("sku_id");
       const locIdx = headers.indexOf("location");
       const pickIdx = headers.indexOf("pickable_type");
+      const qtyIdx = headers.indexOf("available_quantity");
       if (skuIdx < 0 || locIdx < 0 || pickIdx < 0) {
         setError("CSV missing required columns: sku_id, location, pickable_type.");
         return;
@@ -74,8 +75,17 @@ export function InventoryDiscrepancies() {
         const loc = (fields[locIdx] ?? "").trim();
         const pick = (fields[pickIdx] ?? "").trim().toLowerCase();
         if (!sku || !loc || pick !== "pickable") continue;
+        const availRaw = qtyIdx >= 0 ? (fields[qtyIdx] ?? "").trim() : "";
+        const available = Number(availRaw);
+        const availableNum = Number.isFinite(available) ? available : 0;
         if (!map[sku]) map[sku] = [];
-        if (!map[sku].includes(loc)) map[sku].push(loc);
+        if (!map[sku].some((e) => e.location === loc)) {
+          map[sku].push({ location: loc, available: availableNum });
+        }
+      }
+      // Sort each SKU's locations by available qty desc
+      for (const sku of Object.keys(map)) {
+        map[sku].sort((a, b) => b.available - a.available);
       }
       setPickableMap(map);
       setCsvName(file.name);

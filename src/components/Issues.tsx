@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
 import { parseCSVLine, parseCSVHeaders } from "@/lib/csvParser";
+import { buildZoneLookup } from "@/data/zoneMappings";
+
+const zoneLookup = buildZoneLookup();
+type ZoneFilter = "all" | "A" | "B";
 
 const STORAGE_KEY_CSV = "issuesCsv";
 const STORAGE_KEY_UPLOADED_AT = "issuesUploadedAt";
@@ -83,6 +87,7 @@ export function Issues() {
   const [uploadedAt, setUploadedAt] = useState<number>(0);
   const [thresholdHours, setThresholdHours] = useState<number>(24);
   const [search, setSearch] = useState("");
+  const [zoneFilter, setZoneFilter] = useState<ZoneFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("age_hours");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const loadedRef = useRef(false);
@@ -148,6 +153,9 @@ export function Issues() {
         ...r,
         age_hours: (uploadedAt - r.finished_picking_ts) / 3600000,
       }));
+    if (zoneFilter !== "all") {
+      result = result.filter(r => zoneLookup[r.merchant]?.zone === zoneFilter);
+    }
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(r =>
@@ -165,7 +173,7 @@ export function Issues() {
       }
       return sortDir === "asc" ? av - bv : bv - av;
     });
-  }, [rawData, uploadedAt, thresholdHours, search, sortKey, sortDir]);
+  }, [rawData, uploadedAt, thresholdHours, search, sortKey, sortDir, zoneFilter]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => (d === "asc" ? "desc" : "asc"));
@@ -213,6 +221,21 @@ export function Issues() {
             onChange={(e) => setThresholdHours(Math.max(0, parseFloat(e.target.value) || 0))}
             className="h-9 w-32 text-xs"
           />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1">Zone</label>
+          <div className="inline-flex rounded-md border border-border bg-secondary p-0.5">
+            {(["all", "A", "B"] as ZoneFilter[]).map((z) => (
+              <button
+                key={z}
+                onClick={() => setZoneFilter(z)}
+                className={`px-3 h-8 text-xs rounded ${zoneFilter === z ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"}`}
+              >
+                {z === "all" ? "All" : `Zone ${z}`}
+              </button>
+            ))}
+          </div>
         </div>
 
         {hasFile && (

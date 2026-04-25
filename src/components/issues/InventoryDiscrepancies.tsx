@@ -441,18 +441,18 @@ export function InventoryDiscrepancies() {
         <div className="flex items-center gap-2">
           <ScanLine size={18} className="text-muted-foreground" />
           <h3 className="text-sm font-medium">{heading}</h3>
-          {currentSku && (
+          {currentPb && (
             <span className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <span className="font-mono px-2 py-0.5 rounded bg-secondary">{currentSku}</span>
+              <span className="font-mono px-2 py-0.5 rounded bg-secondary">{currentPb}</span>
               <ChevronRight size={12} />
-              {currentQty != null ? (
+              {currentSku ? (
                 <>
-                  <span className="font-mono px-2 py-0.5 rounded bg-secondary">Qty {currentQty}</span>
+                  <span className="font-mono px-2 py-0.5 rounded bg-secondary">{currentSku}</span>
                   <ChevronRight size={12} />
-                  <span>PB</span>
+                  <span>Qty</span>
                 </>
               ) : (
-                <span>Qty</span>
+                <span>SKU</span>
               )}
             </span>
           )}
@@ -528,11 +528,11 @@ export function InventoryDiscrepancies() {
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          {step === "sku" && <>Scan the SKU ID to begin.</>}
-          {step === "qty" && <>Enter quantity for <span className="font-mono">{currentSku}</span>.</>}
           {step === "pb" && (
-            <>New SKU — scan the PB number where <span className="font-mono">{currentSku}</span> (qty {currentQty}) is located. Format: <code className="px-1 py-0.5 rounded bg-secondary">PB.</code> followed by a number.</>
+            <>Scan the PB number to begin. Format: <code className="px-1 py-0.5 rounded bg-secondary">PB.</code> followed by a number.</>
           )}
+          {step === "sku" && <>Scan the SKU ID for basket <span className="font-mono">{currentPb}</span>.</>}
+          {step === "qty" && <>Enter quantity for <span className="font-mono">{currentSku}</span> in <span className="font-mono">{currentPb}</span>.</>}
         </p>
       </div>
 

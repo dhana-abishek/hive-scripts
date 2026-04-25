@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScanLine, X, ChevronRight, Info, Upload } from "lucide-react";
+import { ScanLine, X, ChevronRight, Info, Upload, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { parseCSVLine } from "@/lib/csvParser";
@@ -14,8 +14,11 @@ type Entry = {
   qty: number;
 };
 
-// Map of sku_id -> array of pickable locations
-type PickableMap = Record<string, string[]>;
+// Map of sku_id -> array of pickable locations with available quantity, sorted desc by qty
+type PickableEntry = { location: string; available: number };
+type PickableMap = Record<string, PickableEntry[]>;
+
+type SortDir = "none" | "asc" | "desc";
 
 export function InventoryDiscrepancies() {
   const [step, setStep] = useState<Step>("sku");
@@ -60,6 +63,7 @@ export function InventoryDiscrepancies() {
       const skuIdx = headers.indexOf("sku_id");
       const locIdx = headers.indexOf("location");
       const pickIdx = headers.indexOf("pickable_type");
+      const qtyIdx = headers.indexOf("available_quantity");
       if (skuIdx < 0 || locIdx < 0 || pickIdx < 0) {
         setError("CSV missing required columns: sku_id, location, pickable_type.");
         return;
@@ -71,8 +75,17 @@ export function InventoryDiscrepancies() {
         const loc = (fields[locIdx] ?? "").trim();
         const pick = (fields[pickIdx] ?? "").trim().toLowerCase();
         if (!sku || !loc || pick !== "pickable") continue;
+        const availRaw = qtyIdx >= 0 ? (fields[qtyIdx] ?? "").trim() : "";
+        const available = Number(availRaw);
+        const availableNum = Number.isFinite(available) ? available : 0;
         if (!map[sku]) map[sku] = [];
-        if (!map[sku].includes(loc)) map[sku].push(loc);
+        if (!map[sku].some((e) => e.location === loc)) {
+          map[sku].push({ location: loc, available: availableNum });
+        }
+      }
+      // Sort each SKU's locations by available qty desc
+      for (const sku of Object.keys(map)) {
+        map[sku].sort((a, b) => b.available - a.available);
       }
       setPickableMap(map);
       setCsvName(file.name);
@@ -156,6 +169,33 @@ export function InventoryDiscrepancies() {
     step === "sku" ? "Scan SKU ID" : step === "qty" ? "Enter Quantity" : "Scan PB Number";
 
   const hasMap = useMemo(() => Object.keys(pickableMap).length > 0, [pickableMap]);
+  const [locSort, setLocSort] = useState<SortDir>("none");
+
+  const topPickable = (sku: string): PickableEntry | null => {
+    const list = pickableMap[sku];
+    if (!list || list.length === 0) return null;
+    return list[0]; // already sorted desc
+  };
+
+  const cycleLocSort = () => {
+    setLocSort((d) => (d === "none" ? "asc" : d === "asc" ? "desc" : "none"));
+  };
+
+  const sortedEntries = useMemo(() => {
+    if (locSort === "none") return entries.map((e, i) => ({ e, i }));
+    const indexed = entries.map((e, i) => ({ e, i }));
+    indexed.sort((a, b) => {
+      const la = topPickable(a.e.sku)?.location ?? "";
+      const lb = topPickable(b.e.sku)?.location ?? "";
+      // empties last
+      if (!la && !lb) return 0;
+      if (!la) return 1;
+      if (!lb) return -1;
+      const cmp = la.localeCompare(lb, undefined, { numeric: true, sensitivity: "base" });
+      return locSort === "asc" ? cmp : -cmp;
+    });
+    return indexed;
+  }, [entries, locSort, pickableMap]);
 
   return (
     <div className="space-y-4">
@@ -289,26 +329,46 @@ export function InventoryDiscrepancies() {
 
       {entries.length > 0 && (
         <div className="rounded-md border border-border bg-card">
-          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1.2fr_0.8fr_auto_2fr_auto] gap-4">
+          <div className="px-4 py-2 border-b border-border text-xs font-medium text-muted-foreground grid grid-cols-[1.2fr_0.8fr_auto_2fr_auto_auto] gap-4">
             <span>SKU</span>
             <span>PB</span>
             <span>Qty</span>
-            <span>Pickable Location{hasMap ? "" : " (upload CSV)"}</span>
+            <button
+              type="button"
+              onClick={cycleLocSort}
+              className="flex items-center gap-1 text-left hover:text-foreground transition-colors"
+              aria-label="Sort by pickable location"
+            >
+              <span>Pickable Location{hasMap ? "" : " (upload CSV)"}</span>
+              {locSort === "asc" ? (
+                <ArrowUp size={12} />
+              ) : locSort === "desc" ? (
+                <ArrowDown size={12} />
+              ) : (
+                <ArrowUpDown size={12} className="opacity-50" />
+              )}
+            </button>
+            <span className="text-right">Available Qty</span>
             <span className="sr-only">Actions</span>
           </div>
           <ul className="divide-y divide-border">
-            {entries.map((entry, i) => {
-              const locs = pickableMap[entry.sku];
+            {sortedEntries.map(({ e: entry, i }) => {
+              const top = topPickable(entry.sku);
+              const allLocs = pickableMap[entry.sku];
+              const allTitle = allLocs?.map((l) => `${l.location} (${l.available})`).join(", ");
               return (
                 <li
                   key={`${entry.sku}-${i}`}
-                  className="grid grid-cols-[1.2fr_0.8fr_auto_2fr_auto] gap-4 items-center px-4 py-2 text-sm"
+                  className="grid grid-cols-[1.2fr_0.8fr_auto_2fr_auto_auto] gap-4 items-center px-4 py-2 text-sm"
                 >
                   <span className="font-mono truncate">{entry.sku}</span>
                   <span className="font-mono">{entry.pb}</span>
                   <span className="font-mono tabular-nums text-right">{entry.qty}</span>
-                  <span className="font-mono text-xs truncate text-muted-foreground" title={locs?.join(", ")}>
-                    {!hasMap ? "—" : locs && locs.length > 0 ? locs.join(", ") : "Not pickable / not found"}
+                  <span className="font-mono text-xs truncate text-muted-foreground" title={allTitle}>
+                    {!hasMap ? "—" : top ? top.location : "Not pickable / not found"}
+                  </span>
+                  <span className="font-mono tabular-nums text-xs text-right text-muted-foreground">
+                    {!hasMap || !top ? "—" : top.available}
                   </span>
                   <button
                     onClick={() => removeAt(i)}

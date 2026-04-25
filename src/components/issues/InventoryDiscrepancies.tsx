@@ -43,6 +43,9 @@ export function InventoryDiscrepancies() {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const skipNextSyncRef = useRef<{ entries?: boolean; pickable?: boolean; csv?: boolean }>({});
+  // Track our own recent writes so realtime echoes don't clobber local state
+  // (large payloads may be truncated by the realtime broadcast and arrive as null/empty)
+  const ownWriteRef = useRef<Record<string, number>>({});
 
   // Initial load from Supabase
   useEffect(() => {
@@ -81,20 +84,32 @@ export function InventoryDiscrepancies() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "app_storage" },
-        (payload) => {
+        async (payload) => {
           const row = (payload.new ?? payload.old) as { key?: string; value?: unknown } | null;
           if (!row?.key) return;
+          if (row.key !== ENTRIES_KEY && row.key !== PICKABLE_KEY && row.key !== CSV_META_KEY) return;
+
+          // Ignore echoes of our own recent writes (within 5s)
+          const lastOwn = ownWriteRef.current[row.key];
+          if (lastOwn && Date.now() - lastOwn < 5000) return;
+
+          // Re-fetch authoritative value from DB (realtime payloads may be truncated for large jsonb)
+          const { data } = await supabase
+            .from("app_storage")
+            .select("value")
+            .eq("key", row.key)
+            .maybeSingle();
+          const value = data?.value;
+
           if (row.key === ENTRIES_KEY) {
             skipNextSyncRef.current.entries = true;
-            setEntries(Array.isArray(row.value) ? (row.value as Entry[]) : []);
+            setEntries(Array.isArray(value) ? (value as Entry[]) : []);
           } else if (row.key === PICKABLE_KEY) {
             skipNextSyncRef.current.pickable = true;
-            setPickableMap(
-              row.value && typeof row.value === "object" ? (row.value as PickableMap) : {}
-            );
+            setPickableMap(value && typeof value === "object" ? (value as PickableMap) : {});
           } else if (row.key === CSV_META_KEY) {
             skipNextSyncRef.current.csv = true;
-            const meta = (row.value ?? {}) as { name?: string };
+            const meta = (value ?? {}) as { name?: string };
             setCsvName(meta.name ?? null);
           }
         }
@@ -107,6 +122,7 @@ export function InventoryDiscrepancies() {
 
   const persist = async (key: string, value: unknown) => {
     setSyncing(true);
+    ownWriteRef.current[key] = Date.now();
     const { error: upErr } = await supabase
       .from("app_storage")
       .upsert({ key, value: value as never, updated_at: new Date().toISOString() }, { onConflict: "key" });

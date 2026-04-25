@@ -3,6 +3,11 @@ import { ScanLine, X, ChevronRight, Info, Upload, ArrowUp, ArrowDown, ArrowUpDow
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { parseCSVLine } from "@/lib/csvParser";
+import { supabase } from "@/integrations/supabase/client";
+
+const ENTRIES_KEY = "inventory_entries";
+const PICKABLE_KEY = "inventory_pickable_map";
+const CSV_META_KEY = "inventory_csv_meta";
 
 const PB_REGEX = /^PB\.\d+$/;
 

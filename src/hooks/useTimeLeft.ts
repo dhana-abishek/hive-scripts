@@ -152,11 +152,19 @@ export function calcTimeLeft(now: Date = new Date()): number {
   const lunchEnd = parseHM(shift.lunchEnd);
   const lunchDur = Math.max(0, lunchEnd - lunchStart);
 
-  // Before shift starts or after shift ends, fall back to a full shift length so
-  // headcount math doesn't divide by zero.
-  if (nowFrac < start || nowFrac >= end) return 8;
+  const totalShift = Math.max(0, (end - start - lunchDur) * 24);
+  const oneHour = 3600 / 86400;
 
-  const totalShift = (end - start - lunchDur) * 24;
+  // After shift ends, fall back to a full 8h so headcount math doesn't collapse.
+  if (nowFrac >= end) return 8;
+
+  // From 1 hour before shift start until the shift starts, surface the actual
+  // shift length so planners see the real day ahead. Earlier than that, keep
+  // the 8h fallback.
+  if (nowFrac < start) {
+    return nowFrac >= start - oneHour ? totalShift : 8;
+  }
+
   let elapsed: number;
   if (nowFrac < lunchStart) elapsed = (nowFrac - start) * 24;
   else if (nowFrac < lunchEnd) elapsed = (lunchStart - start) * 24;

@@ -13,6 +13,7 @@ import { ActualSPH } from "@/components/ActualSPH";
 import { Reports } from "@/components/Reports";
 import { ForecastManagement, ForecastAccuracy } from "@/components/ForecastManagement";
 import { Hacks } from "@/components/Hacks";
+import { ShiftEditor } from "@/components/ShiftEditor";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { useMetabaseData, buildFlowData } from "@/hooks/useMetabaseData";
 import { useManualBenchmarks, mergeManualRates } from "@/hooks/useManualBenchmarks";
@@ -232,6 +233,7 @@ function Dashboard() {
               {isLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
               Refresh
             </button>
+            <ShiftEditor />
             {lastUpdated && (
               <span className="text-xs text-muted-foreground hidden sm:inline">
                 Updated {lastUpdated.toLocaleTimeString()}

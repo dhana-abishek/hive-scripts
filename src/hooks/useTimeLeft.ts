@@ -152,10 +152,9 @@ export function calcTimeLeft(now: Date = new Date()): number {
   const lunchEnd = parseHM(shift.lunchEnd);
   const lunchDur = Math.max(0, lunchEnd - lunchStart);
 
-  if (nowFrac < start) {
-    return Math.max(0, (end - start - lunchDur) * 24);
-  }
-  if (nowFrac >= end) return 0;
+  // Before shift starts or after shift ends, fall back to a full shift length so
+  // headcount math doesn't divide by zero.
+  if (nowFrac < start || nowFrac >= end) return 8;
 
   const totalShift = (end - start - lunchDur) * 24;
   let elapsed: number;
@@ -163,9 +162,7 @@ export function calcTimeLeft(now: Date = new Date()): number {
   else if (nowFrac < lunchEnd) elapsed = (lunchStart - start) * 24;
   else elapsed = (lunchStart - start) * 24 + (nowFrac - lunchEnd) * 24;
 
-  const remaining = Math.max(0, totalShift - elapsed);
-  // Preserve previous behaviour: if shift hasn't started or has ended, surface 8 so HC math doesn't collapse
-  return remaining > 0 ? remaining : (nowFrac >= end ? 8 : remaining);
+  return Math.max(0, totalShift - elapsed);
 }
 
 /**

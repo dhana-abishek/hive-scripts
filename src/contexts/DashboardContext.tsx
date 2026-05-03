@@ -10,6 +10,8 @@ const PACK_UPLOADS_KEY = "packBenchmarkUploads";
 const PACK_ACTIVE_KEY = "packBenchmarkActiveId";
 const INFLOW_ENABLED_KEY = "inflowEnabled";
 const OVERNIGHT_VOLUMES_KEY = "overnightVolumes";
+const BACKLOG_KEY = "plannedBacklog";
+const EXTRA_MERCHANTS_KEY = "perfExtraMerchants";
 
 interface DashboardState {
   nonProdHeadcount: number;
@@ -71,7 +73,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [nonProdHC_B, setNonProdHC_B_Raw] = useState(6);
   const [availableHC_A, setAvailableHC_A_Raw] = useState(0);
   const [availableHC_B, setAvailableHC_B_Raw] = useState(0);
-  const [extraMerchants, setExtraMerchants] = useState<ExtraMerchant[]>([]);
+  const [extraMerchants, setExtraMerchantsRaw] = useState<ExtraMerchant[]>([]);
   const [inflowEnabled, setInflowEnabledRaw] = useState(false);
   const [overnightVolumes, setOvernightVolumesRaw] = useState<Record<string, number>>({});
   const [restockCandidates, setRestockCandidatesRaw] = useState<Record<string, number>>({});
@@ -92,20 +94,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         idbGet<string>(PICK_ACTIVE_KEY),
         idbGet<BenchmarkUpload[]>(PACK_UPLOADS_KEY),
         idbGet<string>(PACK_ACTIVE_KEY),
-        idbGet<ExtraMerchant[]>("perfExtraMerchants"),
+        idbGet<ExtraMerchant[]>(EXTRA_MERCHANTS_KEY),
         idbGet<number>("availableHC_zoneA"),
         idbGet<number>("availableHC_zoneB"),
         idbGet<number>("nonProdHC_zoneA"),
         idbGet<number>("nonProdHC_zoneB"),
         idbGet<boolean>(INFLOW_ENABLED_KEY),
         idbGet<Record<string, number>>(OVERNIGHT_VOLUMES_KEY),
-        idbGet<Record<string, number>>("plannedBacklog"),
+        idbGet<Record<string, number>>(BACKLOG_KEY),
       ]);
       if (pu) setPickUploads(pu);
       if (pa) setPickActiveId(pa);
       if (pku) setPackUploads(pku);
       if (pka) setPackActiveId(pka);
-      if (em) setExtraMerchants(em);
+      if (em) setExtraMerchantsRaw(em);
       if (ahcA !== null) setAvailableHC_A_Raw(ahcA);
       if (ahcB !== null) setAvailableHC_B_Raw(ahcB);
       if (npA !== null) setNonProdHC_A_Raw(npA);
@@ -183,6 +185,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const setRestockCandidates = useCallback((candidates: Record<string, number>) => {
     setRestockCandidatesRaw(candidates);
+  }, []);
+
+  const setExtraMerchants = useCallback((m: ExtraMerchant[]) => {
+    setExtraMerchantsRaw(m);
+    void idbSet(EXTRA_MERCHANTS_KEY, m);
   }, []);
 
   const confirmRestockExclusion = useCallback(() => {
@@ -264,11 +271,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // Backlog handlers
   const handleBacklogChange = useCallback((updated: Record<string, number>) => {
     setBacklog(updated);
+    void idbSet(BACKLOG_KEY, updated);
   }, []);
 
   const handleResetBacklog = useCallback(() => {
     setBacklog({});
-    idbSet("plannedBacklog", {});
+    void idbSet(BACKLOG_KEY, {});
   }, []);
 
   const handleResetZoneBacklog = useCallback((zone: "A" | "B") => {
@@ -280,7 +288,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           updated[merchant] = 0;
         }
       }
-      idbSet("plannedBacklog", updated);
+      void idbSet(BACKLOG_KEY, updated);
       return updated;
     });
   }, []);
@@ -302,7 +310,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     pickUploads, pickActiveId, packUploads, packActiveId,
     backlog,
     setNonProdHC_A, setNonProdHC_B, setAvailableHC_A, setAvailableHC_B,
-    setInflowEnabled, setOvernightVolumes,
+    setExtraMerchants, setInflowEnabled, setOvernightVolumes,
     setRestockCandidates, confirmRestockExclusion, dismissRestockCandidates,
     handlePickNewUpload, handlePickSelect, handlePickRename, handlePickDelete,
     handlePackNewUpload, handlePackSelect, handlePackRename, handlePackDelete,

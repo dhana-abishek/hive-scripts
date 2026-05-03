@@ -9,8 +9,7 @@ import { AgingZoneView } from "@/components/AgingZoneView";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
 import { parseCSVLine, parseCSVHeaders } from "@/lib/csvParser";
-
-const MULTIPLIER = 1.125;
+import { BACKLOG_MULTIPLIER as MULTIPLIER } from "@/lib/constants";
 const STORAGE_KEY_CSV = "agingOrdersCsv";
 const STORAGE_KEY_BACKLOG = "agingOrdersBacklog";
 const STORAGE_KEY_START_DATE = "agingStartDate";

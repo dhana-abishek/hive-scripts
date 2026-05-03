@@ -19,6 +19,7 @@ import { useMetabaseData, buildFlowData } from "@/hooks/useMetabaseData";
 import { useManualBenchmarks, mergeManualRates } from "@/hooks/useManualBenchmarks";
 import { getInflowFactor } from "@/lib/inflowEstimation";
 import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
+import { BACKLOG_MULTIPLIER } from "@/lib/constants";
 
 const tabItems: { value: string; label: string; icon: LucideIcon }[] = [
   { value: "flow", label: "Flow Management", icon: Activity },
@@ -39,11 +40,9 @@ function Dashboard() {
     availableHC_A, setAvailableHC_A,
     availableHC_B, setAvailableHC_B,
     availableHeadcount,
-    extraMerchants, setExtraMerchants,
-    inflowEnabled, setInflowEnabled,
-    overnightVolumes, setOvernightVolumes,
-    restockCandidates, setRestockCandidates,
-    confirmRestockExclusion, dismissRestockCandidates,
+    extraMerchants,
+    inflowEnabled,
+    overnightVolumes,
     pickUploads, pickActiveId,
     handlePickNewUpload, handlePickSelect, handlePickRename, handlePickDelete,
     packUploads, packActiveId,
@@ -91,9 +90,8 @@ function Dashboard() {
         const key = m.name.toLowerCase();
         const pickRate = pickingRates[key];
         const packRate = packingRates[key];
-        const MULT = 1.125;
-        const pickHrs = pickRate && pickRate > 0 ? m.orderVolume / (pickRate * MULT) : 0;
-        const packHrs = packRate && packRate > 0 ? m.orderVolume / (packRate * MULT) : 0;
+        const pickHrs = pickRate && pickRate > 0 ? m.orderVolume / (pickRate * BACKLOG_MULTIPLIER) : 0;
+        const packHrs = packRate && packRate > 0 ? m.orderVolume / (packRate * BACKLOG_MULTIPLIER) : 0;
         const totalHrs = pickHrs + packHrs;
         const idealSph = totalHrs > 0 ? m.orderVolume / totalHrs : 0;
         return {
@@ -119,10 +117,9 @@ function Dashboard() {
         const key = r.merchant_name.toLowerCase();
         const pickRate = pickingRates[key];
         const packRate = packingRates[key];
-        const MULT = 1.125;
         if (pickRate && packRate && pickRate > 0 && packRate > 0) {
-          const pickHrs = newWaiting / (pickRate * MULT);
-          const packHrs = newVol / (packRate * MULT);
+          const pickHrs = newWaiting / (pickRate * BACKLOG_MULTIPLIER);
+          const packHrs = newVol / (packRate * BACKLOG_MULTIPLIER);
           const totalHrs = pickHrs + packHrs;
           return {
             ...r,
@@ -177,7 +174,6 @@ function Dashboard() {
   }, [mergedFlowData, pickingRates, packingRates]);
 
   const stats = useMemo(() => {
-    const MULTIPLIER = 1.125;
     let adjPickHrs = 0;
     let adjPackHrs = 0;
     let adjVolume = 0;
@@ -192,8 +188,8 @@ function Dashboard() {
       const packRate = packingRates[key];
       if (pickRate && packRate && pickRate > 0 && packRate > 0) {
         // Benchmarked: recalculate from rates
-        adjPickHrs += effWait / (pickRate * MULTIPLIER);
-        adjPackHrs += effVol / (packRate * MULTIPLIER);
+        adjPickHrs += effWait / (pickRate * BACKLOG_MULTIPLIER);
+        adjPackHrs += effVol / (packRate * BACKLOG_MULTIPLIER);
       } else {
         // Unbenchmarked: use the pre-calculated hours (based on weighted avg SPH)
         // Scale proportionally if backlog applies
@@ -226,11 +222,14 @@ function Dashboard() {
           </div>
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={refresh}
               disabled={isLoading}
+              aria-label={isLoading ? "Refreshing live data" : "Refresh live data"}
+              aria-busy={isLoading}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-border bg-secondary text-foreground hover:bg-accent transition-colors disabled:opacity-50"
             >
-              {isLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              {isLoading ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={12} aria-hidden="true" />}
               Refresh
             </button>
             <ShiftEditor />
@@ -239,8 +238,8 @@ function Dashboard() {
                 Updated {lastUpdated.toLocaleTimeString()}
               </span>
             )}
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <div className="flex items-center gap-2" role="status" aria-label="Live data connection">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" aria-hidden="true" />
               <span className="text-xs text-muted-foreground">Live</span>
             </div>
           </div>
@@ -249,7 +248,7 @@ function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {error && (
-          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
             Failed to fetch live data: {error}. Showing cached data.
           </div>
         )}
@@ -309,12 +308,20 @@ function Dashboard() {
               <TabsContent value="all" className="space-y-4">
                 <SummaryStats {...stats} nonProdHeadcount={nonProdHeadcount} onResetBacklog={handleResetBacklog} availableHeadcount={availableHeadcount} />
                 {isLoading && mergedFlowData.length === 0 ? (
-                  <div className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
-                    <Loader2 size={16} className="animate-spin" />
+                  <div role="status" aria-live="polite" className="rounded-md border bg-card p-12 flex items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 size={16} className="animate-spin" aria-hidden="true" />
                     <span className="text-sm">Loading live data from Metabase...</span>
                   </div>
                 ) : (
-                  <FlowManagementTable data={mergedFlowData} pickingRates={pickingRates} packingRates={packingRates} onBacklogChange={handleBacklogChange} externalBacklog={backlog} extraMerchants={extraMerchants} onExtraMerchantsChange={setExtraMerchants} inflowEnabled={inflowEnabled} onInflowToggle={setInflowEnabled} onInflowCsvParsed={setOvernightVolumes} overnightVolumes={overnightVolumes} restockCandidates={restockCandidates} onRestockCandidatesDetected={setRestockCandidates} onRestockConfirm={confirmRestockExclusion} onRestockDismiss={dismissRestockCandidates} availableHeadcount={availableHeadcount} unbenchmarkedMerchants={unbenchmarkedMerchants} manualBenchmarks={manualBenchmarks} onSetManualBenchmark={setMerchantBenchmark} onClearManualBenchmark={clearMerchantBenchmark} />
+                  <FlowManagementTable
+                    data={mergedFlowData}
+                    pickingRates={pickingRates}
+                    packingRates={packingRates}
+                    unbenchmarkedMerchants={unbenchmarkedMerchants}
+                    manualBenchmarks={manualBenchmarks}
+                    onSetManualBenchmark={setMerchantBenchmark}
+                    onClearManualBenchmark={clearMerchantBenchmark}
+                  />
                 )}
               </TabsContent>
               <TabsContent value="zoneA">

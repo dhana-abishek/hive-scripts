@@ -1,11 +1,10 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Copy, Check, FileText } from "lucide-react";
-import { cloudGet, cloudSet } from "@/lib/cloudStorage";
+import { cloudGet } from "@/lib/cloudStorage";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
 import { buildZoneLookup } from "@/data/zoneMappings";
 import { Input } from "@/components/ui/input";
-
-const MULTIPLIER = 1.125;
+import { BACKLOG_MULTIPLIER as MULTIPLIER } from "@/lib/constants";
 
 interface FlowRow {
   merchant_name: string;

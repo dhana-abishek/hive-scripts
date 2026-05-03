@@ -15,11 +15,11 @@ SPH, reports, and forecasts.
 - **State / Data:** TanStack Query, React Hook Form, Zod
 - **Backend:** Supabase (Postgres, Edge Functions)
 - **Testing:** Vitest, Testing Library, Playwright
-- **Tooling:** ESLint 9, TypeScript ESLint, Bun-compatible lockfile
+- **Tooling:** ESLint 9, TypeScript ESLint
 
 ## Prerequisites
 
-- Node.js 18+ (or Bun 1.x)
+- Node.js 18+
 - A Supabase project with the migrations in `supabase/migrations/` applied
 - Access to a Metabase instance exposing the CSV endpoint consumed by the
   `fetch-metabase-csv` edge function
@@ -28,7 +28,7 @@ SPH, reports, and forecasts.
 
 ```bash
 # 1. Install dependencies
-npm install        # or: bun install
+npm install
 
 # 2. Configure environment variables
 cp .env.example .env

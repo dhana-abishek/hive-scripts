@@ -166,12 +166,15 @@ export function AgingBaskets() {
       );
     }
     return result.sort((a, b) => {
-      const av = (a as any)[sortKey];
-      const bv = (b as any)[sortKey];
-      if (typeof av === "string") {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (typeof av === "string" && typeof bv === "string") {
         return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
       }
-      return sortDir === "asc" ? av - bv : bv - av;
+      if (typeof av === "number" && typeof bv === "number") {
+        return sortDir === "asc" ? av - bv : bv - av;
+      }
+      return 0;
     });
   }, [rawData, uploadedAt, thresholdHours, search, sortKey, sortDir, zoneFilter]);
 

@@ -2,6 +2,13 @@
 // Drop-in replacement for idbStorage with the same API
 
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
+
+// Round-trip serialise so non-JSON values (Date, undefined, functions, class
+// instances) fail loudly here instead of producing silent corruption server-side.
+function toJson(value: unknown): Json {
+  return JSON.parse(JSON.stringify(value)) as Json;
+}
 
 export async function cloudGet<T>(key: string): Promise<T | null> {
   try {
@@ -26,7 +33,7 @@ export async function cloudSet(key: string, value: unknown): Promise<void> {
   try {
     const { error } = await supabase
       .from("app_storage")
-      .upsert({ key, value: value as any, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      .upsert({ key, value: toJson(value), updated_at: new Date().toISOString() }, { onConflict: "key" });
     if (error) console.warn(`[cloudStorage] Failed to set key "${key}":`, error.message);
   } catch (err) {
     console.warn(`[cloudStorage] Unexpected error setting key "${key}":`, err);

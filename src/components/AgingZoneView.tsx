@@ -7,8 +7,7 @@ import { StatCard } from "@/components/SummaryStats";
 import { zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 import { useZoneOverrides } from "@/hooks/useZoneOverrides";
 import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
-
-const MULTIPLIER = 1.125;
+import { BACKLOG_MULTIPLIER as MULTIPLIER } from "@/lib/constants";
 
 const zoneAHCGroups: string[][] = [
   ["Horl", "ela mo", "MagicHolz", "Hydraid"],

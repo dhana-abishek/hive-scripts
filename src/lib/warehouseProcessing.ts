@@ -1,6 +1,5 @@
 import type { BenchmarkEntry } from "@/types/warehouse";
-
-const MULTIPLIER = 1.125;
+import { BACKLOG_MULTIPLIER as MULTIPLIER } from "@/lib/constants";
 
 /**
  * Replicates pick1/pack1: dedup raw data by key columns

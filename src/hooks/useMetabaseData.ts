@@ -1,17 +1,26 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { z } from "zod";
 import { pickingBenchmarks as defaultPickingBenchmarks, packingBenchmarks as defaultPackingBenchmarks } from "@/data/warehouseData";
 import { calculateFlowManagement, buildLookup } from "@/lib/warehouseProcessing";
 import type { BenchmarkEntry } from "@/types/warehouse";
 import { parseCSVLine } from "@/lib/csvParser";
 
 import { supabase } from "@/integrations/supabase/client";
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+import {
+  METABASE_REFRESH_INTERVAL_MS,
+  METABASE_REFRESH_JITTER_MS,
+  METABASE_RETRY_BASE_MS,
+  METABASE_RETRY_MAX_MS,
+} from "@/lib/constants";
 
-export interface MerchantAgg {
-  merchant_name: string;
-  order_volume: number;
-  waiting_for_picking: number;
-}
+const MerchantAggSchema = z.object({
+  merchant_name: z.string().min(1),
+  order_volume: z.number().int().nonnegative().finite(),
+  waiting_for_picking: z.number().int().nonnegative().finite(),
+});
+const MerchantAggListSchema = z.array(MerchantAggSchema).min(1);
+
+export type MerchantAgg = z.infer<typeof MerchantAggSchema>;
 
 function parseCSV(text: string): MerchantAgg[] {
   const lines = text.trim().split("\n");
@@ -62,12 +71,23 @@ export interface MetabaseDataResult {
   refresh: () => void;
 }
 
+async function readEdgeText(data: unknown): Promise<string> {
+  if (typeof data === "string") return data;
+  if (data instanceof Blob) return data.text();
+  if (data && typeof data === "object" && "text" in data && typeof (data as { text: unknown }).text === "function") {
+    return (data as { text: () => Promise<string> }).text();
+  }
+  throw new Error("Unexpected edge function payload");
+}
+
 export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customPacking?: BenchmarkEntry[] | null): MetabaseDataResult {
   const [rawMerchants, setRawMerchants] = useState<MerchantAgg[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const failureCountRef = useRef(0);
+  const cancelledRef = useRef(false);
 
   const pickLookup = useMemo(() => buildLookup(customPicking ?? defaultPickingBenchmarks), [customPicking]);
   const packLookup = useMemo(() => buildLookup(customPacking ?? defaultPackingBenchmarks), [customPacking]);
@@ -80,24 +100,45 @@ export function useMetabaseData(customPicking?: BenchmarkEntry[] | null, customP
       const { data, error: fnError } = await supabase.functions.invoke("fetch-metabase-csv");
       if (fnError) throw new Error(fnError.message || "Edge function error");
 
-      const text = typeof data === "string" ? data : await data.text();
-      const merchants = parseCSV(text);
-
-      if (merchants.length === 0) {
-        throw new Error("No data returned from Metabase");
-      }
+      const text = await readEdgeText(data);
+      const parsed = parseCSV(text);
+      const merchants = MerchantAggListSchema.parse(parsed);
 
       setRawMerchants(merchants);
       setLastUpdated(new Date());
+      failureCountRef.current = 0;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch data");
+      failureCountRef.current += 1;
+      if (err instanceof z.ZodError) {
+        setError(`Invalid Metabase response: ${err.issues[0]?.message ?? "schema mismatch"}`);
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to fetch data");
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
+    cancelledRef.current = false;
+    const tick = async () => {
+      await fetchData();
+      if (cancelledRef.current) return;
+      // Successful runs poll at the steady refresh interval; failures back off
+      // exponentially up to METABASE_RETRY_MAX_MS to avoid hammering a degraded
+      // edge function. Jitter prevents synchronised stampedes across clients.
+      const failures = failureCountRef.current;
+      const base = failures === 0
+        ? METABASE_REFRESH_INTERVAL_MS
+        : Math.min(METABASE_RETRY_BASE_MS * 2 ** (failures - 1), METABASE_RETRY_MAX_MS);
+      const jitter = Math.random() * METABASE_REFRESH_JITTER_MS;
+      timeoutRef.current = setTimeout(tick, base + jitter);
+    };
+    void tick();
+    return () => {
+      cancelledRef.current = true;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [fetchData]);
 
   const flowData = useMemo(

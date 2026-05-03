@@ -101,6 +101,29 @@ describe("calculateFlowManagement", () => {
     const result = calculateFlowManagement(merchants, { testmerch: 0 }, { testmerch: 20 });
     expect(result).toHaveLength(0);
   });
+
+  it("filters out merchants with negative rates", () => {
+    const result = calculateFlowManagement(merchants, { testmerch: -5 }, { testmerch: 20 });
+    expect(result).toHaveLength(0);
+  });
+
+  it("returns ideal_sph of 0 when total hours collapse to zero", () => {
+    const zeroVolume = [{ merchant_name: "Empty", order_volume: 0, waiting_for_picking: 0 }];
+    const result = calculateFlowManagement(zeroVolume, { empty: 40 }, { empty: 20 });
+    expect(result).toHaveLength(1);
+    expect(result[0].ideal_sph).toBe(0);
+    expect(result[0].picking_hours).toBe(0);
+    expect(result[0].packing_hours).toBe(0);
+  });
+
+  it("is case-insensitive when matching merchant names against rate lookups", () => {
+    const result = calculateFlowManagement(
+      [{ merchant_name: "MixedCase", order_volume: 100, waiting_for_picking: 100 }],
+      { mixedcase: 40 },
+      { mixedcase: 20 },
+    );
+    expect(result).toHaveLength(1);
+  });
 });
 
 describe("buildLookup", () => {

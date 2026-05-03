@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { cloudGet, cloudSet, cloudRemove } from "@/lib/cloudStorage";
+import { cloudGet, cloudSet } from "@/lib/cloudStorage";
 import { supabase } from "@/integrations/supabase/client";
 
 // ---------- Shift configuration ----------

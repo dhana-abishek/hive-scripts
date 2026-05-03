@@ -41,7 +41,7 @@ function parseCSVRow(row: string): string[] {
 }
 
 function findCol(headers: string[], ...candidates: string[]): number {
-  const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]/g, "");
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_-]/g, "");
   return headers.findIndex((h) =>
     candidates.some((c) => norm(h).includes(norm(c)))
   );

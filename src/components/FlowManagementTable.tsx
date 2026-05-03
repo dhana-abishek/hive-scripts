@@ -1,6 +1,5 @@
-import { useState, useMemo, useCallback, useEffect, useRef, Fragment as FragmentWithKey } from "react";
+import { useState, useMemo, useCallback, useRef, Fragment as FragmentWithKey } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, X, TrendingUp, Upload, Wand2, AlertTriangle } from "lucide-react";
-import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getInflowFactor, parseOvernightVolumes } from "@/lib/inflowEstimation";
@@ -8,12 +7,10 @@ import { useTimeLeft } from "@/hooks/useTimeLeft";
 import { getZoneGroups } from "@/data/zoneMappings";
 import { useZoneOverrides } from "@/hooks/useZoneOverrides";
 import { toast } from "@/hooks/use-toast";
+import { useDashboard } from "@/contexts/DashboardContext";
 import type { ExtraMerchant } from "@/components/PerformanceTracker";
 import type { ManualBenchmarks } from "@/hooks/useManualBenchmarks";
-
-const MULTIPLIER = 1.125;
-const BACKLOG_KEY = "plannedBacklog";
-const EXTRA_MERCHANTS_KEY = "perfExtraMerchants";
+import { BACKLOG_MULTIPLIER } from "@/lib/constants";
 
 interface FlowManagementTableProps {
   data: {
@@ -26,19 +23,6 @@ interface FlowManagementTableProps {
   }[];
   pickingRates?: Record<string, number>;
   packingRates?: Record<string, number>;
-  onBacklogChange?: (backlog: Record<string, number>) => void;
-  externalBacklog?: Record<string, number>;
-  extraMerchants?: ExtraMerchant[];
-  onExtraMerchantsChange?: (merchants: ExtraMerchant[]) => void;
-  inflowEnabled?: boolean;
-  onInflowToggle?: (enabled: boolean) => void;
-  onInflowCsvParsed?: (overnightVolumes: Record<string, number>) => void;
-  overnightVolumes?: Record<string, number>;
-  restockCandidates?: Record<string, number>;
-  onRestockCandidatesDetected?: (candidates: Record<string, number>) => void;
-  onRestockConfirm?: () => void;
-  onRestockDismiss?: () => void;
-  availableHeadcount?: number;
   unbenchmarkedMerchants?: Set<string>;
   manualBenchmarks?: ManualBenchmarks;
   onSetManualBenchmark?: (merchantName: string, pick: number | null, pack: number | null) => void | Promise<void>;
@@ -47,7 +31,30 @@ interface FlowManagementTableProps {
 
 type SortKey = "merchant_name" | "order_volume" | "planned_backlog" | "waiting_for_picking" | "picking_hours" | "packing_hours" | "ideal_sph";
 
-export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}, onBacklogChange, externalBacklog, extraMerchants = [], onExtraMerchantsChange, inflowEnabled = false, onInflowToggle, onInflowCsvParsed, overnightVolumes = {}, restockCandidates = {}, onRestockCandidatesDetected, onRestockConfirm, onRestockDismiss, availableHeadcount = 0, unbenchmarkedMerchants = new Set(), manualBenchmarks = {}, onSetManualBenchmark, onClearManualBenchmark }: FlowManagementTableProps) {
+export function FlowManagementTable({
+  data,
+  pickingRates = {},
+  packingRates = {},
+  unbenchmarkedMerchants = new Set(),
+  manualBenchmarks = {},
+  onSetManualBenchmark,
+  onClearManualBenchmark,
+}: FlowManagementTableProps) {
+  const {
+    backlog,
+    handleBacklogChange,
+    extraMerchants,
+    setExtraMerchants,
+    inflowEnabled,
+    setInflowEnabled,
+    overnightVolumes,
+    setOvernightVolumes,
+    restockCandidates,
+    setRestockCandidates,
+    confirmRestockExclusion,
+    dismissRestockCandidates,
+    availableHeadcount,
+  } = useDashboard();
   const timeLeft = useTimeLeft();
   const { lookup: zoneLookup, assign: assignZone } = useZoneOverrides();
   const [assignZoneFor, setAssignZoneFor] = useState<Record<string, "A" | "B">>({});
@@ -55,12 +62,30 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
   const [sortKey, setSortKey] = useState<SortKey>("order_volume");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [search, setSearch] = useState("");
-  const [backlog, setBacklog] = useState<Record<string, number>>({});
   const [editingMerchant, setEditingMerchant] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [bmEditingMerchant, setBmEditingMerchant] = useState<string | null>(null);
   const [bmPickValue, setBmPickValue] = useState("");
   const [bmPackValue, setBmPackValue] = useState("");
+  const inflowFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleInflowCsv = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      if (!text) return;
+      const { volumes, restockCandidates: detected } = parseOvernightVolumes(text);
+      setOvernightVolumes(volumes);
+      if (Object.keys(detected).length > 0) {
+        setRestockCandidates(detected);
+      }
+      setInflowEnabled(true);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, [setOvernightVolumes, setRestockCandidates, setInflowEnabled]);
 
   const startBmEdit = (merchant: string) => {
     const key = merchant.toLowerCase();
@@ -102,22 +127,6 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
   const [newMerchantName, setNewMerchantName] = useState("");
   const [newMerchantVolume, setNewMerchantVolume] = useState("");
 
-  useEffect(() => {
-    idbGet<Record<string, number>>(BACKLOG_KEY).then((v) => { if (v) setBacklog(v); });
-  }, []);
-
-  useEffect(() => {
-    if (externalBacklog !== undefined) {
-      setBacklog(externalBacklog);
-    }
-  }, [externalBacklog]);
-
-  const saveBacklog = useCallback((updated: Record<string, number>) => {
-    setBacklog(updated);
-    idbSet(BACKLOG_KEY, updated);
-    onBacklogChange?.(updated);
-  }, [onBacklogChange]);
-
   const handleStartEdit = (merchant: string) => {
     setEditingMerchant(merchant);
     setEditValue(String(backlog[merchant] || 0));
@@ -126,28 +135,23 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
   const handleCommitEdit = () => {
     if (!editingMerchant) return;
     const val = Math.max(0, parseInt(editValue, 10) || 0);
-    const updated = { ...backlog, [editingMerchant]: val };
-    saveBacklog(updated);
+    handleBacklogChange({ ...backlog, [editingMerchant]: val });
     setEditingMerchant(null);
   };
 
-  const addExtraMerchant = useCallback(async () => {
+  const addExtraMerchant = useCallback(() => {
     const name = newMerchantName.trim();
     const volume = parseInt(newMerchantVolume);
     if (!name || !volume || volume <= 0) return;
     const entry: ExtraMerchant = { id: crypto.randomUUID(), name, orderVolume: volume };
-    const updated = [...extraMerchants, entry];
-    await idbSet(EXTRA_MERCHANTS_KEY, updated);
-    onExtraMerchantsChange?.(updated);
+    setExtraMerchants([...extraMerchants, entry]);
     setNewMerchantName("");
     setNewMerchantVolume("");
-  }, [extraMerchants, newMerchantName, newMerchantVolume, onExtraMerchantsChange]);
+  }, [extraMerchants, newMerchantName, newMerchantVolume, setExtraMerchants]);
 
-  const removeExtraMerchant = useCallback(async (id: string) => {
-    const updated = extraMerchants.filter((m) => m.id !== id);
-    await idbSet(EXTRA_MERCHANTS_KEY, updated);
-    onExtraMerchantsChange?.(updated);
-  }, [extraMerchants, onExtraMerchantsChange]);
+  const removeExtraMerchant = useCallback((id: string) => {
+    setExtraMerchants(extraMerchants.filter((m) => m.id !== id));
+  }, [extraMerchants, setExtraMerchants]);
 
   const adjustedData = useMemo(() => {
     return data.map((row) => {
@@ -164,8 +168,8 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
       let idealSph = row.ideal_sph;
 
       if (bl > 0 && pickRate && packRate && pickRate > 0 && packRate > 0) {
-        pickHrs = effectiveWaiting / (pickRate * MULTIPLIER);
-        packHrs = effectiveVolume / (packRate * MULTIPLIER);
+        pickHrs = effectiveWaiting / (pickRate * BACKLOG_MULTIPLIER);
+        packHrs = effectiveVolume / (packRate * BACKLOG_MULTIPLIER);
         const totalHrs = pickHrs + packHrs;
         idealSph = totalHrs > 0 ? effectiveVolume / totalHrs : 0;
         pickHrs = Math.round(pickHrs * 100) / 100;
@@ -249,8 +253,8 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
     for (const s of suggestions) {
       updated[s.merchant_name] = s.suggestedBacklog;
     }
-    saveBacklog(updated);
-  }, [suggestions, backlog, saveBacklog]);
+    handleBacklogChange(updated);
+  }, [suggestions, backlog, handleBacklogChange]);
 
   const filtered = useMemo(() => {
     let result = adjustedData;
@@ -318,8 +322,13 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
             {extraMerchants.map((m) => (
               <span key={m.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary border border-border">
                 {m.name}: {m.orderVolume.toLocaleString()}
-                <button onClick={() => removeExtraMerchant(m.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                  <X size={12} />
+                <button
+                  type="button"
+                  onClick={() => removeExtraMerchant(m.id)}
+                  aria-label={`Remove ${m.name}`}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X size={12} aria-hidden="true" />
                 </button>
               </span>
             ))}
@@ -331,32 +340,14 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
         <div className="flex items-center gap-3 pt-2 border-t border-border/50">
           {(() => {
             const { factor, label } = getInflowFactor();
-            const fileInputRef = useRef<HTMLInputElement>(null);
-            const handleInflowCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                const text = ev.target?.result as string;
-                if (!text) return;
-                const { volumes, restockCandidates: detected } = parseOvernightVolumes(text);
-                onInflowCsvParsed?.(volumes);
-                if (Object.keys(detected).length > 0) {
-                  onRestockCandidatesDetected?.(detected);
-                }
-                onInflowToggle?.(true);
-              };
-              reader.readAsText(file);
-              e.target.value = "";
-            };
             return (
               <>
-                <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleInflowCsv} />
+                <input ref={inflowFileInputRef} type="file" accept=".csv" className="hidden" onChange={handleInflowCsv} />
                 {inflowEnabled ? (
                   <Button
                     size="sm"
                     variant="default"
-                    onClick={() => { onInflowToggle?.(false); onInflowCsvParsed?.({}); }}
+                    onClick={() => { setInflowEnabled(false); setOvernightVolumes({}); }}
                     className="h-8 px-3 text-xs gap-1.5"
                   >
                     <TrendingUp size={12} />
@@ -366,7 +357,7 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => inflowFileInputRef.current?.click()}
                     className="h-8 px-3 text-xs gap-1.5"
                   >
                     <Upload size={12} />
@@ -415,10 +406,10 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
               ))}
             </div>
             <div className="flex gap-2 pt-0.5">
-              <Button size="sm" variant="default" onClick={onRestockConfirm} className="h-7 px-3 text-xs gap-1.5">
+              <Button size="sm" variant="default" onClick={confirmRestockExclusion} className="h-7 px-3 text-xs gap-1.5">
                 Exclude Restock Orders
               </Button>
-              <Button size="sm" variant="outline" onClick={onRestockDismiss} className="h-7 px-3 text-xs gap-1.5">
+              <Button size="sm" variant="outline" onClick={dismissRestockCandidates} className="h-7 px-3 text-xs gap-1.5">
                 Keep All Orders
               </Button>
             </div>
@@ -605,10 +596,11 @@ export function FlowManagementTable({ data, pickingRates = {}, packingRates = {}
                         <button
                           type="button"
                           onClick={() => clearBm(row.merchant_name)}
+                          aria-label={`Clear manual benchmark for ${row.merchant_name}`}
                           className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-secondary hover:bg-destructive hover:text-destructive-foreground hover:border-destructive text-muted-foreground transition-colors shrink-0"
                           title="Clear manual benchmark — revert to weighted-avg"
                         >
-                          ×
+                          <span aria-hidden="true">×</span>
                         </button>
                       )}
                     </div>

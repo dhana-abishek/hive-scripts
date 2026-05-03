@@ -6,9 +6,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parse, isWithinInterval, isSameDay } from "date-fns";
-import { buildZoneLookup } from "@/data/zoneMappings";
 import { StatCard } from "@/components/SummaryStats";
 import { cloudGet, cloudSet } from "@/lib/cloudStorage";
+import { BACKLOG_MULTIPLIER as MULTIPLIER } from "@/lib/constants";
 
 const FORECAST_DATA_KEY = "forecastData";
 
@@ -23,8 +23,6 @@ interface StoredForecastData {
   dateFrom?: string;
   dateTo?: string;
 }
-
-const MULTIPLIER = 1.125;
 
 interface ForecastRow {
   date: Date;
@@ -43,8 +41,6 @@ interface AggregatedRow {
 }
 
 type SortKey = "merchant_name" | "total_forecast" | "ideal_sph" | "hc_needed";
-
-const zoneLookup = buildZoneLookup();
 
 function getShiftHours(date: Date): number {
   const day = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
@@ -104,7 +100,7 @@ function parseForecastCsv(text: string): ForecastRow[] {
 
 function ForecastTable({
   data,
-  title,
+  title: _title,
 }: {
   data: AggregatedRow[];
   title: string;

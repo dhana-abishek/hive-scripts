@@ -376,7 +376,7 @@ export function InventoryDiscrepancies() {
     </thead>
     <tbody>${rows}</tbody>
   </table>
-  <script>window.onload = () => { window.focus(); window.print(); };<\/script>
+  <script>window.onload = () => { window.focus(); window.print(); };${"<"}/script>
 </body>
 </html>`;
 

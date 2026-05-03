@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useTimeLeft } from "@/hooks/useTimeLeft";
 import { RotateCcw, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,8 @@ import { StatCard } from "@/components/SummaryStats";
 import { Input } from "@/components/ui/input";
 import { zoneAGroups, zoneBGroups } from "@/data/zoneMappings";
 import { useZoneOverrides } from "@/hooks/useZoneOverrides";
-import { cloudGet as idbGet, cloudSet as idbSet } from "@/lib/cloudStorage";
-
-const MULTIPLIER = 1.125;
+import { cloudSet as idbSet } from "@/lib/cloudStorage";
+import { BACKLOG_MULTIPLIER as MULTIPLIER } from "@/lib/constants";
 
 // HC grouping for Zone A: merchants in the same group share a single combined HC value
 const zoneAHCGroups: string[][] = [

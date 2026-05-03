@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Use npm; ignore alternate package-manager lockfiles
+bun.lock
+bun.lockb
+yarn.lock
+pnpm-lock.yaml
+
 # Environment variables
 .env
 .env.local

@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Upload, Trash2, TrendingUp, BarChart3, Gauge, Search } from "lucide-react";
 import { cloudGet as idbGet, cloudSet as idbSet, cloudRemove as idbRemove } from "@/lib/cloudStorage";
@@ -9,7 +10,6 @@ import { WorkerTable } from "@/components/WorkerTable";
 
 const PICK_CSV_KEY = "perfPickingCsv";
 const PACK_CSV_KEY = "perfPackingCsv";
-const EXTRA_MERCHANTS_KEY = "perfExtraMerchants";
 
 export interface ExtraMerchant {
   id: string;
@@ -127,7 +127,7 @@ function computeMerchantPerf(
   return { picking, packing };
 }
 
-function PerfStatCard({ title, value, subtitle, icon: Icon, color }: { title: string; value: string; subtitle?: string; icon: any; color: string }) {
+function PerfStatCard({ title, value, subtitle, icon: Icon, color }: { title: string; value: string; subtitle?: string; icon: React.ComponentType<{ size?: number; className?: string }>; color: string }) {
   return (
     <div className="rounded-lg border bg-card p-4 space-y-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
